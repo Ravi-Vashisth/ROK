@@ -3,7 +3,24 @@ import 'package:sqlite3/sqlite3.dart';
 
 import '../../../core/database/database_provider.dart';
 import '../../../core/utils/id_generator.dart';
+import '../../../core/utils/money_utils.dart';
+import '../models/invoice_item.dart';
 import '../models/invoice_record.dart';
+
+/// Lightweight representation of an in-memory draft line item before committing to SQLite.
+class DraftItem {
+  final String description;
+  final int unitPriceCents;
+  final int quantity;
+  final int totalCents;
+
+  const DraftItem({
+    required this.description,
+    required this.unitPriceCents,
+    required this.quantity,
+    required this.totalCents,
+  });
+}
 
 class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
   final Database _db;
@@ -39,34 +56,80 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     return 'INV-${nextNumber.toString().padLeft(4, '0')}';
   }
 
+  /// Fetches all line items associated with a specific invoice.
+  List<InvoiceItem> getInvoiceItems(String invoiceId) {
+    final ResultSet results = _db.select(
+      'SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY rowid ASC',
+      [invoiceId],
+    );
+    return results.map((row) => InvoiceItem.fromRow(row)).toList();
+  }
+
+  /// Commits an invoice and all its line items within an atomic SQLite transaction.
   void saveInvoice({
     required String clientId,
-    required int subtotalCents,
-    required int taxCents,
-    required int totalCents,
+    required List<DraftItem> items,
+    required int taxPercentage,
   }) {
-    final id = generateUniqueId();
+    if (items.isEmpty) {
+      throw ArgumentError('Cannot save an invoice with no line items.');
+    }
+
+    final invoiceId = generateUniqueId();
     final invoiceNumber = getNextInvoiceNumber();
     final createdAt = DateTime.now().toUtc().toIso8601String();
     const status = 'PAID';
 
-    final stmt = _db.prepare('''
-      INSERT INTO invoices (
-        id, client_id, invoice_number, subtotal_cents, tax_cents, total_cents, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''');
+    final subtotalCents = items.fold<int>(0, (sum, item) => sum + item.totalCents);
+    final taxCents = calculateTaxCents(subtotalCents, taxPercentage);
+    final totalCents = subtotalCents + taxCents;
 
-    stmt.execute([
-      id,
-      clientId,
-      invoiceNumber,
-      subtotalCents,
-      taxCents,
-      totalCents,
-      status,
-      createdAt,
-    ]);
-    stmt.dispose();
+    // Atomic SQLite Transaction
+    _db.execute('BEGIN TRANSACTION;');
+    try {
+      // 1. Insert master invoice record
+      final invoiceStmt = _db.prepare('''
+        INSERT INTO invoices (
+          id, client_id, invoice_number, subtotal_cents, tax_cents, total_cents, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ''');
+      invoiceStmt.execute([
+        invoiceId,
+        clientId,
+        invoiceNumber,
+        subtotalCents,
+        taxCents,
+        totalCents,
+        status,
+        createdAt,
+      ]);
+      invoiceStmt.dispose();
+
+      // 2. Insert line items
+      final itemStmt = _db.prepare('''
+        INSERT INTO invoice_items (
+          id, invoice_id, description, quantity, unit_price_cents, total_cents, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ''');
+      for (final item in items) {
+        final itemId = generateUniqueId();
+        itemStmt.execute([
+          itemId,
+          invoiceId,
+          item.description,
+          item.quantity,
+          item.unitPriceCents,
+          item.totalCents,
+          createdAt,
+        ]);
+      }
+      itemStmt.dispose();
+
+      _db.execute('COMMIT;');
+    } catch (e) {
+      _db.execute('ROLLBACK;');
+      rethrow;
+    }
 
     loadInvoices();
   }

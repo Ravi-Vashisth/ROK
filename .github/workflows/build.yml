@@ -41,7 +41,7 @@ jobs:
           Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath billing_app_windows.zip
 
       - name: Upload Windows Executable Artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: billing-app-windows-x64
           path: billing_app_windows.zip
@@ -81,7 +81,7 @@ jobs:
         run: flutter build apk --release
 
       - name: Upload Android APK Artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: billing-app-android
           path: build/app/outputs/flutter-apk/app-release.apk

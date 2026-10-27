@@ -1,26 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/theme/app_theme.dart';
+import 'core/theme/theme_provider.dart';
 import 'features/billing/presentation/billing_dashboard_screen.dart';
 
-class BillingDesktopApp extends StatelessWidget {
+class BillingDesktopApp extends ConsumerWidget {
   const BillingDesktopApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+    final accentColor = ref.watch(accentColorProvider);
+
     return MaterialApp(
       title: 'Local Billing',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
-          brightness: Brightness.light,
-        ),
-        inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(),
-          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        ),
-      ),
+      theme: AppTheme.lightTheme(seed: accentColor),
+      darkTheme: AppTheme.darkTheme(seed: accentColor),
+      themeMode: themeMode,
       home: const BillingDashboardScreen(),
     );
   }

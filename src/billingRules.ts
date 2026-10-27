@@ -9,6 +9,13 @@ export interface InvoiceCalculation {
   totalCents: number;
 }
 
+export interface LineItemDraft {
+  description: string;
+  unitPriceCents: number;
+  quantity: number;
+  totalCents: number;
+}
+
 /**
  * Parses user input price (e.g. "15.50" or "$15.50") into integer cents without float imprecision.
  */
@@ -26,11 +33,7 @@ export function parsePriceToCents(input: string): number {
 }
 
 /**
- * Calculates Subtotal, Tax, and Total strictly in integer cents.
- * Formula:
- *  - Subtotal = price_cents * quantity
- *  - Tax = (subtotal * tax_percentage + 50) ~/ 100 (integer round-half-up)
- *  - Total = subtotal + tax
+ * Calculates Subtotal, Tax, and Total strictly in integer cents for a single item.
  */
 export function calculateInvoice(
   priceCents: number,
@@ -38,8 +41,22 @@ export function calculateInvoice(
   taxPercentage: number
 ): InvoiceCalculation {
   const safeQty = Math.max(1, Math.floor(quantity));
-  const safeTax = Math.max(0, Math.floor(taxPercentage));
   const subtotalCents = priceCents * safeQty;
+  return calculateCartTotals(subtotalCents, taxPercentage);
+}
+
+/**
+ * Calculates Subtotal, Tax, and Total strictly in integer cents for multi-line items.
+ * Formula:
+ *  - Subtotal = sum of items' total_cents
+ *  - Tax = (subtotal * tax_percentage + 50) ~/ 100 (integer round-half-up)
+ *  - Total = subtotal + tax
+ */
+export function calculateCartTotals(
+  subtotalCents: number,
+  taxPercentage: number
+): InvoiceCalculation {
+  const safeTax = Math.max(0, Math.floor(taxPercentage));
   // Integer round-half-up: (subtotal * taxPercentage + 50) ~/ 100
   const taxCents = Math.floor((subtotalCents * safeTax + 50) / 100);
   const totalCents = subtotalCents + taxCents;

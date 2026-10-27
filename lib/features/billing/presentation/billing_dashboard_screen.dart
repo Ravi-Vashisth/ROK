@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/money_utils.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_provider.dart';
+import '../../business_profile/presentation/business_profile_dialog.dart';
 import '../../clients/providers/clients_provider.dart';
 import '../../invoices/providers/invoices_provider.dart';
 import 'widgets/client_selection_card.dart';
@@ -17,20 +19,11 @@ class BillingDashboardScreen extends ConsumerStatefulWidget {
 
 class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen> {
   final _newClientController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _quantityController = TextEditingController(text: '1');
-  final _taxPercentageController = TextEditingController(text: '10');
-
   String? _selectedClientId;
 
   @override
   void dispose() {
     _newClientController.dispose();
-    _descriptionController.dispose();
-    _priceController.dispose();
-    _quantityController.dispose();
-    _taxPercentageController.dispose();
     super.dispose();
   }
 
@@ -54,7 +47,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
     );
   }
 
-  void _handleSaveInvoice() {
+  void _handleSaveInvoice(List<DraftItem> items, int taxPercentage) {
     if (_selectedClientId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select or add a client first.')),
@@ -62,51 +55,112 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
       return;
     }
 
-    final priceCents = parsePriceToCents(_priceController.text);
-    if (priceCents <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid price.')),
-      );
-      return;
-    }
-
-    final quantity = int.tryParse(_quantityController.text.trim()) ?? 1;
-    if (quantity <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Quantity must be at least 1.')),
-      );
-      return;
-    }
-
-    final taxPercentage = int.tryParse(_taxPercentageController.text.trim()) ?? 0;
-    final subtotalCents = priceCents * quantity;
-    final taxCents = calculateTaxCents(subtotalCents, taxPercentage);
-    final totalCents = subtotalCents + taxCents;
-
     ref.read(invoicesProvider.notifier).saveInvoice(
           clientId: _selectedClientId!,
-          subtotalCents: subtotalCents,
-          taxCents: taxCents,
-          totalCents: totalCents,
+          items: items,
+          taxPercentage: taxPercentage,
         );
 
-    _descriptionController.clear();
-    _priceController.clear();
-    _quantityController.text = '1';
-
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Invoice saved locally! Total: ${formatCents(totalCents)}')),
+      SnackBar(content: Text('Invoice saved locally with ${items.length} line item(s)!')),
     );
+  }
+
+  IconData _getThemeModeIcon(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.system:
+        return Icons.brightness_auto;
+      case ThemeMode.light:
+        return Icons.light_mode;
+      case ThemeMode.dark:
+        return Icons.dark_mode;
+    }
+  }
+
+  String _getThemeModeTooltip(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.system:
+        return 'Theme: System Auto (click to switch to Light)';
+      case ThemeMode.light:
+        return 'Theme: Light Mode (click to switch to Dark)';
+      case ThemeMode.dark:
+        return 'Theme: Dark Mode (click to switch to System)';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final nextInvoiceNumber = ref.watch(invoicesProvider.notifier).getNextInvoiceNumber();
+    final themeMode = ref.watch(themeModeProvider);
+    final currentAccent = ref.watch(accentColorProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Local Billing (Offline Desktop Skeleton)'),
-        elevation: 1,
+        elevation: 0,
+        actions: [
+          // Business Profile & Payment Details Settings Dialog
+          IconButton(
+            tooltip: 'Business Profile & Payment Details',
+            icon: const Icon(Icons.business_outlined),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => const BusinessProfileDialog(),
+              );
+            },
+          ),
+
+          // Accent Color Palette Picker
+          PopupMenuButton<Color>(
+            tooltip: 'Accent Color',
+            icon: Icon(Icons.palette_outlined, color: currentAccent),
+            onSelected: (color) {
+              ref.read(accentColorProvider.notifier).setAccentColor(color);
+            },
+            itemBuilder: (context) {
+              return AppTheme.presetAccents.map((color) {
+                final isSelected = color.value == currentAccent.value;
+                return PopupMenuItem<Color>(
+                  value: color,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        _getColorName(color),
+                        style: TextStyle(
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                      if (isSelected) ...[
+                        const Spacer(),
+                        const Icon(Icons.check, size: 16),
+                      ],
+                    ],
+                  ),
+                );
+              }).toList();
+            },
+          ),
+
+          // Theme Mode Toggle (System -> Light -> Dark)
+          IconButton(
+            tooltip: _getThemeModeTooltip(themeMode),
+            icon: Icon(_getThemeModeIcon(themeMode)),
+            onPressed: () {
+              ref.read(themeModeProvider.notifier).cycleThemeMode();
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -121,13 +175,8 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
             ),
             const SizedBox(height: 20),
             InvoiceInputsCard(
-              descriptionController: _descriptionController,
-              priceController: _priceController,
-              quantityController: _quantityController,
-              taxPercentageController: _taxPercentageController,
-              onSaveInvoice: _handleSaveInvoice,
-              onValuesChanged: () => setState(() {}),
               nextInvoiceNumber: nextInvoiceNumber,
+              onSaveInvoice: _handleSaveInvoice,
             ),
             const SizedBox(height: 24),
             const OfflineInvoicesList(),
@@ -135,5 +184,15 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
         ),
       ),
     );
+  }
+
+  String _getColorName(Color color) {
+    if (color == const Color(0xFF4F46E5)) return 'Indigo';
+    if (color == const Color(0xFF059669)) return 'Emerald';
+    if (color == const Color(0xFF2563EB)) return 'Royal Blue';
+    if (color == const Color(0xFFE11D48)) return 'Rose';
+    if (color == const Color(0xFFD97706)) return 'Amber';
+    if (color == const Color(0xFF475569)) return 'Slate';
+    return 'Custom';
   }
 }
