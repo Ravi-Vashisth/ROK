@@ -3,7 +3,7 @@ name: Build Desktop & Mobile Apps
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch: # Allows you to manually click "Run" anytime
+  workflow_dispatch: # Allows you to manually click "Run workflow"
 
 jobs:
   # =========================================================================
@@ -23,11 +23,15 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Enable Windows Desktop Support
+        run: flutter config --enable-windows-desktop
+
+      # THIS STEP CREATES THE MISSING WINDOWS FOLDER AUTOMATICALLY
+      - name: Generate Windows Scaffolding
+        run: flutter create --platforms=windows .
+
       - name: Install Dependencies
         run: flutter pub get
-
-      - name: Enable Windows Desktop
-        run: flutter config --enable-windows-desktop
 
       - name: Build Windows Executable
         run: flutter build windows --release
@@ -44,7 +48,7 @@ jobs:
           retention-days: 7
 
   # =========================================================================
-  # 2. BUILD ANDROID .APK (Bonus: Test on your phone too)
+  # 2. BUILD ANDROID .APK
   # =========================================================================
   build-android:
     name: Build Android Release (.apk)
@@ -65,6 +69,10 @@ jobs:
         with:
           channel: 'stable'
           cache: true
+
+      # THIS STEP CREATES THE MISSING ANDROID FOLDER AUTOMATICALLY
+      - name: Generate Android Scaffolding
+        run: flutter create --platforms=android .
 
       - name: Install Dependencies
         run: flutter pub get
