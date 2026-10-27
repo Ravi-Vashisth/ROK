@@ -5,7 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:sqlite3/sqlite3.dart';
+
+// Resolved collision: Hide 'Row' from sqlite3 so Flutter's UI Row widget works unambiguously,
+// and import sqlite3's Row as 'sql.Row' for database models.
+import 'package:sqlite3/sqlite3.dart' hide Row;
+import 'package:sqlite3/sqlite3.dart' as sql show Row;
 
 // =============================================================================
 // DOMAIN MODELS & FINANCIAL HELPERS (Strict Integer Cents)
@@ -22,7 +26,7 @@ class Client {
     required this.createdAt,
   });
 
-  factory Client.fromRow(Row row) {
+  factory Client.fromRow(sql.Row row) {
     return Client(
       id: row['id'] as String,
       name: row['name'] as String,
@@ -54,7 +58,7 @@ class InvoiceRecord {
     required this.createdAt,
   });
 
-  factory InvoiceRecord.fromRow(Row row) {
+  factory InvoiceRecord.fromRow(sql.Row row) {
     return InvoiceRecord(
       id: row['id'] as String,
       clientId: row['client_id'] as String,
@@ -300,7 +304,6 @@ class BillingDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen> {
-  // Form Controllers
   final _newClientController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
@@ -326,7 +329,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
     ref.read(clientsProvider.notifier).addClient(name);
     _newClientController.clear();
 
-    // Auto-select the newly added client if only 1 client or select the matching one
     final clients = ref.read(clientsProvider);
     final found = clients.where((c) => c.name == name);
     if (found.isNotEmpty) {
@@ -366,10 +368,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
 
     final taxPercentage = int.tryParse(_taxPercentageController.text.trim()) ?? 0;
 
-    // Strict integer calculations as mandated:
-    // Subtotal = price_cents * quantity
-    // Tax = (subtotal * tax_percentage + 50) ~/ 100 (integer round-half-up)
-    // Total = subtotal + tax
     final subtotalCents = priceCents * quantity;
     final taxCents = (subtotalCents * taxPercentage + 50) ~/ 100;
     final totalCents = subtotalCents + taxCents;
@@ -381,7 +379,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
           totalCents: totalCents,
         );
 
-    // Reset fields for the next invoice entry
     _descriptionController.clear();
     _priceController.clear();
     _quantityController.text = '1';
@@ -396,7 +393,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
     final clients = ref.watch(clientsProvider);
     final invoices = ref.watch(invoicesProvider);
 
-    // Live preview calculations for transparency
     final livePriceCents = parsePriceToCents(_priceController.text);
     final liveQuantity = int.tryParse(_quantityController.text.trim()) ?? 1;
     final liveTaxPercentage = int.tryParse(_taxPercentageController.text.trim()) ?? 0;
@@ -414,7 +410,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Section 1: Client Management
+            // 1. Client Selection Card
             Card(
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -481,7 +477,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
 
             const SizedBox(height: 20),
 
-            // Section 2: Invoice Creation
+            // 2. Invoice Inputs Card
             Card(
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -508,7 +504,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                             controller: _descriptionController,
                             decoration: const InputDecoration(
                               labelText: 'Item Description',
-                              hintText: 'e.g. Software Consultation',
                             ),
                           ),
                         ),
@@ -533,7 +528,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
                               labelText: 'Quantity',
-                              hintText: '1',
                             ),
                             onChanged: (_) => setState(() {}),
                           ),
@@ -546,7 +540,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
                               labelText: 'Tax %',
-                              hintText: '10',
                             ),
                             onChanged: (_) => setState(() {}),
                           ),
@@ -579,7 +572,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
 
             const SizedBox(height: 24),
 
-            // Section 3: Offline Invoices List
+            // 3. Offline Invoices List
             Text(
               'Offline Invoices (${invoices.length})',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
