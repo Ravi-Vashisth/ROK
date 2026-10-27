@@ -1,0 +1,6 @@
+{
+  "name": "Offline Billing Foundation",
+  "description": "Minimal, 100% offline foundational walking-skeleton for billing with local SQLite storage, integer currency calculations, and Flutter desktop code export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
