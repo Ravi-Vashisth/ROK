@@ -46,7 +46,6 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
       text: '${exp.year}-${exp.month.toString().padLeft(2, '0')}-${exp.day.toString().padLeft(2, '0')}',
     );
 
-    // Pre-populate demo proposal line items if cart empty
     _cartItems.addAll(const [
       DraftItem(description: 'System Architecture Proposal', unitPriceCents: 12000, quantity: 1, totalCents: 12000),
       DraftItem(description: 'UI/UX Design Mockups', unitPriceCents: 8000, quantity: 1, totalCents: 8000),
@@ -135,7 +134,6 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
             ),
             const SizedBox(height: 16),
 
-            // Line items entry row
             Row(
               children: [
                 Expanded(
@@ -203,7 +201,7 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
                         children: [
                           Text(formatCents(item.totalCents, symbol: sym), style: const TextStyle(fontWeight: FontWeight.bold)),
                           IconButton(
-                            icon: const Icon(Icons.close, size: 16, color: Colors.rose),
+                            icon: const Icon(Icons.close, size: 16, color: Colors.red),
                             onPressed: () => _removeCartItem(index),
                           ),
                         ],
@@ -246,7 +244,7 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.slate.shade100,
+                color: const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(

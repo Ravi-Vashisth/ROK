@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../clients/models/client.dart';
 import '../../../clients/providers/clients_provider.dart';
 
-class ClientSelectionCard extends StatefulWidget {
+class ClientSelectionCard extends ConsumerStatefulWidget {
   final TextEditingController newClientController;
   final TextEditingController emailController;
   final TextEditingController phoneController;
@@ -27,10 +27,10 @@ class ClientSelectionCard extends StatefulWidget {
   });
 
   @override
-  State<ClientSelectionCard> createState() => _ClientSelectionCardState();
+  ConsumerState<ClientSelectionCard> createState() => _ClientSelectionCardState();
 }
 
-class _ClientSelectionCardState extends State<ClientSelectionCard> {
+class _ClientSelectionCardState extends ConsumerState<ClientSelectionCard> {
   bool _showAdvancedDetails = false;
 
   @override
@@ -86,7 +86,6 @@ class _ClientSelectionCardState extends State<ClientSelectionCard> {
             ),
             const SizedBox(height: 12),
 
-            // Main Client Inputs Row
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -134,7 +133,6 @@ class _ClientSelectionCardState extends State<ClientSelectionCard> {
               ],
             ),
 
-            // Optional Advanced Billing Details (Email, Phone, Address, Tax ID)
             if (_showAdvancedDetails) ...[
               const SizedBox(height: 14),
               Container(
@@ -201,7 +199,6 @@ class _ClientSelectionCardState extends State<ClientSelectionCard> {
               ),
             ],
 
-            // Selected Client Details Confirmation Badge
             if (selectedClient != null) ...[
               const SizedBox(height: 12),
               Container(

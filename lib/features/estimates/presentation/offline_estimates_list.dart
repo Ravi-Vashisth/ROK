@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 import '../../../core/utils/money_utils.dart';
 import '../../billing/services/invoice_pdf_service.dart';
 import '../../business_profile/providers/business_profile_provider.dart';
+import '../../clients/models/client.dart';
 import '../../clients/providers/clients_provider.dart';
 import '../models/estimate_record.dart';
 import '../providers/estimates_provider.dart';
@@ -80,16 +81,16 @@ class OfflineEstimatesList extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: isConverted ? Colors.emerald.shade50 : Colors.amber.shade50,
+                            color: isConverted ? Colors.green.shade50 : Colors.amber.shade50,
                             borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: isConverted ? Colors.emerald.shade300 : Colors.amber.shade300),
+                            border: Border.all(color: isConverted ? Colors.green.shade300 : Colors.amber.shade300),
                           ),
                           child: Text(
                             est.status,
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: isConverted ? Colors.emerald.shade800 : Colors.amber.shade900,
+                              color: isConverted ? Colors.green.shade800 : Colors.amber.shade900,
                             ),
                           ),
                         ),
@@ -106,7 +107,7 @@ class OfflineEstimatesList extends ConsumerWidget {
                           children: [
                             if (!isConverted)
                               FilledButton.icon(
-                                style: FilledButton.styleFrom(backgroundColor: Colors.emerald, foregroundColor: Colors.white),
+                                style: FilledButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
                                 icon: const Icon(Icons.receipt_long, size: 16),
                                 label: const Text('Convert to Invoice', style: TextStyle(fontSize: 12)),
                                 onPressed: () {

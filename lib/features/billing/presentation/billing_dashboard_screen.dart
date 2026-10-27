@@ -165,13 +165,13 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                   height: 200,
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.slate.shade900,
+                    color: const Color(0xFF0F172A),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: SingleChildScrollView(
                     child: SelectableText(
                       csvString,
-                      style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: Colors.emeraldAccent),
+                      style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: Color(0xFF6EE7B7)),
                     ),
                   ),
                 ),
@@ -234,14 +234,11 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
         title: const Text('Local Billing & Quotes System'),
         elevation: 0,
         actions: [
-          // Export Accountant CSV Button
           IconButton(
             tooltip: 'Export Accountant CSV',
             icon: const Icon(Icons.file_download_outlined),
             onPressed: _handleExportCsv,
           ),
-
-          // Business Profile & Payment Details Settings Dialog
           IconButton(
             tooltip: 'Business Profile & Currency Settings',
             icon: const Icon(Icons.business_outlined),
@@ -252,8 +249,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
               );
             },
           ),
-
-          // Accent Color Palette Picker
           PopupMenuButton<Color>(
             tooltip: 'Accent Color',
             icon: Icon(Icons.palette_outlined, color: currentAccent),
@@ -287,8 +282,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
               }).toList();
             },
           ),
-
-          // Theme Mode Toggle
           IconButton(
             tooltip: _getThemeModeTooltip(themeMode),
             icon: Icon(_getThemeModeIcon(themeMode)),
@@ -304,7 +297,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Client Selection / Entry Card (Shared across Invoices and Estimates)
             ClientSelectionCard(
               newClientController: _newClientController,
               emailController: _emailController,
@@ -316,8 +308,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
               onAddClient: _handleAddClient,
             ),
             const SizedBox(height: 20),
-
-            // Navigation Segment Bar: Invoices vs Estimates / Quotes
             SegmentedButton<int>(
               segments: const [
                 ButtonSegment<int>(
@@ -337,7 +327,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
               },
             ),
             const SizedBox(height: 20),
-
             if (_selectedTab == 0) ...[
               InvoiceInputsCard(
                 nextInvoiceNumber: nextInvoiceNumber,

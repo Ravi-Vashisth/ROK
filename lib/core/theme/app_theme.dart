@@ -2,9 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const seedColor = Color(0xFF4F46E5); // Modern Indigo
+  static const Color seedColor = Color(0xFF4F46E5); // Modern Indigo
 
-  // Preset Accent Palette for customization
   static const List<Color> presetAccents = [
     Color(0xFF4F46E5), // Indigo
     Color(0xFF059669), // Emerald
@@ -14,24 +13,27 @@ class AppTheme {
     Color(0xFF475569), // Slate
   ];
 
-  static TextTheme _withTabularFigures(TextTheme base) {
-    const tabular = [FontFeature.tabularFigures()];
+  static const double borderRadius = 12.0;
+  static final BorderRadius geometryRadius = BorderRadius.circular(borderRadius);
+
+  static TextTheme _applyTabularFigures(TextTheme base) {
+    const fontFeatures = [FontFeature.tabularFigures()];
     return base.copyWith(
-      displayLarge: base.displayLarge?.copyWith(fontFeatures: tabular),
-      displayMedium: base.displayMedium?.copyWith(fontFeatures: tabular),
-      displaySmall: base.displaySmall?.copyWith(fontFeatures: tabular),
-      headlineLarge: base.headlineLarge?.copyWith(fontFeatures: tabular),
-      headlineMedium: base.headlineMedium?.copyWith(fontFeatures: tabular),
-      headlineSmall: base.headlineSmall?.copyWith(fontFeatures: tabular),
-      titleLarge: base.titleLarge?.copyWith(fontFeatures: tabular),
-      titleMedium: base.titleMedium?.copyWith(fontFeatures: tabular),
-      titleSmall: base.titleSmall?.copyWith(fontFeatures: tabular),
-      bodyLarge: base.bodyLarge?.copyWith(fontFeatures: tabular),
-      bodyMedium: base.bodyMedium?.copyWith(fontFeatures: tabular),
-      bodySmall: base.bodySmall?.copyWith(fontFeatures: tabular),
-      labelLarge: base.labelLarge?.copyWith(fontFeatures: tabular),
-      labelMedium: base.labelMedium?.copyWith(fontFeatures: tabular),
-      labelSmall: base.labelSmall?.copyWith(fontFeatures: tabular),
+      displayLarge: base.displayLarge?.copyWith(fontFeatures: fontFeatures),
+      displayMedium: base.displayMedium?.copyWith(fontFeatures: fontFeatures),
+      displaySmall: base.displaySmall?.copyWith(fontFeatures: fontFeatures),
+      headlineLarge: base.headlineLarge?.copyWith(fontFeatures: fontFeatures),
+      headlineMedium: base.headlineMedium?.copyWith(fontFeatures: fontFeatures),
+      headlineSmall: base.headlineSmall?.copyWith(fontFeatures: fontFeatures),
+      titleLarge: base.titleLarge?.copyWith(fontFeatures: fontFeatures),
+      titleMedium: base.titleMedium?.copyWith(fontFeatures: fontFeatures),
+      titleSmall: base.titleSmall?.copyWith(fontFeatures: fontFeatures),
+      bodyLarge: base.bodyLarge?.copyWith(fontFeatures: fontFeatures),
+      bodyMedium: base.bodyMedium?.copyWith(fontFeatures: fontFeatures),
+      bodySmall: base.bodySmall?.copyWith(fontFeatures: fontFeatures),
+      labelLarge: base.labelLarge?.copyWith(fontFeatures: fontFeatures),
+      labelMedium: base.labelMedium?.copyWith(fontFeatures: fontFeatures),
+      labelSmall: base.labelSmall?.copyWith(fontFeatures: fontFeatures),
     );
   }
 
@@ -41,49 +43,44 @@ class AppTheme {
       brightness: Brightness.light,
     );
 
-    return ThemeData(
-      useMaterial3: true,
+    final baseTheme = ThemeData.light(useMaterial3: true);
+
+    return baseTheme.copyWith(
       colorScheme: colorScheme,
-      textTheme: _withTabularFigures(ThemeData.light().textTheme),
-      scaffoldBackgroundColor: const Color(0xFFF8FAFC), // Slate 50
-      cardTheme: CardTheme(
+      textTheme: _applyTabularFigures(baseTheme.textTheme),
+      cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.6)),
+          borderRadius: geometryRadius,
+          side: BorderSide(color: colorScheme.outlineVariant, width: 1),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outline),
-        ),
+        border: OutlineInputBorder(borderRadius: geometryRadius),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: geometryRadius,
           borderSide: BorderSide(color: colorScheme.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: geometryRadius,
           borderSide: BorderSide(color: colorScheme.primary, width: 2),
         ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: geometryRadius),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: geometryRadius),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
       ),
-      dialogTheme: const DialogTheme(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(14)),
-        ),
+      dialogTheme: DialogThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -92,56 +89,50 @@ class AppTheme {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: seed,
       brightness: Brightness.dark,
-      surface: const Color(0xFF0F172A), // Slate 900
+      surface: const Color(0xFF0F172A),
     );
 
-    return ThemeData(
-      useMaterial3: true,
+    final baseTheme = ThemeData.dark(useMaterial3: true);
+
+    return baseTheme.copyWith(
       colorScheme: colorScheme,
-      textTheme: _withTabularFigures(ThemeData.dark().textTheme),
-      scaffoldBackgroundColor: const Color(0xFF0B0F19), // Deep Slate
-      cardTheme: CardTheme(
-        elevation: 0,
+      scaffoldBackgroundColor: const Color(0xFF020617),
+      textTheme: _applyTabularFigures(baseTheme.textTheme),
+      cardTheme: CardThemeData(
         color: const Color(0xFF0F172A),
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: const Color(0xFF1E293B)),
+          borderRadius: geometryRadius,
+          side: BorderSide(color: colorScheme.outlineVariant.withAlpha(80), width: 1),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        fillColor: const Color(0xFF0A0F1D),
-        filled: true,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF334155)),
-        ),
+        border: OutlineInputBorder(borderRadius: geometryRadius),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF1E293B)),
+          borderRadius: geometryRadius,
+          borderSide: BorderSide(color: colorScheme.outlineVariant.withAlpha(80)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: geometryRadius,
           borderSide: BorderSide(color: colorScheme.primary, width: 2),
         ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: geometryRadius),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: geometryRadius),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
       ),
-      dialogTheme: const DialogTheme(
-        backgroundColor: Color(0xFF0F172A),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(14)),
-        ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: const Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }

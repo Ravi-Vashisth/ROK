@@ -26,10 +26,10 @@ Future<Database> openLocalDatabase() async {
   ''');
 
   for (final col in [
-    'email TEXT DEFAULT \'\'',
-    'phone TEXT DEFAULT \'\'',
-    'address TEXT DEFAULT \'\'',
-    'tax_id TEXT DEFAULT \'\'',
+    "email TEXT DEFAULT ''",
+    "phone TEXT DEFAULT ''",
+    "address TEXT DEFAULT ''",
+    "tax_id TEXT DEFAULT ''",
   ]) {
     try {
       db.execute('ALTER TABLE clients ADD COLUMN $col;');
@@ -55,9 +55,9 @@ Future<Database> openLocalDatabase() async {
   ''');
 
   for (final col in [
-    'issue_date TEXT NOT NULL DEFAULT \'\'',
-    'due_date TEXT NOT NULL DEFAULT \'\'',
-    'payment_terms TEXT NOT NULL DEFAULT \'Due on Receipt\'',
+    "issue_date TEXT NOT NULL DEFAULT ''",
+    "due_date TEXT NOT NULL DEFAULT ''",
+    "payment_terms TEXT NOT NULL DEFAULT 'Due on Receipt'",
   ]) {
     try {
       db.execute('ALTER TABLE invoices ADD COLUMN $col;');
@@ -93,7 +93,7 @@ Future<Database> openLocalDatabase() async {
   ''');
 
   try {
-    db.execute('ALTER TABLE business_profile ADD COLUMN currency_symbol TEXT DEFAULT \'$\';');
+    db.execute('ALTER TABLE business_profile ADD COLUMN currency_symbol TEXT DEFAULT \'\\$\';');
   } catch (_) {}
 
   // Seed default business profile record
