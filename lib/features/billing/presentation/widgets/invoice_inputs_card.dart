@@ -5,7 +5,13 @@ import '../../../invoices/providers/invoices_provider.dart';
 
 class InvoiceInputsCard extends StatefulWidget {
   final String nextInvoiceNumber;
-  final void Function(List<DraftItem> items, int taxPercentage) onSaveInvoice;
+  final void Function({
+    required List<DraftItem> items,
+    required int taxPercentage,
+    required String paymentTerms,
+    required String issueDate,
+    required String dueDate,
+  }) onSaveInvoice;
 
   const InvoiceInputsCard({
     super.key,
@@ -22,8 +28,26 @@ class _InvoiceInputsCardState extends State<InvoiceInputsCard> {
   final _priceController = TextEditingController();
   final _quantityController = TextEditingController(text: '1');
   final _taxPercentageController = TextEditingController(text: '10');
+  late final TextEditingController _issueDateController;
 
+  String _paymentTerms = 'Due on Receipt';
   final List<DraftItem> _draftItems = [];
+
+  static const List<String> _termsOptions = [
+    'Due on Receipt',
+    'Net 15 Days',
+    'Net 30 Days',
+    'Net 60 Days',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _issueDateController = TextEditingController(
+      text: '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
+    );
+  }
 
   @override
   void dispose() {
@@ -31,7 +55,26 @@ class _InvoiceInputsCardState extends State<InvoiceInputsCard> {
     _priceController.dispose();
     _quantityController.dispose();
     _taxPercentageController.dispose();
+    _issueDateController.dispose();
     super.dispose();
+  }
+
+  String _calculateDueDate() {
+    final issueText = _issueDateController.text.trim();
+    DateTime issue;
+    try {
+      issue = DateTime.parse(issueText);
+    } catch (_) {
+      issue = DateTime.now();
+    }
+
+    int days = 0;
+    if (_paymentTerms == 'Net 15 Days') days = 15;
+    if (_paymentTerms == 'Net 30 Days') days = 30;
+    if (_paymentTerms == 'Net 60 Days') days = 60;
+
+    final due = issue.add(Duration(days: days));
+    return '${due.year}-${due.month.toString().padLeft(2, '0')}-${due.day.toString().padLeft(2, '0')}';
   }
 
   void _handleAddLineItem() {
@@ -89,7 +132,16 @@ class _InvoiceInputsCardState extends State<InvoiceInputsCard> {
     }
 
     final taxPercentage = int.tryParse(_taxPercentageController.text.trim()) ?? 0;
-    widget.onSaveInvoice(List.from(_draftItems), taxPercentage);
+    final issueDate = _issueDateController.text.trim();
+    final dueDate = _calculateDueDate();
+
+    widget.onSaveInvoice(
+      items: List.from(_draftItems),
+      taxPercentage: taxPercentage,
+      paymentTerms: _paymentTerms,
+      issueDate: issueDate,
+      dueDate: dueDate,
+    );
 
     setState(() {
       _draftItems.clear();
@@ -102,6 +154,7 @@ class _InvoiceInputsCardState extends State<InvoiceInputsCard> {
     final taxPercentage = int.tryParse(_taxPercentageController.text.trim()) ?? 0;
     final taxCents = calculateTaxCents(subtotalCents, taxPercentage);
     final totalCents = subtotalCents + taxCents;
+    final computedDueDate = _calculateDueDate();
 
     return Card(
       elevation: 0,
@@ -119,7 +172,7 @@ class _InvoiceInputsCardState extends State<InvoiceInputsCard> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '2. Invoice Line Items (Cart)',
+                  '2. Invoice Line Items & Payment Terms',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -135,6 +188,89 @@ class _InvoiceInputsCardState extends State<InvoiceInputsCard> {
               ],
             ),
             const SizedBox(height: 14),
+
+            // Payment Terms & Issue Date Row
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: _issueDateController,
+                    decoration: const InputDecoration(
+                      labelText: 'Issue Date (YYYY-MM-DD)',
+                      prefixIcon: Icon(Icons.calendar_today, size: 18),
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 3,
+                  child: DropdownButtonFormField<String>(
+                    value: _paymentTerms,
+                    decoration: const InputDecoration(
+                      labelText: 'Payment Terms',
+                      prefixIcon: Icon(Icons.timer_outlined, size: 18),
+                    ),
+                    items: _termsOptions.map((terms) {
+                      return DropdownMenuItem<String>(
+                        value: terms,
+                        child: Text(terms),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() => _paymentTerms = val);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 3,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Theme.of(context).dividerColor),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.event_available,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Computed Due Date:',
+                                style: TextStyle(fontSize: 10, color: Colors.grey),
+                              ),
+                              Text(
+                                computedDueDate,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
 
             // Item Input Row
             Row(

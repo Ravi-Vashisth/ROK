@@ -12,10 +12,9 @@ jobs:
   build-windows:
     name: Build Windows Release (.exe)
     runs-on: windows-latest
-
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -41,7 +40,7 @@ jobs:
           Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath billing_app_windows.zip
 
       - name: Upload Windows Executable Artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: billing-app-windows-x64
           path: billing_app_windows.zip
@@ -53,10 +52,9 @@ jobs:
   build-android:
     name: Build Android Release (.apk)
     runs-on: ubuntu-24.04
-
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -81,8 +79,8 @@ jobs:
         run: flutter build apk --release
 
       - name: Upload Android APK Artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: billing-app-android
           path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 7
+          retention-days: 7

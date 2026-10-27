@@ -18,6 +18,7 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
             taxId: 'US-EIN-987654321',
             paymentDetails:
                 'Bank: Silicon Valley Bank\nAccount: 987654321098\nRouting / SWIFT: SVB12345\nPayPal / UPI: pay@studio.com',
+            currencySymbol: '\$',
           ),
         ) {
     _loadProfile();
@@ -32,7 +33,7 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
         state = BusinessProfile.fromRow(result.first);
       }
     } catch (_) {
-      // In case table is still initializing or during tests, keep default state
+      // Fallback if table initializing
     }
   }
 
@@ -43,6 +44,7 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
     required String address,
     required String taxId,
     required String paymentDetails,
+    String currencySymbol = '\$',
   }) {
     _db.execute(
       '''
@@ -52,10 +54,11 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
           phone = ?,
           address = ?,
           tax_id = ?,
-          payment_details = ?
+          payment_details = ?,
+          currency_symbol = ?
       WHERE id = 'default';
       ''',
-      [businessName, email, phone, address, taxId, paymentDetails],
+      [businessName, email, phone, address, taxId, paymentDetails, currencySymbol],
     );
 
     state = state.copyWith(
@@ -65,6 +68,7 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
       address: address,
       taxId: taxId,
       paymentDetails: paymentDetails,
+      currencySymbol: currencySymbol,
     );
   }
 }

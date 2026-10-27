@@ -19,6 +19,9 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
   late final TextEditingController _addressController;
   late final TextEditingController _taxIdController;
   late final TextEditingController _paymentDetailsController;
+  late String _selectedCurrencySymbol;
+
+  static const List<String> _currencyPresets = ['\$', '€', '£', '₹', 'C\$', 'A\$', '¥'];
 
   @override
   void initState() {
@@ -30,6 +33,9 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     _addressController = TextEditingController(text: profile.address);
     _taxIdController = TextEditingController(text: profile.taxId);
     _paymentDetailsController = TextEditingController(text: profile.paymentDetails);
+    _selectedCurrencySymbol = _currencyPresets.contains(profile.currencySymbol)
+        ? profile.currencySymbol
+        : '\$';
   }
 
   @override
@@ -53,13 +59,14 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
           address: _addressController.text.trim(),
           taxId: _taxIdController.text.trim(),
           paymentDetails: _paymentDetailsController.text.trim(),
+          currencySymbol: _selectedCurrencySymbol,
         );
 
     Navigator.of(context).pop();
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Business profile & payment details saved to local SQLite.'),
+        content: Text('Business profile & currency settings saved to local SQLite.'),
       ),
     );
   }
@@ -73,7 +80,7 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Business Profile & Payment Details',
+              'Business Profile & Currency Settings',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
@@ -93,19 +100,48 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _businessNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Business / Studio Name *',
-                    hintText: 'e.g. My Freelance Studio',
-                    prefixIcon: Icon(Icons.storefront_outlined, size: 20),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your business or freelancer name';
-                    }
-                    return null;
-                  },
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextFormField(
+                        controller: _businessNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Business / Studio Name *',
+                          hintText: 'e.g. My Freelance Studio',
+                          prefixIcon: Icon(Icons.storefront_outlined, size: 20),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter your business or freelancer name';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedCurrencySymbol,
+                        decoration: const InputDecoration(
+                          labelText: 'Currency Symbol',
+                          prefixIcon: Icon(Icons.attach_money, size: 20),
+                        ),
+                        items: _currencyPresets.map((sym) {
+                          return DropdownMenuItem(
+                            value: sym,
+                            child: Text(sym, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _selectedCurrencySymbol = val);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Row(

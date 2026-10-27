@@ -1,0 +1,198 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqlite3/sqlite3.dart';
+
+import '../../../core/database/database_provider.dart';
+import '../../../core/utils/id_generator.dart';
+import '../../../core/utils/money_utils.dart';
+import '../../invoices/providers/invoices_provider.dart';
+import '../models/estimate_item.dart';
+import '../models/estimate_record.dart';
+
+class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
+  final Database _db;
+  final Ref _ref;
+
+  EstimatesNotifier(this._db, this._ref) : super([]) {
+    loadEstimates();
+  }
+
+  void loadEstimates() {
+    final ResultSet results = _db.select('''
+      SELECT 
+        e.id,
+        e.client_id,
+        c.name AS client_name,
+        e.estimate_number,
+        e.subtotal_cents,
+        e.tax_cents,
+        e.total_cents,
+        e.status,
+        e.issue_date,
+        e.expiry_date,
+        e.converted_invoice_id,
+        e.created_at
+      FROM estimates e
+      LEFT JOIN clients c ON e.client_id = c.id
+      ORDER BY e.created_at DESC
+    ''');
+
+    state = results.map((row) => EstimateRecord.fromRow(row)).toList();
+  }
+
+  String getNextEstimateNumber() {
+    final result = _db.select('SELECT COUNT(*) AS total FROM estimates');
+    final count = (result.first['total'] as int?) ?? 0;
+    final nextNumber = count + 1;
+    return 'EST-${nextNumber.toString().padLeft(4, '0')}';
+  }
+
+  List<EstimateItem> getEstimateItems(String estimateId) {
+    final ResultSet results = _db.select(
+      'SELECT * FROM estimate_items WHERE estimate_id = ? ORDER BY rowid ASC',
+      [estimateId],
+    );
+    return results.map((row) => EstimateItem.fromRow(row)).toList();
+  }
+
+  String saveEstimate({
+    required String clientId,
+    required List<DraftItem> items,
+    required int taxPercentage,
+    String? issueDate,
+    String? expiryDate,
+    String status = 'PENDING',
+  }) {
+    if (items.isEmpty) {
+      throw ArgumentError('Cannot save an estimate with no line items.');
+    }
+
+    final now = DateTime.now();
+    final todayStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    final effectiveIssueDate = (issueDate != null && issueDate.trim().isNotEmpty)
+        ? issueDate.trim()
+        : todayStr;
+
+    String effectiveExpiryDate = (expiryDate != null && expiryDate.trim().isNotEmpty)
+        ? expiryDate.trim()
+        : '';
+
+    if (effectiveExpiryDate.isEmpty) {
+      try {
+        final parsedIssue = DateTime.parse(effectiveIssueDate);
+        final exp = parsedIssue.add(const Duration(days: 30));
+        effectiveExpiryDate =
+            '${exp.year}-${exp.month.toString().padLeft(2, '0')}-${exp.day.toString().padLeft(2, '0')}';
+      } catch (_) {
+        effectiveExpiryDate = effectiveIssueDate;
+      }
+    }
+
+    final estimateId = generateUniqueId();
+    final estimateNumber = getNextEstimateNumber();
+    final createdAt = DateTime.now().toUtc().toIso8601String();
+
+    final subtotalCents = items.fold<int>(0, (sum, item) => sum + item.totalCents);
+    final taxCents = calculateTaxCents(subtotalCents, taxPercentage);
+    final totalCents = subtotalCents + taxCents;
+
+    _db.execute('BEGIN TRANSACTION;');
+    try {
+      final stmt = _db.prepare('''
+        INSERT INTO estimates (
+          id, client_id, estimate_number, subtotal_cents, tax_cents, total_cents,
+          status, issue_date, expiry_date, converted_invoice_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''');
+      stmt.execute([
+        estimateId,
+        clientId,
+        estimateNumber,
+        subtotalCents,
+        taxCents,
+        totalCents,
+        status,
+        effectiveIssueDate,
+        effectiveExpiryDate,
+        '',
+        createdAt,
+      ]);
+      stmt.dispose();
+
+      final itemStmt = _db.prepare('''
+        INSERT INTO estimate_items (
+          id, estimate_id, description, quantity, unit_price_cents, total_cents, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ''');
+      for (final item in items) {
+        final itemId = generateUniqueId();
+        itemStmt.execute([
+          itemId,
+          estimateId,
+          item.description,
+          item.quantity,
+          item.unitPriceCents,
+          item.totalCents,
+          createdAt,
+        ]);
+      }
+      itemStmt.dispose();
+
+      _db.execute('COMMIT;');
+    } catch (e) {
+      _db.execute('ROLLBACK;');
+      rethrow;
+    }
+
+    loadEstimates();
+    return estimateId;
+  }
+
+  void convertEstimateToInvoice(String estimateId) {
+    final estRes = _db.select('SELECT * FROM estimates WHERE id = ?', [estimateId]);
+    if (estRes.isEmpty) return;
+
+    final estRow = estRes.first;
+    final clientId = estRow['client_id'] as String;
+    final subtotalCents = estRow['subtotal_cents'] as int;
+    final taxCents = estRow['tax_cents'] as int;
+    int taxPercentage = 0;
+    if (subtotalCents > 0) {
+      taxPercentage = ((taxCents * 100) / subtotalCents).round();
+    }
+
+    final items = getEstimateItems(estimateId);
+    final draftItems = items
+        .map((it) => DraftItem(
+              description: it.description,
+              unitPriceCents: it.unitPriceCents,
+              quantity: it.quantity,
+              totalCents: it.totalCents,
+            ))
+        .toList();
+
+    final invoicesNotifier = _ref.read(invoicesProvider.notifier);
+    final invoiceId = invoicesNotifier.saveInvoice(
+      clientId: clientId,
+      items: draftItems,
+      taxPercentage: taxPercentage,
+    );
+
+    _db.execute(
+      "UPDATE estimates SET status = 'CONVERTED', converted_invoice_id = ? WHERE id = ?",
+      [invoiceId, estimateId],
+    );
+
+    loadEstimates();
+  }
+
+  void updateEstimateStatus(String estimateId, String newStatus) {
+    _db.execute('UPDATE estimates SET status = ? WHERE id = ?', [newStatus, estimateId]);
+    loadEstimates();
+  }
+}
+
+final estimatesProvider = StateNotifierProvider<EstimatesNotifier, List<EstimateRecord>>((ref) {
+  return EstimatesNotifier(ref.watch(databaseProvider), ref);
+});

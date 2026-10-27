@@ -4,8 +4,13 @@ import {
   parsePriceToCents,
   calculateInvoice,
   calculateCartTotals,
+  calculateBalance,
+  validatePaymentAmount,
+  resolveDynamicStatus,
   formatNextInvoiceNumber,
   formatCents,
+  calculateDueDate,
+  isInvoiceOverdue,
 } from './billingRules';
 
 test('parsePriceToCents converts decimal strings to exact integer cents', () => {
@@ -37,17 +42,63 @@ test('calculateInvoice applies strict integer round-half-up tax rule', () => {
 });
 
 test('calculateCartTotals calculates multi-line cart items sum and taxes correctly', () => {
-  // Line item 1: Consulting 2 hrs @ $100.00 = 20000 cents ($200.00)
-  // Line item 2: Hosting 1 yr @ $15.50 = 1550 cents ($15.50)
-  // Line item 3: Domain setup 1 @ $12.00 = 1200 cents ($12.00)
-  // Subtotal: 22750 cents ($227.50)
-  // Tax 8%: (22750 * 8 + 50) ~/ 100 = (182000 + 50) ~/ 100 = 1820 cents ($18.20)
-  // Grand total: 22750 + 1820 = 24570 cents ($245.70)
   const subtotal = 20000 + 1550 + 1200;
   const result = calculateCartTotals(subtotal, 8);
   assert.equal(result.subtotalCents, 22750);
   assert.equal(result.taxCents, 1820);
   assert.equal(result.totalCents, 24570);
+});
+
+test('calculateBalance accurately calculates balance due and settlement flags', () => {
+  // Total $100.00 (10000 cents), Paid $0
+  const b1 = calculateBalance(10000, 0);
+  assert.equal(b1.balanceDueCents, 10000);
+  assert.equal(b1.isFullyPaid, false);
+  assert.equal(b1.isPartiallyPaid, false);
+
+  // Total $100.00, Paid $30.00 (Deposit)
+  const b2 = calculateBalance(10000, 3000);
+  assert.equal(b2.balanceDueCents, 7000);
+  assert.equal(b2.isFullyPaid, false);
+  assert.equal(b2.isPartiallyPaid, true);
+
+  // Total $100.00, Paid $100.00 (Full settlement)
+  const b3 = calculateBalance(10000, 10000);
+  assert.equal(b3.balanceDueCents, 0);
+  assert.equal(b3.isFullyPaid, true);
+  assert.equal(b3.isPartiallyPaid, false);
+});
+
+test('validatePaymentAmount rejects <= 0 or overpayments beyond balance due', () => {
+  // Balance due $50.00 (5000 cents)
+  const valZero = validatePaymentAmount(0, 5000);
+  assert.equal(valZero.valid, false);
+
+  const valNegative = validatePaymentAmount(-100, 5000);
+  assert.equal(valNegative.valid, false);
+
+  const valOver = validatePaymentAmount(5001, 5000);
+  assert.equal(valOver.valid, false);
+
+  const valExact = validatePaymentAmount(5000, 5000);
+  assert.equal(valExact.valid, true);
+
+  const valPartial = validatePaymentAmount(2500, 5000);
+  assert.equal(valPartial.valid, true);
+});
+
+test('resolveDynamicStatus determines correct status across all states', () => {
+  // Fully paid
+  assert.equal(resolveDynamicStatus(10000, 10000, '2026-01-01'), 'PAID');
+
+  // Partially paid before due date
+  assert.equal(resolveDynamicStatus(10000, 4000, '2030-01-01'), 'PARTIALLY_PAID');
+
+  // Overdue without payments
+  assert.equal(resolveDynamicStatus(10000, 0, '2020-01-01'), 'OVERDUE');
+
+  // Pending normal
+  assert.equal(resolveDynamicStatus(10000, 0, '2030-01-01'), 'PENDING');
 });
 
 test('formatNextInvoiceNumber generates zero-padded sequential IDs', () => {
@@ -62,4 +113,12 @@ test('formatCents displays integer cents formatted as standard currency', () => 
   assert.equal(formatCents(1550), '$15.50');
   assert.equal(formatCents(3410), '$34.10');
   assert.equal(formatCents(0), '$0.00');
+});
+
+test('calculateDueDate handles Due on Receipt, Net 15, Net 30, and Net 60', () => {
+  const issue = '2026-10-01';
+  assert.equal(calculateDueDate(issue, 'Due on Receipt'), '2026-10-01');
+  assert.equal(calculateDueDate(issue, 'Net 15 Days'), '2026-10-16');
+  assert.equal(calculateDueDate(issue, 'Net 30 Days'), '2026-10-31');
+  assert.equal(calculateDueDate(issue, 'Net 60 Days'), '2026-11-30');
 });

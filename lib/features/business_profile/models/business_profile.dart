@@ -9,6 +9,7 @@ class BusinessProfile {
   final String address;
   final String taxId;
   final String paymentDetails;
+  final String currencySymbol;
 
   const BusinessProfile({
     required this.id,
@@ -18,6 +19,7 @@ class BusinessProfile {
     required this.address,
     required this.taxId,
     required this.paymentDetails,
+    this.currencySymbol = '\$',
   });
 
   factory BusinessProfile.fromRow(sql.Row row) {
@@ -29,6 +31,7 @@ class BusinessProfile {
       address: row['address'] as String? ?? '',
       taxId: row['tax_id'] as String? ?? '',
       paymentDetails: row['payment_details'] as String? ?? '',
+      currencySymbol: row['currency_symbol'] as String? ?? '\$',
     );
   }
 
@@ -40,6 +43,7 @@ class BusinessProfile {
     String? address,
     String? taxId,
     String? paymentDetails,
+    String? currencySymbol,
   }) {
     return BusinessProfile(
       id: id ?? this.id,
@@ -49,6 +53,7 @@ class BusinessProfile {
       address: address ?? this.address,
       taxId: taxId ?? this.taxId,
       paymentDetails: paymentDetails ?? this.paymentDetails,
+      currencySymbol: currencySymbol ?? this.currencySymbol,
     );
   }
 
@@ -61,6 +66,7 @@ class BusinessProfile {
       'address': address,
       'tax_id': taxId,
       'payment_details': paymentDetails,
+      'currency_symbol': currencySymbol,
     };
   }
 }

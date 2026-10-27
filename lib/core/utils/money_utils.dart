@@ -1,8 +1,5 @@
 import 'package:intl/intl.dart';
 
-/// Formats integer cents strictly at the UI display layer using NumberFormat.currency.
-final NumberFormat _currencyFormatter = NumberFormat.currency(symbol: '\$');
-
 /// Parses price input string (e.g. "15.50" or "$15.50") directly into integer cents without float imprecision.
 int parsePriceToCents(String input) {
   final cleaned = input.trim().replaceAll(RegExp(r'[^\d.]'), '');
@@ -17,9 +14,10 @@ int parsePriceToCents(String input) {
   return (dollars * 100) + cents;
 }
 
-/// Formats integer cents as currency (e.g. 1550 -> "$15.50").
-String formatCents(int cents) {
-  return _currencyFormatter.format(cents / 100.0);
+/// Formats integer cents as currency with dynamic symbol (e.g. 1550 -> "$15.50").
+String formatCents(int cents, {String symbol = '\$'}) {
+  final formatter = NumberFormat.currency(symbol: symbol);
+  return formatter.format(cents / 100.0);
 }
 
 /// Calculates tax in integer cents using integer round-half-up math:
