@@ -79,7 +79,7 @@ Future<Database> openLocalDatabase() async {
   ''');
 
   // 4. Business Profile & Payment Details Table
-  db.execute('''
+  db.execute(r'''
     CREATE TABLE IF NOT EXISTS business_profile (
       id TEXT PRIMARY KEY DEFAULT 'default',
       business_name TEXT NOT NULL DEFAULT 'My Studio',
@@ -88,16 +88,16 @@ Future<Database> openLocalDatabase() async {
       address TEXT DEFAULT '',
       tax_id TEXT DEFAULT '',
       payment_details TEXT DEFAULT '',
-      currency_symbol TEXT DEFAULT '\$'
+      currency_symbol TEXT DEFAULT '$'
     );
   ''');
 
   try {
-    db.execute('ALTER TABLE business_profile ADD COLUMN currency_symbol TEXT DEFAULT \'\\$\';');
+    db.execute(r"ALTER TABLE business_profile ADD COLUMN currency_symbol TEXT DEFAULT '$';");
   } catch (_) {}
 
   // Seed default business profile record
-  db.execute('''
+  db.execute(r'''
     INSERT OR IGNORE INTO business_profile (
       id, business_name, email, phone, address, tax_id, payment_details, currency_symbol
     ) VALUES (
@@ -107,8 +107,8 @@ Future<Database> openLocalDatabase() async {
       '+1 (555) 019-2834',
       '100 Tech Plaza, Suite 400, San Francisco, CA 94107',
       'US-EIN-987654321',
-      'Bank: Silicon Valley Bank\\nAccount: 987654321098\\nRouting / SWIFT: SVB12345\\nPayPal / UPI: pay@studio.com',
-      '\$'
+      'Bank: Silicon Valley Bank\nAccount: 987654321098\nRouting / SWIFT: SVB12345\nPayPal / UPI: pay@studio.com',
+      '$'
     );
   ''');
 

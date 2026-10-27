@@ -3,13 +3,13 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../../../core/utils/money_utils.dart';
-import '../../../business_profile/models/business_profile.dart';
-import '../../../clients/models/client.dart';
-import '../../../estimates/models/estimate_item.dart';
-import '../../../estimates/models/estimate_record.dart';
-import '../../../invoices/models/invoice_item.dart';
-import '../../../invoices/models/invoice_record.dart';
-import '../../../payments/models/payment_record.dart';
+import '../../business_profile/models/business_profile.dart';
+import '../../clients/models/client.dart';
+import '../../estimates/models/estimate_item.dart';
+import '../../estimates/models/estimate_record.dart';
+import '../../invoices/models/invoice_item.dart';
+import '../../invoices/models/invoice_record.dart';
+import '../../payments/models/payment_record.dart';
 
 class InvoicePdfService {
   /// Generates a print-ready A4 PDF invoice document adhering to strict financial formatting.
