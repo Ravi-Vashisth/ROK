@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Applying Android build fixes: Settings repository mode, Maven mirrors (anti-429), compileSdk 36, and AarMetadata bypass..."
+echo "Applying Android build fixes: AGP 8.11.1, Settings repository mode, Maven mirrors (anti-429), compileSdk 36, and AarMetadata bypass..."
 
 # 0. Remove any legacy init scripts that could conflict with settings dependency resolution
 rm -f "$HOME/.gradle/init.d/01-mirrors.gradle" || true
 
-# 1. Cleanly write android/settings.gradle.kts with PREFER_SETTINGS and Google Maven Central Mirror
+# 1. Cleanly write android/settings.gradle.kts with AGP 8.11.1, PREFER_SETTINGS, and Google Maven Central Mirror
 if [ -d "android" ]; then
   cat << 'EOF' > android/settings.gradle.kts
 pluginManagement {
@@ -29,7 +29,7 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.7.0" apply false
+    id("com.android.application") version "8.11.1" apply false
     id("org.jetbrains.kotlin.android") version "2.1.0" apply false
 }
 
@@ -70,7 +70,6 @@ if [ -f "android/app/build.gradle.kts" ]; then
 fi
 
 # 5. Append subprojects override & disable AarMetadata check in root android/build.gradle
-# NOTE: Do NOT add a repositories block inside build.gradle because dependencyResolutionManagement in settings.gradle.kts controls repositories centrally.
 if [ -f "android/build.gradle" ]; then
   cat << 'EOF' >> android/build.gradle
 
