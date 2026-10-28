@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Applying Android build fixes: AGP 8.11.1, Settings repository mode, Maven mirrors (anti-429), compileSdk 36, and AarMetadata bypass..."
+echo "Applying Android build fixes: AGP 8.11.1, Settings repository mode, Maven mirrors (anti-429), compileSdk 36, safe state.executed subproject evaluation, and AarMetadata bypass..."
 
 # 0. Remove any legacy init scripts that could conflict with settings dependency resolution
 rm -f "$HOME/.gradle/init.d/01-mirrors.gradle" || true
@@ -69,7 +69,7 @@ if [ -f "android/app/build.gradle.kts" ]; then
   sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle.kts || true
 fi
 
-# 5. Append subprojects override & disable AarMetadata check in root android/build.gradle
+# 5. Append subprojects override & disable AarMetadata check in root android/build.gradle (Groovy)
 if [ -f "android/build.gradle" ]; then
   cat << 'EOF' >> android/build.gradle
 
@@ -79,21 +79,24 @@ allprojects {
     }
 }
 
-subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty('android')) {
-            project.android {
-                if (compileSdkVersion != null && compileSdkVersion < 36) {
-                    compileSdkVersion 36
-                }
-            }
+subprojects { proj ->
+    def applyPatch = {
+        if (proj.hasProperty('android')) {
+            try {
+                proj.android.compileSdkVersion 36
+            } catch (Exception ignored) {}
         }
+    }
+    if (proj.state.executed) {
+        applyPatch()
+    } else {
+        proj.afterEvaluate { applyPatch() }
     }
 }
 EOF
 fi
 
-# 6. Handle Kotlin DSL root if present
+# 6. Handle Kotlin DSL root if present (android/build.gradle.kts)
 if [ -f "android/build.gradle.kts" ]; then
   cat << 'EOF' >> android/build.gradle.kts
 
@@ -103,12 +106,19 @@ allprojects {
     }
 }
 subprojects {
-    afterEvaluate {
+    val applyPatch = Runnable {
         if (project.hasProperty("android")) {
             val androidExt = project.extensions.findByName("android")
             if (androidExt is com.android.build.gradle.BaseExtension) {
                 androidExt.compileSdkVersion(36)
             }
+        }
+    }
+    if (project.state.executed) {
+        applyPatch.run()
+    } else {
+        project.afterEvaluate {
+            applyPatch.run()
         }
     }
 }
