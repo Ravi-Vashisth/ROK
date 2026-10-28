@@ -13,6 +13,11 @@ class EstimateRecord {
   final String issueDate;
   final String expiryDate;
   final String convertedInvoiceId;
+  final String terms;
+  final String notes;
+  final String discountType; // 'none', 'percent', 'flat'
+  final int discountValue;
+  final int discountCents;
   final String createdAt;
 
   const EstimateRecord({
@@ -27,6 +32,11 @@ class EstimateRecord {
     required this.issueDate,
     required this.expiryDate,
     this.convertedInvoiceId = '',
+    this.terms = '',
+    this.notes = '',
+    this.discountType = 'none',
+    this.discountValue = 0,
+    this.discountCents = 0,
     required this.createdAt,
   });
 
@@ -43,9 +53,17 @@ class EstimateRecord {
       issueDate: row['issue_date'] as String? ?? '',
       expiryDate: row['expiry_date'] as String? ?? '',
       convertedInvoiceId: row['converted_invoice_id'] as String? ?? '',
+      terms: (row['terms'] as String?) ?? '',
+      notes: (row['notes'] as String?) ?? '',
+      discountType: (row['discount_type'] as String?) ?? 'none',
+      discountValue: (row['discount_value'] as int?) ?? 0,
+      discountCents: (row['discount_cents'] as int?) ?? 0,
       createdAt: row['created_at'] as String,
     );
   }
+
+  /// Net subtotal after applying discount.
+  int get netSubtotalCents => (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
 
   bool get isConverted => status.toUpperCase() == 'CONVERTED';
 }

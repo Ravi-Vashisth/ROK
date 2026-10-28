@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:printing/printing.dart';
 
 import '../../../core/utils/money_utils.dart';
+import '../../billing/presentation/widgets/pdf_preview_dialog.dart';
 import '../../billing/services/invoice_pdf_service.dart';
 import '../../business_profile/providers/business_profile_provider.dart';
 import '../../clients/models/client.dart';
@@ -121,21 +121,23 @@ class OfflineEstimatesList extends ConsumerWidget {
                             OutlinedButton.icon(
                               icon: const Icon(Icons.picture_as_pdf, size: 16),
                               label: const Text('PDF / Print', style: TextStyle(fontSize: 12)),
-                              onPressed: () async {
+                              onPressed: () {
                                 final client = clients.firstWhere(
                                   (c) => c.id == est.clientId,
                                   orElse: () => Client(id: est.clientId, name: est.clientName, email: '', phone: '', address: '', taxId: '', createdAt: ''),
                                 );
                                 final items = ref.read(estimatesProvider.notifier).getEstimateItems(est.id);
-                                final pdfBytes = await InvoicePdfService.generateEstimatePdf(
-                                  estimate: est,
-                                  items: items,
-                                  client: client,
-                                  businessProfile: businessProfile,
-                                );
-                                await Printing.layoutPdf(
-                                  onLayout: (_) async => pdfBytes,
-                                  name: 'Estimate_${est.estimateNumber}.pdf',
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => PdfPreviewDialog(
+                                    title: 'Estimate ${est.estimateNumber}',
+                                    buildPdf: () => InvoicePdfService.generateEstimatePdf(
+                                      estimate: est,
+                                      items: items,
+                                      client: client,
+                                      businessProfile: businessProfile,
+                                    ),
+                                  ),
                                 );
                               },
                             ),

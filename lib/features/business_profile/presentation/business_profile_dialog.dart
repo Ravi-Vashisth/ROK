@@ -19,6 +19,11 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
   late final TextEditingController _addressController;
   late final TextEditingController _taxIdController;
   late final TextEditingController _paymentDetailsController;
+  late final TextEditingController _defaultTermsController;
+  late final TextEditingController _defaultNotesController;
+  late final TextEditingController _logoBase64Controller;
+  late final TextEditingController _signatureBase64Controller;
+  late final TextEditingController _signatureLabelController;
   late String _selectedCurrencySymbol;
 
   static const List<String> _currencyPresets = ['\$', '€', '£', '₹', 'C\$', 'A\$', '¥'];
@@ -33,6 +38,13 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     _addressController = TextEditingController(text: profile.address);
     _taxIdController = TextEditingController(text: profile.taxId);
     _paymentDetailsController = TextEditingController(text: profile.paymentDetails);
+    _defaultTermsController = TextEditingController(text: profile.defaultTerms);
+    _defaultNotesController = TextEditingController(text: profile.defaultNotes);
+    _logoBase64Controller = TextEditingController(text: profile.logoBase64);
+    _signatureBase64Controller = TextEditingController(text: profile.signatureBase64);
+    _signatureLabelController = TextEditingController(
+      text: profile.signatureLabel.isNotEmpty ? profile.signatureLabel : 'Authorized Signatory',
+    );
     _selectedCurrencySymbol = _currencyPresets.contains(profile.currencySymbol)
         ? profile.currencySymbol
         : '\$';
@@ -46,6 +58,11 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     _addressController.dispose();
     _taxIdController.dispose();
     _paymentDetailsController.dispose();
+    _defaultTermsController.dispose();
+    _defaultNotesController.dispose();
+    _logoBase64Controller.dispose();
+    _signatureBase64Controller.dispose();
+    _signatureLabelController.dispose();
     super.dispose();
   }
 
@@ -60,13 +77,18 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
           taxId: _taxIdController.text.trim(),
           paymentDetails: _paymentDetailsController.text.trim(),
           currencySymbol: _selectedCurrencySymbol,
+          defaultTerms: _defaultTermsController.text.trim(),
+          defaultNotes: _defaultNotesController.text.trim(),
+          logoBase64: _logoBase64Controller.text.trim(),
+          signatureBase64: _signatureBase64Controller.text.trim(),
+          signatureLabel: _signatureLabelController.text.trim(),
         );
 
     Navigator.of(context).pop();
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Business profile & currency settings saved to local SQLite.'),
+        content: Text('Business profile, logo, signature & defaults saved to local SQLite.'),
       ),
     );
   }
@@ -80,14 +102,14 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Business Profile & Currency Settings',
+              'Business Profile & Branding Settings',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
         ],
       ),
       content: SizedBox(
-        width: 500,
+        width: 540,
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -96,7 +118,7 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'These details appear on your printed A4 PDF invoices and payment instructions.',
+                  'These branding settings appear on your printed A4 PDF invoices and proposals.',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const SizedBox(height: 16),
@@ -191,17 +213,82 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
                 ),
                 const SizedBox(height: 16),
                 const Text(
+                  'Branding: Company Logo & Digital Signature',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: _logoBase64Controller,
+                  decoration: const InputDecoration(
+                    labelText: 'Company Logo (Image URL or Base64 String)',
+                    hintText: 'Paste image URL or base64 data URI...',
+                    prefixIcon: Icon(Icons.image_outlined, size: 20),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextFormField(
+                        controller: _signatureBase64Controller,
+                        decoration: const InputDecoration(
+                          labelText: 'Digital Signature (Typed Name or Image Base64)',
+                          hintText: 'e.g. Jane Doe, CEO',
+                          prefixIcon: Icon(Icons.draw_outlined, size: 20),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: _signatureLabelController,
+                        decoration: const InputDecoration(
+                          labelText: 'Signature Label',
+                          hintText: 'Authorized Signatory',
+                          prefixIcon: Icon(Icons.label_outlined, size: 20),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text(
                   'Payment Instructions & Remittance Details',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _paymentDetailsController,
-                  maxLines: 4,
+                  maxLines: 3,
                   decoration: const InputDecoration(
                     hintText:
                         'Bank: ACME Bank\nAccount: 123456789\nRouting / IFSC / SWIFT: ACM00123\nPayPal / UPI: pay@studio.com',
                     alignLabelWithHint: true,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Global Default Terms & Notes',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: _defaultTermsController,
+                  decoration: const InputDecoration(
+                    labelText: 'Default Payment Terms / Legal Notice',
+                    hintText: 'Payment due within agreed terms. Thank you for your business!',
+                    prefixIcon: Icon(Icons.gavel_outlined, size: 20),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _defaultNotesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Default Invoice Notes / Warranty',
+                    hintText: 'e.g. All work includes 30 days post-delivery support.',
+                    prefixIcon: Icon(Icons.notes_outlined, size: 20),
                   ),
                 ),
               ],
@@ -217,7 +304,7 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
         FilledButton.icon(
           onPressed: _handleSave,
           icon: const Icon(Icons.save_outlined, size: 18),
-          label: const Text('Save Profile'),
+          label: const Text('Save Profile & Branding'),
         ),
       ],
     );

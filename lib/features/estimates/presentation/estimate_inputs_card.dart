@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/money_utils.dart';
 import '../../business_profile/providers/business_profile_provider.dart';
 import '../../invoices/providers/invoices_provider.dart';
+import '../../items/models/saved_item.dart';
+import '../../items/providers/saved_items_provider.dart';
 
 class EstimateInputsCard extends ConsumerStatefulWidget {
   final String nextEstimateNumber;
@@ -12,6 +14,10 @@ class EstimateInputsCard extends ConsumerStatefulWidget {
     required int taxPercentage,
     required String issueDate,
     required String expiryDate,
+    required String terms,
+    required String notes,
+    required String discountType,
+    required int discountValue,
   }) onSaveEstimate;
 
   const EstimateInputsCard({
@@ -29,9 +35,15 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
   final _unitPriceController = TextEditingController();
   final _quantityController = TextEditingController(text: '1');
   final _taxPercentageController = TextEditingController(text: '10');
+  final _discountValueController = TextEditingController(text: '0');
   late final TextEditingController _issueDateController;
   late final TextEditingController _expiryDateController;
+  late final TextEditingController _termsController;
+  late final TextEditingController _notesController;
 
+  String _discountType = 'none'; // 'none', 'percent', 'flat'
+  bool _saveAsPreset = false;
+  SavedItem? _selectedSavedItem;
   final List<DraftItem> _cartItems = [];
 
   @override
@@ -46,6 +58,10 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
       text: '${exp.year}-${exp.month.toString().padLeft(2, '0')}-${exp.day.toString().padLeft(2, '0')}',
     );
 
+    final profile = ref.read(businessProfileProvider);
+    _termsController = TextEditingController(text: profile.defaultTerms);
+    _notesController = TextEditingController(text: profile.defaultNotes);
+
     _cartItems.addAll(const [
       DraftItem(description: 'System Architecture Proposal', unitPriceCents: 12000, quantity: 1, totalCents: 12000),
       DraftItem(description: 'UI/UX Design Mockups', unitPriceCents: 8000, quantity: 1, totalCents: 8000),
@@ -58,9 +74,22 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
     _unitPriceController.dispose();
     _quantityController.dispose();
     _taxPercentageController.dispose();
+    _discountValueController.dispose();
     _issueDateController.dispose();
     _expiryDateController.dispose();
+    _termsController.dispose();
+    _notesController.dispose();
     super.dispose();
+  }
+
+  void _onSelectSavedItem(SavedItem? item) {
+    setState(() {
+      _selectedSavedItem = item;
+      if (item != null) {
+        _descriptionController.text = item.title;
+        _unitPriceController.text = (item.defaultPriceCents / 100.0).toStringAsFixed(2);
+      }
+    });
   }
 
   void _addCartItem() {
@@ -71,6 +100,17 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
     final quantity = int.tryParse(_quantityController.text) ?? 1;
     if (unitPriceCents <= 0 || quantity <= 0) return;
 
+    if (_saveAsPreset) {
+      ref.read(savedItemsProvider.notifier).addItem(
+            title: desc,
+            defaultPriceCents: unitPriceCents,
+            description: '',
+          );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Saved "$desc" as a preset service!')),
+      );
+    }
+
     setState(() {
       _cartItems.add(
         DraftItem(
@@ -80,11 +120,12 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
           totalCents: unitPriceCents * quantity,
         ),
       );
+      _descriptionController.clear();
+      _unitPriceController.clear();
+      _quantityController.text = '1';
+      _saveAsPreset = false;
+      _selectedSavedItem = null;
     });
-
-    _descriptionController.clear();
-    _unitPriceController.clear();
-    _quantityController.text = '1';
   }
 
   void _removeCartItem(int index) {
@@ -97,11 +138,22 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
   Widget build(BuildContext context) {
     final profile = ref.watch(businessProfileProvider);
     final sym = profile.currencySymbol;
+    final savedItems = ref.watch(savedItemsProvider);
 
     final subtotalCents = _cartItems.fold<int>(0, (sum, i) => sum + i.totalCents);
+
+    int discountVal = 0;
+    if (_discountType == 'percent') {
+      discountVal = int.tryParse(_discountValueController.text.trim()) ?? 0;
+    } else if (_discountType == 'flat') {
+      discountVal = parsePriceToCents(_discountValueController.text);
+    }
+
+    final discountCents = calculateDiscountCents(subtotalCents, _discountType, discountVal);
+    final netSubtotalCents = (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
     final taxPct = int.tryParse(_taxPercentageController.text) ?? 0;
-    final taxCents = calculateTaxCents(subtotalCents, taxPct);
-    final totalCents = subtotalCents + taxCents;
+    final taxCents = calculateTaxCents(netSubtotalCents, taxPct);
+    final totalCents = netSubtotalCents + taxCents;
 
     return Card(
       child: Padding(
@@ -133,6 +185,53 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
               ],
             ),
             const SizedBox(height: 16),
+
+            // Preset Services Library Dropdown
+            if (savedItems.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.indigo.shade50.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.indigo.shade200),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.bookmark_outline, size: 18, color: Colors.indigo),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Saved Service Library:',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<SavedItem>(
+                        value: _selectedSavedItem,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          hintText: 'Select a preset service to 1-click auto-fill...',
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        items: savedItems.map((item) {
+                          return DropdownMenuItem<SavedItem>(
+                            value: item,
+                            child: Text(
+                              '${item.title} (${formatCents(item.defaultPriceCents, symbol: sym)})',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: _onSelectSavedItem,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
 
             Row(
               children: [
@@ -172,6 +271,19 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
                   onPressed: _addCartItem,
                   icon: const Icon(Icons.add_shopping_cart),
                   tooltip: 'Add Line Item',
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Checkbox(
+                  value: _saveAsPreset,
+                  onChanged: (v) => setState(() => _saveAsPreset = v ?? false),
+                ),
+                const Text(
+                  'Save as preset service in library for future 1-click use',
+                  style: TextStyle(fontSize: 12, color: Colors.black87),
                 ),
               ],
             ),
@@ -216,14 +328,59 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
             Row(
               children: [
                 Expanded(
+                  flex: 3,
+                  child: DropdownButtonFormField<String>(
+                    value: _discountType,
+                    decoration: const InputDecoration(
+                      labelText: 'Discount Type',
+                      prefixIcon: Icon(Icons.discount_outlined, size: 18),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'none', child: Text('No Discount')),
+                      DropdownMenuItem(value: 'percent', child: Text('% Percentage')),
+                      DropdownMenuItem(value: 'flat', child: Text('Flat Amount')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _discountType = val;
+                          if (val == 'none') _discountValueController.text = '0';
+                        });
+                      }
+                    },
+                  ),
+                ),
+                if (_discountType != 'none') ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: TextField(
+                      controller: _discountValueController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(
+                        labelText: _discountType == 'percent' ? 'Discount %' : 'Flat ($sym)',
+                        suffixText: _discountType == 'percent' ? '%' : sym,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
                   child: TextField(
                     controller: _taxPercentageController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Estimated Tax %'),
+                    decoration: const InputDecoration(labelText: 'Tax %'),
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
-                const SizedBox(width: 12),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+            Row(
+              children: [
                 Expanded(
                   child: TextField(
                     controller: _issueDateController,
@@ -240,6 +397,33 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
               ],
             ),
 
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _termsController,
+                    decoration: const InputDecoration(
+                      labelText: 'Estimate Terms / Proposal Notice',
+                      hintText: 'Quote valid for 30 days...',
+                      prefixIcon: Icon(Icons.gavel_outlined, size: 18),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _notesController,
+                    decoration: const InputDecoration(
+                      labelText: 'Estimate Notes / Scope Highlights',
+                      hintText: 'Includes 30 days post-delivery support.',
+                      prefixIcon: Icon(Icons.notes_outlined, size: 18),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -251,6 +435,8 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Subtotal: ${formatCents(subtotalCents, symbol: sym)}', style: const TextStyle(fontSize: 12)),
+                  if (discountCents > 0)
+                    Text('Discount: -${formatCents(discountCents, symbol: sym)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.orange.shade800)),
                   Text('Tax: ${formatCents(taxCents, symbol: sym)}', style: const TextStyle(fontSize: 12)),
                   Text('Total: ${formatCents(totalCents, symbol: sym)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.indigo.shade700)),
                 ],
@@ -269,6 +455,10 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
                           taxPercentage: taxPct,
                           issueDate: _issueDateController.text,
                           expiryDate: _expiryDateController.text,
+                          terms: _termsController.text.trim(),
+                          notes: _notesController.text.trim(),
+                          discountType: _discountType,
+                          discountValue: discountVal,
                         );
                       },
                 icon: const Icon(Icons.send_outlined),

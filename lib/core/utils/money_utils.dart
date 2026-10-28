@@ -21,8 +21,23 @@ String formatCents(int cents, {String symbol = '\$'}) {
 }
 
 /// Calculates tax in integer cents using integer round-half-up math:
-/// (subtotal_cents * tax_percentage + 50) ~/ 100.
-int calculateTaxCents(int subtotalCents, int taxPercentage) {
+/// (net_subtotal_cents * tax_percentage + 50) ~/ 100.
+int calculateTaxCents(int netSubtotalCents, int taxPercentage) {
+  final safeSubtotal = netSubtotalCents < 0 ? 0 : netSubtotalCents;
   final safePercentage = taxPercentage < 0 ? 0 : taxPercentage;
-  return (subtotalCents * safePercentage + 50) ~/ 100;
+  return (safeSubtotal * safePercentage + 50) ~/ 100;
+}
+
+/// Computes discount in integer cents based on type ('none', 'percent', 'flat') and value.
+/// If percent: (subtotalCents * discountValue + 50) ~/ 100
+/// If flat: min(discountValue, subtotalCents)
+int calculateDiscountCents(int subtotalCents, String discountType, int discountValue) {
+  if (subtotalCents <= 0 || discountValue <= 0) return 0;
+  if (discountType == 'percent') {
+    final safePct = discountValue > 100 ? 100 : (discountValue < 0 ? 0 : discountValue);
+    return (subtotalCents * safePct + 50) ~/ 100;
+  } else if (discountType == 'flat') {
+    return discountValue > subtotalCents ? subtotalCents : discountValue;
+  }
+  return 0;
 }

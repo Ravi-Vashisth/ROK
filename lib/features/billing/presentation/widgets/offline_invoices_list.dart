@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:printing/printing.dart';
 
 import '../../../../core/utils/money_utils.dart';
 import '../../../business_profile/providers/business_profile_provider.dart';
@@ -10,6 +9,7 @@ import '../../../invoices/models/invoice_record.dart';
 import '../../../invoices/providers/invoices_provider.dart';
 import '../../../payments/presentation/record_payment_dialog.dart';
 import '../../services/invoice_pdf_service.dart';
+import 'pdf_preview_dialog.dart';
 
 class OfflineInvoicesList extends ConsumerWidget {
   const OfflineInvoicesList({super.key});
@@ -29,24 +29,19 @@ class OfflineInvoicesList extends ConsumerWidget {
       ),
     );
 
-    try {
-      await Printing.layoutPdf(
-        onLayout: (format) => InvoicePdfService.generateInvoicePdf(
+    showDialog(
+      context: context,
+      builder: (_) => PdfPreviewDialog(
+        title: 'Invoice ${inv.invoiceNumber}',
+        buildPdf: () => InvoicePdfService.generateInvoicePdf(
           invoice: inv,
           items: items,
           payments: payments,
           client: client,
           businessProfile: businessProfile,
         ),
-        name: '${inv.invoiceNumber}.pdf',
-      );
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Print/PDF Error: $e')),
-        );
-      }
-    }
+      ),
+    );
   }
 
   void _openRecordPayment(BuildContext context, InvoiceRecord inv) {
@@ -56,9 +51,27 @@ class OfflineInvoicesList extends ConsumerWidget {
     );
   }
 
+  void _handleDuplicate(BuildContext context, WidgetRef ref, InvoiceRecord inv) {
+    try {
+      final newNumber = ref.read(invoicesProvider.notifier).duplicateInvoice(inv.id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Invoice duplicated as $newNumber!'),
+          backgroundColor: Colors.indigo.shade800,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error duplicating invoice: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final invoices = ref.watch(invoicesProvider);
+    final profile = ref.watch(businessProfileProvider);
+    final sym = profile.currencySymbol;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,7 +243,7 @@ class OfflineInvoicesList extends ConsumerWidget {
                             border: Border.all(color: Colors.amber.shade400),
                           ),
                           child: Text(
-                            'PARTIAL (${formatCents(inv.paidCents)} / ${formatCents(inv.totalCents)})',
+                            'PARTIAL (${formatCents(inv.paidCents, symbol: sym)} / ${formatCents(inv.totalCents, symbol: sym)})',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -275,7 +288,7 @@ class OfflineInvoicesList extends ConsumerWidget {
                     ],
                   ),
                   subtitle: Text(
-                    'Terms: ${inv.paymentTerms} | Issue: ${inv.issueDate} | Total: ${formatCents(inv.totalCents)}${inv.balanceDueCents > 0 ? " | Due: ${formatCents(inv.balanceDueCents)}" : ""}',
+                    'Terms: ${inv.paymentTerms} | Issue: ${inv.issueDate} | Total: ${formatCents(inv.totalCents, symbol: sym)}${inv.balanceDueCents > 0 ? " | Due: ${formatCents(inv.balanceDueCents, symbol: sym)}" : ""}',
                     style: const TextStyle(fontSize: 11),
                   ),
                   trailing: Row(
@@ -286,7 +299,7 @@ class OfflineInvoicesList extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            formatCents(inv.totalCents),
+                            formatCents(inv.totalCents, symbol: sym),
                             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: isPaid
@@ -296,7 +309,7 @@ class OfflineInvoicesList extends ConsumerWidget {
                           ),
                           if (inv.balanceDueCents > 0)
                             Text(
-                              'Bal: ${formatCents(inv.balanceDueCents)}',
+                              'Bal: ${formatCents(inv.balanceDueCents, symbol: sym)}',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -306,13 +319,24 @@ class OfflineInvoicesList extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(width: 8),
+                      // 1-Click Duplicate Button
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.copy_outlined, size: 15),
+                        label: const Text('Duplicate', style: TextStyle(fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: () => _handleDuplicate(context, ref, inv),
+                      ),
+                      const SizedBox(width: 6),
                       // Record Payment Action Button
                       if (inv.balanceDueCents > 0) ...[
                         OutlinedButton.icon(
                           icon: const Icon(Icons.add_card, size: 15),
                           label: const Text('Pay', style: TextStyle(fontSize: 12)),
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                             visualDensity: VisualDensity.compact,
                           ),
                           onPressed: () => _openRecordPayment(context, inv),
@@ -337,6 +361,7 @@ class OfflineInvoicesList extends ConsumerWidget {
                       invoice: inv,
                       onPrint: () => _handlePrint(context, ref, inv),
                       onRecordPayment: () => _openRecordPayment(context, inv),
+                      onDuplicate: () => _handleDuplicate(context, ref, inv),
                     ),
                   ],
                 );
@@ -352,17 +377,21 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
   final InvoiceRecord invoice;
   final VoidCallback onPrint;
   final VoidCallback onRecordPayment;
+  final VoidCallback onDuplicate;
 
   const _InvoiceItemsBreakdown({
     required this.invoice,
     required this.onPrint,
     required this.onRecordPayment,
+    required this.onDuplicate,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final items = ref.read(invoicesProvider.notifier).getInvoiceItems(invoice.id);
     final payments = ref.read(invoicesProvider.notifier).getInvoicePayments(invoice.id);
+    final profile = ref.watch(businessProfileProvider);
+    final sym = profile.currencySymbol;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -385,6 +414,16 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  OutlinedButton.icon(
+                    onPressed: onDuplicate,
+                    icon: const Icon(Icons.copy_outlined, size: 15),
+                    label: const Text('Duplicate / Re-bill', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   if (invoice.balanceDueCents > 0) ...[
                     FilledButton.icon(
                       icon: const Icon(Icons.payment, size: 15),
@@ -457,17 +496,40 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Text(formatCents(item.unitPriceCents), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11)),
+                      child: Text(formatCents(item.unitPriceCents, symbol: sym), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11)),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Text(formatCents(item.totalCents), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                      child: Text(formatCents(item.totalCents, symbol: sym), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
               ),
             ],
           ),
+
+          // Invoice Notes & Terms display if present
+          if (invoice.terms.isNotEmpty || invoice.notes.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (invoice.terms.isNotEmpty)
+                    Text('Terms: ${invoice.terms}', style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
+                  if (invoice.notes.isNotEmpty)
+                    Text('Notes: ${invoice.notes}', style: const TextStyle(fontSize: 11, color: Colors.black87)),
+                ],
+              ),
+            ),
+          ],
 
           // Payments Section (if any payments recorded)
           if (payments.isNotEmpty) ...[
@@ -504,7 +566,7 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
                           ],
                         ),
                         Text(
-                          formatCents(p.amountCents),
+                          formatCents(p.amountCents, symbol: sym),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -529,13 +591,13 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
               width: 260,
               child: Column(
                 children: [
-                  _SummaryRow(label: 'Subtotal:', value: formatCents(invoice.subtotalCents)),
-                  _SummaryRow(label: 'Tax:', value: formatCents(invoice.taxCents)),
-                  _SummaryRow(label: 'Total:', value: formatCents(invoice.totalCents), isBold: true),
+                  _SummaryRow(label: 'Subtotal:', value: formatCents(invoice.subtotalCents, symbol: sym)),
+                  _SummaryRow(label: 'Tax:', value: formatCents(invoice.taxCents, symbol: sym)),
+                  _SummaryRow(label: 'Total:', value: formatCents(invoice.totalCents, symbol: sym), isBold: true),
                   if (invoice.paidCents > 0) ...[
                     _SummaryRow(
                       label: 'Less Payments:',
-                      value: '-${formatCents(invoice.paidCents)}',
+                      value: '-${formatCents(invoice.paidCents, symbol: sym)}',
                       textColor: Colors.green.shade700,
                     ),
                   ],
@@ -550,7 +612,7 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
                     ),
                     child: _SummaryRow(
                       label: 'Balance Due:',
-                      value: formatCents(invoice.balanceDueCents),
+                      value: formatCents(invoice.balanceDueCents, symbol: sym),
                       isBold: true,
                       textColor: invoice.balanceDueCents == 0
                           ? Colors.green.shade900

@@ -19,6 +19,12 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
             paymentDetails:
                 'Bank: Silicon Valley Bank\nAccount: 987654321098\nRouting / SWIFT: SVB12345\nPayPal / UPI: pay@studio.com',
             currencySymbol: '\$',
+            defaultTerms:
+                'Payment due within agreed terms. Thank you for your business!',
+            defaultNotes: 'All work includes 30 days post-delivery support.',
+            logoBase64: '',
+            signatureBase64: '',
+            signatureLabel: 'Authorized Signatory',
           ),
         ) {
     _loadProfile();
@@ -45,6 +51,11 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
     required String taxId,
     required String paymentDetails,
     String currencySymbol = '\$',
+    String defaultTerms = 'Payment due within agreed terms. Thank you for your business!',
+    String defaultNotes = '',
+    String logoBase64 = '',
+    String signatureBase64 = '',
+    String signatureLabel = 'Authorized Signatory',
   }) {
     _db.execute(
       '''
@@ -55,10 +66,28 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
           address = ?,
           tax_id = ?,
           payment_details = ?,
-          currency_symbol = ?
+          currency_symbol = ?,
+          default_terms = ?,
+          default_notes = ?,
+          logo_base64 = ?,
+          signature_base64 = ?,
+          signature_label = ?
       WHERE id = 'default';
       ''',
-      [businessName, email, phone, address, taxId, paymentDetails, currencySymbol],
+      [
+        businessName,
+        email,
+        phone,
+        address,
+        taxId,
+        paymentDetails,
+        currencySymbol,
+        defaultTerms,
+        defaultNotes,
+        logoBase64,
+        signatureBase64,
+        signatureLabel,
+      ],
     );
 
     state = state.copyWith(
@@ -69,6 +98,11 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
       taxId: taxId,
       paymentDetails: paymentDetails,
       currencySymbol: currencySymbol,
+      defaultTerms: defaultTerms,
+      defaultNotes: defaultNotes,
+      logoBase64: logoBase64,
+      signatureBase64: signatureBase64,
+      signatureLabel: signatureLabel,
     );
   }
 }

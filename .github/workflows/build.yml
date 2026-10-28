@@ -1,86 +1,116 @@
-name: Build Desktop & Mobile Apps
+name: Build Cross-Platform Suite (Win, Android, Mac, iOS)
 
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch: # Allows you to manually click "Run workflow"
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   # =========================================================================
-  # 1. BUILD WINDOWS .EXE
+  # 1. BUILD WINDOWS DESKTOP (.EXE)
   # =========================================================================
   build-windows:
     name: Build Windows Release (.exe)
     runs-on: windows-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           cache: true
-
-      - name: Enable Windows Desktop Support
-        run: flutter config --enable-windows-desktop
-
-      # THIS STEP CREATES THE MISSING WINDOWS FOLDER AUTOMATICALLY
-      - name: Generate Windows Scaffolding
-        run: flutter create --platforms=windows .
-
-      - name: Install Dependencies
-        run: flutter pub get
-
-      - name: Build Windows Executable
-        run: flutter build windows --release
-
-      - name: Package Windows Release as Zip
+      - name: Enable Windows Desktop & Scaffolding
         run: |
-          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath billing_app_windows.zip
-
-      - name: Upload Windows Executable Artifact
-        uses: actions/upload-artifact@v4
+          flutter config --enable-windows-desktop
+          flutter create --platforms=windows .
+      - run: flutter pub get
+      - name: Compile Windows
+        run: flutter build windows --release
+      - name: Package Zip
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath billing_app_windows.zip
+      - uses: actions/upload-artifact@v4
         with:
           name: billing-app-windows-x64
           path: billing_app_windows.zip
           retention-days: 7
 
   # =========================================================================
-  # 2. BUILD ANDROID .APK
+  # 2. BUILD ANDROID MOBILE (.APK)
   # =========================================================================
   build-android:
     name: Build Android Release (.apk)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           cache: true
-
-      # THIS STEP CREATES THE MISSING ANDROID FOLDER AUTOMATICALLY
       - name: Generate Android Scaffolding
         run: flutter create --platforms=android .
-
-      - name: Install Dependencies
-        run: flutter pub get
-
-      - name: Build Android APK
+      - run: flutter pub get
+      - name: Compile Android APK
         run: flutter build apk --release
-
-      - name: Upload Android APK Artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: billing-app-android
           path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 7
+
+  # =========================================================================
+  # 3. BUILD MACOS DESKTOP (.APP)
+  # =========================================================================
+  build-macos:
+    name: Build macOS Release (.app)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - name: Enable macOS Desktop & Scaffolding
+        run: |
+          flutter config --enable-macos-desktop
+          flutter create --platforms=macos .
+      - run: flutter pub get
+      - name: Compile macOS Desktop
+        run: flutter build macos --release
+      - name: Package macOS Zip
+        run: ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/*.app billing_app_macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: billing-app-macos
+          path: billing_app_macos.zip
+          retention-days: 7
+
+  # =========================================================================
+  # 4. BUILD IOS MOBILE (.IPA / RUNNER)
+  # =========================================================================
+  build-ios:
+    name: Build iOS Release (Unsigned)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - name: Generate iOS Scaffolding
+        run: flutter create --platforms=ios .
+      - run: flutter pub get
+      - name: Compile iOS
+        run: flutter build ios --release --no-codesign
+      - name: Package iOS App
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app billing_app_ios_unsigned.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: billing-app-ios
+          path: billing_app_ios_unsigned.zip
           retention-days: 7

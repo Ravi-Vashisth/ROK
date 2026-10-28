@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -8,13 +7,11 @@ import '../../../core/utils/csv_export_service.dart';
 import '../../business_profile/presentation/business_profile_dialog.dart';
 import '../../business_profile/providers/business_profile_provider.dart';
 import '../../clients/providers/clients_provider.dart';
-import '../../estimates/presentation/estimate_inputs_card.dart';
-import '../../estimates/presentation/offline_estimates_list.dart';
-import '../../estimates/providers/estimates_provider.dart';
-import '../../invoices/providers/invoices_provider.dart';
-import 'widgets/client_selection_card.dart';
-import 'widgets/invoice_inputs_card.dart';
-import 'widgets/offline_invoices_list.dart';
+import '../../dashboard/presentation/dashboard_tab.dart';
+import '../../expenses/providers/expenses_provider.dart';
+import '../../expenses/presentation/expenses_tab.dart';
+import '../../settings/presentation/directory_settings_tab.dart';
+import 'sales_tab.dart';
 
 class BillingDashboardScreen extends ConsumerStatefulWidget {
   const BillingDashboardScreen({super.key});
@@ -24,180 +21,33 @@ class BillingDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen> {
-  final _newClientController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _taxIdController = TextEditingController();
+  int _selectedTab = 0; // 0=Dashboard, 1=Sales, 2=Expenses, 3=Directory & Settings
 
-  String? _selectedClientId;
-  int _selectedTab = 0; // 0 = Invoices, 1 = Estimates / Quotes
-
-  @override
-  void dispose() {
-    _newClientController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    _addressController.dispose();
-    _taxIdController.dispose();
-    super.dispose();
-  }
-
-  void _handleAddClient() {
-    final name = _newClientController.text.trim();
-    if (name.isEmpty) return;
-
-    ref.read(clientsProvider.notifier).addClient(
-          name: name,
-          email: _emailController.text,
-          phone: _phoneController.text,
-          address: _addressController.text,
-          taxId: _taxIdController.text,
-        );
-
-    _newClientController.clear();
-    _emailController.clear();
-    _phoneController.clear();
-    _addressController.clear();
-    _taxIdController.clear();
-
-    final clients = ref.read(clientsProvider);
-    final found = clients.where((c) => c.name == name);
-    if (found.isNotEmpty) {
-      setState(() {
-        _selectedClientId = found.first.id;
-      });
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Client "$name" saved locally to SQLite.')),
-    );
-  }
-
-  void _handleSaveInvoice({
-    required List<DraftItem> items,
-    required int taxPercentage,
-    required String paymentTerms,
-    required String issueDate,
-    required String dueDate,
-  }) {
-    if (_selectedClientId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select or add a client first.')),
-      );
-      return;
-    }
-
-    ref.read(invoicesProvider.notifier).saveInvoice(
-          clientId: _selectedClientId!,
-          items: items,
-          taxPercentage: taxPercentage,
-          paymentTerms: paymentTerms,
-          issueDate: issueDate,
-          dueDate: dueDate,
-        );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Invoice saved locally ($paymentTerms, Due: $dueDate)!')),
-    );
-  }
-
-  void _handleSaveEstimate({
-    required List<DraftItem> items,
-    required int taxPercentage,
-    required String issueDate,
-    required String expiryDate,
-  }) {
-    if (_selectedClientId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select or add a client first.')),
-      );
-      return;
-    }
-
-    ref.read(estimatesProvider.notifier).saveEstimate(
-          clientId: _selectedClientId!,
-          items: items,
-          taxPercentage: taxPercentage,
-          issueDate: issueDate,
-          expiryDate: expiryDate,
-        );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Estimate saved locally (Expires: $expiryDate)!')),
-    );
-  }
-
-  void _handleExportCsv() {
+  void _handleExportCsv() async {
     final invoices = ref.read(invoicesProvider);
+    final expenses = ref.read(expensesProvider);
     final clients = ref.read(clientsProvider);
     final profile = ref.read(businessProfileProvider);
 
-    final csvString = CsvExportService.generateInvoicesCsv(
-      invoices: invoices,
-      clients: clients,
-      currencySymbol: profile.currencySymbol,
-    );
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.table_chart_outlined, color: Colors.indigo),
-              SizedBox(width: 10),
-              Text('Accountant CSV Export', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: SizedBox(
-            width: 550,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Standard CSV containing all invoice numbers, client tax IDs, subtotals, tax, totals, amount paid, balance due, and payment status.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  height: 200,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: SingleChildScrollView(
-                    child: SelectableText(
-                      csvString,
-                      style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: Color(0xFF6EE7B7)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-            FilledButton.icon(
-              icon: const Icon(Icons.copy, size: 16),
-              label: const Text('Copy to Clipboard'),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: csvString));
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Invoices CSV copied to clipboard!')),
-                );
-              },
-            ),
-          ],
+    try {
+      await CsvExportService.downloadCsvFile(
+        invoices: invoices,
+        expenses: expenses,
+        clients: clients,
+        currencySymbol: profile.currencySymbol,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Comprehensive financial report CSV generated and downloaded successfully!')),
         );
-      },
-    );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('CSV Export Error: $e')),
+        );
+      }
+    }
   }
 
   IconData _getThemeModeIcon(ThemeMode mode) {
@@ -224,127 +74,239 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    final nextInvoiceNumber = ref.watch(invoicesProvider.notifier).getNextInvoiceNumber();
-    final nextEstimateNumber = ref.watch(estimatesProvider.notifier).getNextEstimateNumber();
     final themeMode = ref.watch(themeModeProvider);
     final currentAccent = ref.watch(accentColorProvider);
+    final profile = ref.watch(businessProfileProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Local Billing & Quotes System'),
-        elevation: 0,
-        actions: [
-          IconButton(
-            tooltip: 'Export Accountant CSV',
-            icon: const Icon(Icons.file_download_outlined),
-            onPressed: _handleExportCsv,
-          ),
-          IconButton(
-            tooltip: 'Business Profile & Currency Settings',
-            icon: const Icon(Icons.business_outlined),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => const BusinessProfileDialog(),
-              );
-            },
-          ),
-          PopupMenuButton<Color>(
-            tooltip: 'Accent Color',
-            icon: Icon(Icons.palette_outlined, color: currentAccent),
-            onSelected: (color) {
-              ref.read(accentColorProvider.notifier).setAccentColor(color);
-            },
-            itemBuilder: (context) {
-              return AppTheme.presetAccents.map((color) {
-                final isSelected = color.value == currentAccent.value;
-                return PopupMenuItem<Color>(
-                  value: color,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 18,
-                        height: 18,
-                        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        _getColorName(color),
-                        style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
-                      ),
-                      if (isSelected) ...[
-                        const Spacer(),
-                        const Icon(Icons.check, size: 16),
-                      ],
-                    ],
-                  ),
-                );
-              }).toList();
-            },
-          ),
-          IconButton(
-            tooltip: _getThemeModeTooltip(themeMode),
-            icon: Icon(_getThemeModeIcon(themeMode)),
-            onPressed: () {
-              ref.read(themeModeProvider.notifier).cycleThemeMode();
-            },
-          ),
-          const SizedBox(width: 8),
-        ],
+    final tabs = [
+      DashboardTab(
+        onNavigateToSales: () => setState(() => _selectedTab = 1),
+        onNavigateToExpenses: () => setState(() => _selectedTab = 2),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClientSelectionCard(
-              newClientController: _newClientController,
-              emailController: _emailController,
-              phoneController: _phoneController,
-              addressController: _addressController,
-              taxIdController: _taxIdController,
-              selectedClientId: _selectedClientId,
-              onClientSelected: (val) => setState(() => _selectedClientId = val),
-              onAddClient: _handleAddClient,
-            ),
-            const SizedBox(height: 20),
-            SegmentedButton<int>(
-              segments: const [
-                ButtonSegment<int>(
-                  value: 0,
-                  label: Text('Invoices'),
-                  icon: Icon(Icons.receipt_outlined),
+      const SalesTab(),
+      const ExpensesTab(),
+      const DirectorySettingsTab(),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 900;
+
+        if (isWide) {
+          // Desktop / Split Window view with vertical NavigationRail
+          return Scaffold(
+            body: Row(
+              children: [
+                NavigationRail(
+                  currentIndex: _selectedTab,
+                  onDestinationSelected: (index) => setState(() => _selectedTab = index),
+                  labelType: NavigationRailLabelType.all,
+                  leading: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                          child: Text(
+                            profile.businessName.isNotEmpty ? profile.businessName[0].toUpperCase() : 'B',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          profile.businessName.isNotEmpty ? profile.businessName : 'Freelance',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  trailing: Expanded(
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 24.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'Business Profile & Branding',
+                              icon: const Icon(Icons.business_outlined),
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => const BusinessProfileDialog(),
+                                );
+                              },
+                            ),
+                            IconButton(
+                              tooltip: _getThemeModeTooltip(themeMode),
+                              icon: Icon(_getThemeModeIcon(themeMode)),
+                              onPressed: () => ref.read(themeModeProvider.notifier).cycleThemeMode(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  destinations: const [
+                    NavigationRailDestination(
+                      icon: Icon(Icons.dashboard_outlined),
+                      selectedIcon: Icon(Icons.dashboard),
+                      label: Text('Dashboard'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.receipt_long_outlined),
+                      selectedIcon: Icon(Icons.receipt_long),
+                      label: Text('Sales'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.account_balance_wallet_outlined),
+                      selectedIcon: Icon(Icons.account_balance_wallet),
+                      label: Text('Expenses'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.people_alt_outlined),
+                      selectedIcon: Icon(Icons.people_alt),
+                      label: Text('Directory'),
+                    ),
+                  ],
                 ),
-                ButtonSegment<int>(
-                  value: 1,
-                  label: Text('Estimates / Quotes'),
-                  icon: Icon(Icons.request_quote_outlined),
+                const VerticalDivider(thickness: 1, width: 1),
+                Expanded(
+                  child: Scaffold(
+                    appBar: AppBar(
+                      title: const Text('Local Billing & Financial Ledger'),
+                      elevation: 0,
+                      actions: [
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                            foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                          icon: const Icon(Icons.file_download, size: 16),
+                          label: const Text('Export Financial CSV', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          onPressed: _handleExportCsv,
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          tooltip: 'Business Profile & Branding Settings',
+                          icon: const Icon(Icons.business_outlined),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const BusinessProfileDialog(),
+                            );
+                          },
+                        ),
+                        PopupMenuButton<Color>(
+                          tooltip: 'Accent Color',
+                          icon: Icon(Icons.palette_outlined, color: currentAccent),
+                          onSelected: (color) => ref.read(accentColorProvider.notifier).setAccentColor(color),
+                          itemBuilder: (context) {
+                            return AppTheme.presetAccents.map((color) {
+                              final isSelected = color.value == currentAccent.value;
+                              return PopupMenuItem<Color>(
+                                value: color,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 18,
+                                      height: 18,
+                                      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(_getColorName(color), style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                                    if (isSelected) ...[
+                                      const Spacer(),
+                                      const Icon(Icons.check, size: 16),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            }).toList();
+                          },
+                        ),
+                        IconButton(
+                          tooltip: _getThemeModeTooltip(themeMode),
+                          icon: Icon(_getThemeModeIcon(themeMode)),
+                          onPressed: () => ref.read(themeModeProvider.notifier).cycleThemeMode(),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ),
+                    body: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24.0),
+                      child: tabs[_selectedTab],
+                    ),
+                  ),
                 ),
               ],
-              selected: {_selectedTab},
-              onSelectionChanged: (newSelection) {
-                setState(() => _selectedTab = newSelection.first);
-              },
             ),
-            const SizedBox(height: 20),
-            if (_selectedTab == 0) ...[
-              InvoiceInputsCard(
-                nextInvoiceNumber: nextInvoiceNumber,
-                onSaveInvoice: _handleSaveInvoice,
-              ),
-              const SizedBox(height: 24),
-              const OfflineInvoicesList(),
-            ] else ...[
-              EstimateInputsCard(
-                nextEstimateNumber: nextEstimateNumber,
-                onSaveEstimate: _handleSaveEstimate,
-              ),
-              const SizedBox(height: 24),
-              const OfflineEstimatesList(),
-            ],
-          ],
-        ),
-      ),
+          );
+        } else {
+          // Mobile / Half-screen compact view with BottomNavigationBar
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Local Billing'),
+              elevation: 0,
+              actions: [
+                IconButton(
+                  tooltip: 'Export CSV',
+                  icon: const Icon(Icons.file_download),
+                  onPressed: _handleExportCsv,
+                ),
+                IconButton(
+                  tooltip: 'Business Profile',
+                  icon: const Icon(Icons.business_outlined),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => const BusinessProfileDialog(),
+                    );
+                  },
+                ),
+                IconButton(
+                  tooltip: _getThemeModeTooltip(themeMode),
+                  icon: Icon(_getThemeModeIcon(themeMode)),
+                  onPressed: () => ref.read(themeModeProvider.notifier).cycleThemeMode(),
+                ),
+              ],
+            ),
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: tabs[_selectedTab],
+            ),
+            bottomNavigationBar: NavigationBar(
+              selectedIndex: _selectedTab,
+              onDestinationSelected: (index) => setState(() => _selectedTab = index),
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.dashboard_outlined),
+                  selectedIcon: Icon(Icons.dashboard),
+                  label: 'Dashboard',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.receipt_long_outlined),
+                  selectedIcon: Icon(Icons.receipt_long),
+                  label: 'Sales',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.account_balance_wallet_outlined),
+                  selectedIcon: Icon(Icons.account_balance_wallet),
+                  label: 'Expenses',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.people_alt_outlined),
+                  selectedIcon: Icon(Icons.people_alt),
+                  label: 'Directory',
+                ),
+              ],
+            ),
+          );
+        }
+      },
     );
   }
 

@@ -10,6 +10,15 @@ class BusinessProfile {
   final String taxId;
   final String paymentDetails;
   final String currencySymbol;
+  final String defaultTerms;
+  final String defaultNotes;
+  final String logoBase64;
+  final String signatureBase64;
+  final String signatureLabel;
+  final String invoicePrefix;
+  final String estimatePrefix;
+  final int nextInvoiceNumber;
+  final String paymentQrPayload;
 
   const BusinessProfile({
     required this.id,
@@ -20,6 +29,15 @@ class BusinessProfile {
     required this.taxId,
     required this.paymentDetails,
     this.currencySymbol = '\$',
+    this.defaultTerms = 'Payment due within agreed terms. Thank you for your business!',
+    this.defaultNotes = '',
+    this.logoBase64 = '',
+    this.signatureBase64 = '',
+    this.signatureLabel = 'Authorized Signatory',
+    this.invoicePrefix = 'INV-',
+    this.estimatePrefix = 'EST-',
+    this.nextInvoiceNumber = 1,
+    this.paymentQrPayload = '',
   });
 
   factory BusinessProfile.fromRow(sql.Row row) {
@@ -32,6 +50,16 @@ class BusinessProfile {
       taxId: row['tax_id'] as String? ?? '',
       paymentDetails: row['payment_details'] as String? ?? '',
       currencySymbol: row['currency_symbol'] as String? ?? '\$',
+      defaultTerms: row['default_terms'] as String? ??
+          'Payment due within agreed terms. Thank you for your business!',
+      defaultNotes: row['default_notes'] as String? ?? '',
+      logoBase64: row['logo_base64'] as String? ?? '',
+      signatureBase64: row['signature_base64'] as String? ?? '',
+      signatureLabel: row['signature_label'] as String? ?? 'Authorized Signatory',
+      invoicePrefix: row['invoice_prefix'] as String? ?? 'INV-',
+      estimatePrefix: row['estimate_prefix'] as String? ?? 'EST-',
+      nextInvoiceNumber: row['next_invoice_number'] as int? ?? 1,
+      paymentQrPayload: row['payment_qr_payload'] as String? ?? '',
     );
   }
 
@@ -44,6 +72,15 @@ class BusinessProfile {
     String? taxId,
     String? paymentDetails,
     String? currencySymbol,
+    String? defaultTerms,
+    String? defaultNotes,
+    String? logoBase64,
+    String? signatureBase64,
+    String? signatureLabel,
+    String? invoicePrefix,
+    String? estimatePrefix,
+    int? nextInvoiceNumber,
+    String? paymentQrPayload,
   }) {
     return BusinessProfile(
       id: id ?? this.id,
@@ -54,6 +91,15 @@ class BusinessProfile {
       taxId: taxId ?? this.taxId,
       paymentDetails: paymentDetails ?? this.paymentDetails,
       currencySymbol: currencySymbol ?? this.currencySymbol,
+      defaultTerms: defaultTerms ?? this.defaultTerms,
+      defaultNotes: defaultNotes ?? this.defaultNotes,
+      logoBase64: logoBase64 ?? this.logoBase64,
+      signatureBase64: signatureBase64 ?? this.signatureBase64,
+      signatureLabel: signatureLabel ?? this.signatureLabel,
+      invoicePrefix: invoicePrefix ?? this.invoicePrefix,
+      estimatePrefix: estimatePrefix ?? this.estimatePrefix,
+      nextInvoiceNumber: nextInvoiceNumber ?? this.nextInvoiceNumber,
+      paymentQrPayload: paymentQrPayload ?? this.paymentQrPayload,
     );
   }
 
@@ -67,6 +113,15 @@ class BusinessProfile {
       'tax_id': taxId,
       'payment_details': paymentDetails,
       'currency_symbol': currencySymbol,
+      'default_terms': defaultTerms,
+      'default_notes': defaultNotes,
+      'logo_base64': logoBase64,
+      'signature_base64': signatureBase64,
+      'signature_label': signatureLabel,
+      'invoice_prefix': invoicePrefix,
+      'estimate_prefix': estimatePrefix,
+      'next_invoice_number': nextInvoiceNumber,
+      'payment_qr_payload': paymentQrPayload,
     };
   }
 }

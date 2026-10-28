@@ -30,6 +30,11 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
         e.issue_date,
         e.expiry_date,
         e.converted_invoice_id,
+        e.terms,
+        e.notes,
+        e.discount_type,
+        e.discount_value,
+        e.discount_cents,
         e.created_at
       FROM estimates e
       LEFT JOIN clients c ON e.client_id = c.id
@@ -40,10 +45,15 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
   }
 
   String getNextEstimateNumber() {
+    final profileRes = _db.select("SELECT estimate_prefix FROM business_profile WHERE id = 'default'");
+    String prefix = 'EST-';
+    if (profileRes.isNotEmpty) {
+      prefix = (profileRes.first['estimate_prefix'] as String?) ?? 'EST-';
+    }
     final result = _db.select('SELECT COUNT(*) AS total FROM estimates');
     final count = (result.first['total'] as int?) ?? 0;
     final nextNumber = count + 1;
-    return 'EST-${nextNumber.toString().padLeft(4, '0')}';
+    return '$prefix${nextNumber.toString().padLeft(4, '0')}';
   }
 
   List<EstimateItem> getEstimateItems(String estimateId) {
@@ -60,6 +70,10 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     required int taxPercentage,
     String? issueDate,
     String? expiryDate,
+    String terms = '',
+    String notes = '',
+    String discountType = 'none',
+    int discountValue = 0,
     String status = 'PENDING',
   }) {
     if (items.isEmpty) {
@@ -94,50 +108,64 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     final createdAt = DateTime.now().toUtc().toIso8601String();
 
     final subtotalCents = items.fold<int>(0, (sum, item) => sum + item.totalCents);
-    final taxCents = calculateTaxCents(subtotalCents, taxPercentage);
-    final totalCents = subtotalCents + taxCents;
+    final discountCents = calculateDiscountCents(subtotalCents, discountType, discountValue);
+    final netSubtotalCents = (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
+    final taxCents = calculateTaxCents(netSubtotalCents, taxPercentage);
+    final totalCents = netSubtotalCents + taxCents;
 
     _db.execute('BEGIN TRANSACTION;');
     try {
       final stmt = _db.prepare('''
         INSERT INTO estimates (
           id, client_id, estimate_number, subtotal_cents, tax_cents, total_cents,
-          status, issue_date, expiry_date, converted_invoice_id, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          status, issue_date, expiry_date, converted_invoice_id, terms, notes,
+          discount_type, discount_value, discount_cents, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
-      stmt.execute([
-        estimateId,
-        clientId,
-        estimateNumber,
-        subtotalCents,
-        taxCents,
-        totalCents,
-        status,
-        effectiveIssueDate,
-        effectiveExpiryDate,
-        '',
-        createdAt,
-      ]);
-      stmt.dispose();
+      try {
+        stmt.execute([
+          estimateId,
+          clientId,
+          estimateNumber,
+          subtotalCents,
+          taxCents,
+          totalCents,
+          status,
+          effectiveIssueDate,
+          effectiveExpiryDate,
+          '',
+          terms,
+          notes,
+          discountType,
+          discountValue,
+          discountCents,
+          createdAt,
+        ]);
+      } finally {
+        stmt.dispose();
+      }
 
       final itemStmt = _db.prepare('''
         INSERT INTO estimate_items (
           id, estimate_id, description, quantity, unit_price_cents, total_cents, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
       ''');
-      for (final item in items) {
-        final itemId = generateUniqueId();
-        itemStmt.execute([
-          itemId,
-          estimateId,
-          item.description,
-          item.quantity,
-          item.unitPriceCents,
-          item.totalCents,
-          createdAt,
-        ]);
+      try {
+        for (final item in items) {
+          final itemId = generateUniqueId();
+          itemStmt.execute([
+            itemId,
+            estimateId,
+            item.description,
+            item.quantity,
+            item.unitPriceCents,
+            item.totalCents,
+            createdAt,
+          ]);
+        }
+      } finally {
+        itemStmt.dispose();
       }
-      itemStmt.dispose();
 
       _db.execute('COMMIT;');
     } catch (e) {
@@ -157,9 +185,16 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     final clientId = estRow['client_id'] as String;
     final subtotalCents = estRow['subtotal_cents'] as int;
     final taxCents = estRow['tax_cents'] as int;
+    final terms = (estRow['terms'] as String?) ?? '';
+    final notes = (estRow['notes'] as String?) ?? '';
+    final discountType = (estRow['discount_type'] as String?) ?? 'none';
+    final discountValue = (estRow['discount_value'] as int?) ?? 0;
+    final discountCents = (estRow['discount_cents'] as int?) ?? 0;
+
+    final netSubtotalCents = (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
     int taxPercentage = 0;
-    if (subtotalCents > 0) {
-      taxPercentage = ((taxCents * 100) / subtotalCents).round();
+    if (netSubtotalCents > 0) {
+      taxPercentage = ((taxCents * 100) / netSubtotalCents).round();
     }
 
     final items = getEstimateItems(estimateId);
@@ -177,6 +212,10 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
       clientId: clientId,
       items: draftItems,
       taxPercentage: taxPercentage,
+      terms: terms,
+      notes: notes,
+      discountType: discountType,
+      discountValue: discountValue,
     );
 
     _db.execute(

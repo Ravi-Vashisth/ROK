@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -12,6 +13,17 @@ import '../../invoices/models/invoice_record.dart';
 import '../../payments/models/payment_record.dart';
 
 class InvoicePdfService {
+  /// Helper to safely decode base64 image bytes or return null on invalid input.
+  static Uint8List? _safeDecodeBase64(String input) {
+    if (input.trim().isEmpty) return null;
+    try {
+      final clean = input.contains(',') ? input.split(',').last : input;
+      return base64Decode(clean.trim());
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Generates a print-ready A4 PDF invoice document adhering to strict financial formatting.
   static Future<Uint8List> generateInvoicePdf({
     required InvoiceRecord invoice,
@@ -63,6 +75,16 @@ class InvoicePdfService {
       statusDisplay = 'PENDING';
     }
 
+    final effectiveTerms = invoice.terms.trim().isNotEmpty
+        ? invoice.terms.trim()
+        : businessProfile.defaultTerms.trim();
+    final effectiveNotes = invoice.notes.trim().isNotEmpty
+        ? invoice.notes.trim()
+        : businessProfile.defaultNotes.trim();
+
+    final logoBytes = _safeDecodeBase64(businessProfile.logoBase64);
+    final signatureBytes = _safeDecodeBase64(businessProfile.signatureBase64);
+
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -75,25 +97,38 @@ class InvoicePdfService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
-                      pw.Text(
-                        'INVOICE',
-                        style: pw.TextStyle(
-                          fontSize: 28,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColor.fromHex('#1E293B'),
+                      if (logoBytes != null) ...[
+                        pw.Container(
+                          width: 48,
+                          height: 48,
+                          margin: const pw.EdgeInsets.only(right: 12),
+                          child: pw.Image(pw.MemoryImage(logoBytes), fit: pw.BoxFit.contain),
                         ),
-                      ),
-                      pw.SizedBox(height: 4),
-                      pw.Text(
-                        invoice.invoiceNumber,
-                        style: pw.TextStyle(
-                          fontSize: 14,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColor.fromHex('#4F46E5'),
-                        ),
+                      ],
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'INVOICE',
+                            style: pw.TextStyle(
+                              fontSize: 26,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromHex('#1E293B'),
+                            ),
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Text(
+                            invoice.invoiceNumber,
+                            style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromHex('#4F46E5'),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -138,9 +173,9 @@ class InvoicePdfService {
                 ],
               ),
 
-              pw.SizedBox(height: 18),
+              pw.SizedBox(height: 16),
               pw.Divider(color: PdfColor.fromHex('#E2E8F0'), thickness: 1),
-              pw.SizedBox(height: 14),
+              pw.SizedBox(height: 12),
 
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -266,7 +301,7 @@ class InvoicePdfService {
                 ],
               ),
 
-              pw.SizedBox(height: 20),
+              pw.SizedBox(height: 16),
 
               pw.Text(
                 'LINE ITEMS',
@@ -326,7 +361,7 @@ class InvoicePdfService {
               ),
 
               if (payments.isNotEmpty) ...[
-                pw.SizedBox(height: 16),
+                pw.SizedBox(height: 14),
                 pw.Text(
                   'PAYMENTS RECEIVED',
                   style: pw.TextStyle(
@@ -380,7 +415,7 @@ class InvoicePdfService {
                 ),
               ],
 
-              pw.SizedBox(height: 14),
+              pw.SizedBox(height: 12),
 
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.end,
@@ -390,6 +425,15 @@ class InvoicePdfService {
                     child: pw.Column(
                       children: [
                         _buildSummaryLine('Subtotal', formatCents(invoice.subtotalCents, symbol: sym)),
+                        if (invoice.discountCents > 0) ...[
+                          pw.SizedBox(height: 3),
+                          _buildSummaryLine(
+                            'Discount (${invoice.discountType == 'percent' ? '${invoice.discountValue}%' : 'Flat'})',
+                            '-${formatCents(invoice.discountCents, symbol: sym)}',
+                            color: PdfColor.fromHex('#D97706'),
+                            isBold: true,
+                          ),
+                        ],
                         pw.SizedBox(height: 3),
                         _buildSummaryLine('Tax', formatCents(invoice.taxCents, symbol: sym)),
                         pw.SizedBox(height: 3),
@@ -443,10 +487,68 @@ class InvoicePdfService {
 
               pw.Spacer(),
 
+              if (effectiveTerms.isNotEmpty || effectiveNotes.isNotEmpty) ...[
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('#F8FAFC'),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                    border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0'), width: 0.8),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      if (effectiveTerms.isNotEmpty)
+                        pw.Text(
+                          'Terms & Conditions: $effectiveTerms',
+                          style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#475569')),
+                        ),
+                      if (effectiveNotes.isNotEmpty)
+                        pw.Text(
+                          'Notes: $effectiveNotes',
+                          style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#334155')),
+                        ),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 6),
+              ],
+
+              // Signature Block
+              if (signatureBytes != null || businessProfile.signatureLabel.isNotEmpty) ...[
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.end,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        if (signatureBytes != null)
+                          pw.Container(
+                            height: 36,
+                            child: pw.Image(pw.MemoryImage(signatureBytes), fit: pw.BoxFit.contain),
+                          )
+                        else
+                          pw.SizedBox(height: 24),
+                        pw.Container(width: 140, height: 1, color: PdfColor.fromHex('#94A3B8')),
+                        pw.SizedBox(height: 3),
+                        pw.Text(
+                          businessProfile.signatureLabel.isNotEmpty
+                              ? businessProfile.signatureLabel
+                              : 'Authorized Signatory',
+                          style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#64748B')),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 6),
+              ],
+
               if (isPaid) ...[
                 pw.Container(
                   width: double.infinity,
-                  padding: const pw.EdgeInsets.all(12),
+                  padding: const pw.EdgeInsets.all(10),
                   decoration: pw.BoxDecoration(
                     color: PdfColor.fromHex('#ECFDF5'),
                     borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
@@ -458,7 +560,7 @@ class InvoicePdfService {
                       pw.Text(
                         'PAID IN FULL - THANK YOU FOR YOUR BUSINESS!',
                         style: pw.TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: pw.FontWeight.bold,
                           color: PdfColor.fromHex('#047857'),
                           letterSpacing: 0.5,
@@ -532,6 +634,15 @@ class InvoicePdfService {
     );
 
     final sym = businessProfile.currencySymbol;
+    final effectiveTerms = estimate.terms.trim().isNotEmpty
+        ? estimate.terms.trim()
+        : businessProfile.defaultTerms.trim();
+    final effectiveNotes = estimate.notes.trim().isNotEmpty
+        ? estimate.notes.trim()
+        : businessProfile.defaultNotes.trim();
+
+    final logoBytes = _safeDecodeBase64(businessProfile.logoBase64);
+    final signatureBytes = _safeDecodeBase64(businessProfile.signatureBase64);
 
     pdf.addPage(
       pw.Page(
@@ -545,25 +656,38 @@ class InvoicePdfService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
-                      pw.Text(
-                        'ESTIMATE / QUOTE',
-                        style: pw.TextStyle(
-                          fontSize: 26,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColor.fromHex('#1E293B'),
+                      if (logoBytes != null) ...[
+                        pw.Container(
+                          width: 48,
+                          height: 48,
+                          margin: const pw.EdgeInsets.only(right: 12),
+                          child: pw.Image(pw.MemoryImage(logoBytes), fit: pw.BoxFit.contain),
                         ),
-                      ),
-                      pw.SizedBox(height: 4),
-                      pw.Text(
-                        estimate.estimateNumber,
-                        style: pw.TextStyle(
-                          fontSize: 14,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColor.fromHex('#4F46E5'),
-                        ),
+                      ],
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'ESTIMATE / QUOTE',
+                            style: pw.TextStyle(
+                              fontSize: 24,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromHex('#1E293B'),
+                            ),
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Text(
+                            estimate.estimateNumber,
+                            style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromHex('#4F46E5'),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -610,9 +734,9 @@ class InvoicePdfService {
                 ],
               ),
 
-              pw.SizedBox(height: 18),
+              pw.SizedBox(height: 16),
               pw.Divider(color: PdfColor.fromHex('#E2E8F0'), thickness: 1),
-              pw.SizedBox(height: 14),
+              pw.SizedBox(height: 12),
 
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -658,7 +782,7 @@ class InvoicePdfService {
                 ],
               ),
 
-              pw.SizedBox(height: 20),
+              pw.SizedBox(height: 16),
 
               pw.Text(
                 'PROPOSED ITEMS & SERVICES',
@@ -705,7 +829,7 @@ class InvoicePdfService {
                 ],
               ),
 
-              pw.SizedBox(height: 14),
+              pw.SizedBox(height: 12),
 
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.end,
@@ -715,6 +839,15 @@ class InvoicePdfService {
                     child: pw.Column(
                       children: [
                         _buildSummaryLine('Subtotal', formatCents(estimate.subtotalCents, symbol: sym)),
+                        if (estimate.discountCents > 0) ...[
+                          pw.SizedBox(height: 3),
+                          _buildSummaryLine(
+                            'Discount (${estimate.discountType == 'percent' ? '${estimate.discountValue}%' : 'Flat'})',
+                            '-${formatCents(estimate.discountCents, symbol: sym)}',
+                            color: PdfColor.fromHex('#D97706'),
+                            isBold: true,
+                          ),
+                        ],
                         pw.SizedBox(height: 3),
                         _buildSummaryLine('Estimated Tax', formatCents(estimate.taxCents, symbol: sym)),
                         pw.SizedBox(height: 3),
@@ -735,9 +868,62 @@ class InvoicePdfService {
 
               pw.Spacer(),
 
+              if (effectiveTerms.isNotEmpty || effectiveNotes.isNotEmpty) ...[
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('#F8FAFC'),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                    border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0'), width: 0.8),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      if (effectiveTerms.isNotEmpty)
+                        pw.Text('Proposal Terms: $effectiveTerms',
+                            style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#475569'))),
+                      if (effectiveNotes.isNotEmpty)
+                        pw.Text('Proposal Notes: $effectiveNotes',
+                            style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#334155'))),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 6),
+              ],
+
+              if (signatureBytes != null || businessProfile.signatureLabel.isNotEmpty) ...[
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.end,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        if (signatureBytes != null)
+                          pw.Container(
+                            height: 32,
+                            child: pw.Image(pw.MemoryImage(signatureBytes), fit: pw.BoxFit.contain),
+                          )
+                        else
+                          pw.SizedBox(height: 20),
+                        pw.Container(width: 140, height: 1, color: PdfColor.fromHex('#94A3B8')),
+                        pw.SizedBox(height: 3),
+                        pw.Text(
+                          businessProfile.signatureLabel.isNotEmpty
+                              ? businessProfile.signatureLabel
+                              : 'Authorized Signatory',
+                          style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#64748B')),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 6),
+              ],
+
               pw.Container(
                 width: double.infinity,
-                padding: const pw.EdgeInsets.all(10),
+                padding: const pw.EdgeInsets.all(8),
                 decoration: pw.BoxDecoration(
                   color: PdfColor.fromHex('#F8FAFC'),
                   borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),

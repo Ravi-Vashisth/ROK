@@ -15,6 +15,11 @@ class InvoiceRecord {
   final String issueDate;
   final String dueDate;
   final String paymentTerms;
+  final String terms;
+  final String notes;
+  final String discountType; // 'none', 'percent', 'flat'
+  final int discountValue; // % integer or flat cents
+  final int discountCents; // Computed discount in cents
   final String createdAt;
 
   const InvoiceRecord({
@@ -31,6 +36,11 @@ class InvoiceRecord {
     required this.issueDate,
     required this.dueDate,
     required this.paymentTerms,
+    this.terms = '',
+    this.notes = '',
+    this.discountType = 'none',
+    this.discountValue = 0,
+    this.discountCents = 0,
     required this.createdAt,
   });
 
@@ -63,9 +73,17 @@ class InvoiceRecord {
       issueDate: effectiveIssueDate,
       dueDate: effectiveDueDate,
       paymentTerms: rawTerms,
+      terms: (row['terms'] as String?) ?? '',
+      notes: (row['notes'] as String?) ?? '',
+      discountType: (row['discount_type'] as String?) ?? 'none',
+      discountValue: (row['discount_value'] as int?) ?? 0,
+      discountCents: (row['discount_cents'] as int?) ?? 0,
       createdAt: rawCreatedAt,
     );
   }
+
+  /// Net subtotal after applying discount.
+  int get netSubtotalCents => (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
 
   /// Whether the invoice is fully settled.
   bool get isFullyPaid => paidCents >= totalCents || status.toUpperCase() == 'PAID';

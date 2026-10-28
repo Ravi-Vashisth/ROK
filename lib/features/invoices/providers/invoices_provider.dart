@@ -44,6 +44,11 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
         i.issue_date,
         i.due_date,
         i.payment_terms,
+        i.terms,
+        i.notes,
+        i.discount_type,
+        i.discount_value,
+        i.discount_cents,
         i.created_at,
         COALESCE(SUM(p.amount_cents), 0) AS paid_cents
       FROM invoices i
@@ -57,10 +62,14 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
   }
 
   String getNextInvoiceNumber() {
-    final result = _db.select('SELECT COUNT(*) AS total FROM invoices');
-    final count = (result.first['total'] as int?) ?? 0;
-    final nextNumber = count + 1;
-    return 'INV-${nextNumber.toString().padLeft(4, '0')}';
+    final profileRes = _db.select("SELECT invoice_prefix, next_invoice_number FROM business_profile WHERE id = 'default'");
+    String prefix = 'INV-';
+    int nextNum = 1;
+    if (profileRes.isNotEmpty) {
+      prefix = (profileRes.first['invoice_prefix'] as String?) ?? 'INV-';
+      nextNum = (profileRes.first['next_invoice_number'] as int?) ?? 1;
+    }
+    return '$prefix${nextNum.toString().padLeft(4, '0')}';
   }
 
   /// Fetches all line items associated with a specific invoice.
@@ -89,6 +98,10 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     String paymentTerms = 'Due on Receipt',
     String? issueDate,
     String? dueDate,
+    String terms = '',
+    String notes = '',
+    String discountType = 'none',
+    int discountValue = 0,
     String status = 'PENDING',
   }) {
     if (items.isEmpty) {
@@ -127,50 +140,67 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     final createdAt = DateTime.now().toUtc().toIso8601String();
 
     final subtotalCents = items.fold<int>(0, (sum, item) => sum + item.totalCents);
-    final taxCents = calculateTaxCents(subtotalCents, taxPercentage);
-    final totalCents = subtotalCents + taxCents;
+    final discountCents = calculateDiscountCents(subtotalCents, discountType, discountValue);
+    final netSubtotalCents = (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
+    final taxCents = calculateTaxCents(netSubtotalCents, taxPercentage);
+    final totalCents = netSubtotalCents + taxCents;
 
     _db.execute('BEGIN TRANSACTION;');
     try {
       final invoiceStmt = _db.prepare('''
         INSERT INTO invoices (
           id, client_id, invoice_number, subtotal_cents, tax_cents, total_cents,
-          status, issue_date, due_date, payment_terms, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          status, issue_date, due_date, payment_terms, terms, notes,
+          discount_type, discount_value, discount_cents, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
-      invoiceStmt.execute([
-        invoiceId,
-        clientId,
-        invoiceNumber,
-        subtotalCents,
-        taxCents,
-        totalCents,
-        status,
-        effectiveIssueDate,
-        effectiveDueDate,
-        paymentTerms,
-        createdAt,
-      ]);
-      invoiceStmt.dispose();
+      try {
+        invoiceStmt.execute([
+          invoiceId,
+          clientId,
+          invoiceNumber,
+          subtotalCents,
+          taxCents,
+          totalCents,
+          status,
+          effectiveIssueDate,
+          effectiveDueDate,
+          paymentTerms,
+          terms,
+          notes,
+          discountType,
+          discountValue,
+          discountCents,
+          createdAt,
+        ]);
+      } finally {
+        invoiceStmt.dispose();
+      }
 
       final itemStmt = _db.prepare('''
         INSERT INTO invoice_items (
           id, invoice_id, description, quantity, unit_price_cents, total_cents, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
       ''');
-      for (final item in items) {
-        final itemId = generateUniqueId();
-        itemStmt.execute([
-          itemId,
-          invoiceId,
-          item.description,
-          item.quantity,
-          item.unitPriceCents,
-          item.totalCents,
-          createdAt,
-        ]);
+      try {
+        for (final item in items) {
+          final itemId = generateUniqueId();
+          itemStmt.execute([
+            itemId,
+            invoiceId,
+            item.description,
+            item.quantity,
+            item.unitPriceCents,
+            item.totalCents,
+            createdAt,
+          ]);
+        }
+      } finally {
+        itemStmt.dispose();
       }
-      itemStmt.dispose();
+
+      // Increment next_invoice_number in business_profile
+      _db.execute("UPDATE business_profile SET next_invoice_number = next_invoice_number + 1 WHERE id = 'default'");
 
       _db.execute('COMMIT;');
     } catch (e) {
@@ -180,6 +210,107 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
 
     loadInvoices();
     return invoiceId;
+  }
+
+  /// Clones/Duplicates an existing invoice with today's date and a fresh sequential INV number.
+  String duplicateInvoice(String sourceInvoiceId) {
+    final invRes = _db.select('SELECT * FROM invoices WHERE id = ?', [sourceInvoiceId]);
+    if (invRes.isEmpty) {
+      throw ArgumentError('Source invoice not found.');
+    }
+
+    final sourceRow = invRes.first;
+    final clientId = sourceRow['client_id'] as String;
+    final paymentTerms = (sourceRow['payment_terms'] as String?) ?? 'Due on Receipt';
+    final terms = (sourceRow['terms'] as String?) ?? '';
+    final notes = (sourceRow['notes'] as String?) ?? '';
+    final discountType = (sourceRow['discount_type'] as String?) ?? 'none';
+    final discountValue = (sourceRow['discount_value'] as int?) ?? 0;
+    final discountCents = (sourceRow['discount_cents'] as int?) ?? 0;
+    final subtotalCents = sourceRow['subtotal_cents'] as int;
+    final taxCents = sourceRow['tax_cents'] as int;
+    final totalCents = sourceRow['total_cents'] as int;
+
+    final sourceItems = getInvoiceItems(sourceInvoiceId);
+
+    final now = DateTime.now();
+    final todayStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    int daysToAdd = 0;
+    if (paymentTerms == 'Net 15 Days') daysToAdd = 15;
+    if (paymentTerms == 'Net 30 Days') daysToAdd = 30;
+    if (paymentTerms == 'Net 60 Days') daysToAdd = 60;
+    final computedDue = now.add(Duration(days: daysToAdd));
+    final dueDateStr =
+        '${computedDue.year}-${computedDue.month.toString().padLeft(2, '0')}-${computedDue.day.toString().padLeft(2, '0')}';
+
+    final newInvoiceId = generateUniqueId();
+    final newInvoiceNumber = getNextInvoiceNumber();
+    final createdAt = DateTime.now().toUtc().toIso8601String();
+
+    _db.execute('BEGIN TRANSACTION;');
+    try {
+      final invoiceStmt = _db.prepare('''
+        INSERT INTO invoices (
+          id, client_id, invoice_number, subtotal_cents, tax_cents, total_cents,
+          status, issue_date, due_date, payment_terms, terms, notes,
+          discount_type, discount_value, discount_cents, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''');
+      try {
+        invoiceStmt.execute([
+          newInvoiceId,
+          clientId,
+          newInvoiceNumber,
+          subtotalCents,
+          taxCents,
+          totalCents,
+          'PENDING',
+          todayStr,
+          dueDateStr,
+          paymentTerms,
+          terms,
+          notes,
+          discountType,
+          discountValue,
+          discountCents,
+          createdAt,
+        ]);
+      } finally {
+        invoiceStmt.dispose();
+      }
+
+      final itemStmt = _db.prepare('''
+        INSERT INTO invoice_items (
+          id, invoice_id, description, quantity, unit_price_cents, total_cents, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ''');
+      try {
+        for (final item in sourceItems) {
+          final newItemId = generateUniqueId();
+          itemStmt.execute([
+            newItemId,
+            newInvoiceId,
+            item.description,
+            item.quantity,
+            item.unitPriceCents,
+            item.totalCents,
+            createdAt,
+          ]);
+        }
+      } finally {
+        itemStmt.dispose();
+      }
+
+      _db.execute('COMMIT;');
+    } catch (e) {
+      _db.execute('ROLLBACK;');
+      rethrow;
+    }
+
+    loadInvoices();
+    return newInvoiceNumber;
   }
 
   /// Records a partial or full payment installment against an invoice.
@@ -206,16 +337,19 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
           id, invoice_id, amount_cents, payment_method, payment_date, notes, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
       ''');
-      stmt.execute([
-        paymentId,
-        invoiceId,
-        amountCents,
-        paymentMethod,
-        paymentDateStr,
-        notes,
-        createdAt,
-      ]);
-      stmt.dispose();
+      try {
+        stmt.execute([
+          paymentId,
+          invoiceId,
+          amountCents,
+          paymentMethod,
+          paymentDateStr,
+          notes,
+          createdAt,
+        ]);
+      } finally {
+        stmt.dispose();
+      }
 
       final paidRes = _db.select(
         'SELECT COALESCE(SUM(amount_cents), 0) AS total_paid FROM payments WHERE invoice_id = ?',
@@ -231,8 +365,11 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
         final totalCents = invRes.first['total_cents'] as int;
         final newStatus = totalPaid >= totalCents ? 'PAID' : (totalPaid > 0 ? 'PARTIALLY_PAID' : 'PENDING');
         final updateStmt = _db.prepare('UPDATE invoices SET status = ? WHERE id = ?');
-        updateStmt.execute([newStatus, invoiceId]);
-        updateStmt.dispose();
+        try {
+          updateStmt.execute([newStatus, invoiceId]);
+        } finally {
+          updateStmt.dispose();
+        }
       }
 
       _db.execute('COMMIT;');
@@ -246,8 +383,11 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
 
   void updateInvoiceStatus(String invoiceId, String newStatus) {
     final stmt = _db.prepare('UPDATE invoices SET status = ? WHERE id = ?');
-    stmt.execute([newStatus, invoiceId]);
-    stmt.dispose();
+    try {
+      stmt.execute([newStatus, invoiceId]);
+    } finally {
+      stmt.dispose();
+    }
     loadInvoices();
   }
 }

@@ -7,6 +7,8 @@ class EstimateItem {
   final String description;
   final int quantity;
   final int unitPriceCents;
+  final int taxRatePercentage;
+  final int taxCents;
   final int totalCents;
   final String createdAt;
 
@@ -16,6 +18,8 @@ class EstimateItem {
     required this.description,
     required this.quantity,
     required this.unitPriceCents,
+    this.taxRatePercentage = 0,
+    this.taxCents = 0,
     required this.totalCents,
     required this.createdAt,
   });
@@ -27,6 +31,8 @@ class EstimateItem {
       description: row['description'] as String,
       quantity: row['quantity'] as int,
       unitPriceCents: row['unit_price_cents'] as int,
+      taxRatePercentage: (row['tax_rate_percentage'] as int?) ?? 0,
+      taxCents: (row['tax_cents'] as int?) ?? 0,
       totalCents: row['total_cents'] as int,
       createdAt: row['created_at'] as String,
     );
