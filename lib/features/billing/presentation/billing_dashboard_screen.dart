@@ -11,6 +11,7 @@ import '../../dashboard/presentation/dashboard_tab.dart';
 import '../../expenses/providers/expenses_provider.dart';
 import '../../expenses/presentation/expenses_tab.dart';
 import '../../settings/presentation/directory_settings_tab.dart';
+import '../../invoices/providers/invoices_provider.dart';
 import 'sales_tab.dart';
 
 class BillingDashboardScreen extends ConsumerStatefulWidget {
@@ -98,7 +99,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
             body: Row(
               children: [
                 NavigationRail(
-                  currentIndex: _selectedTab,
+                  selectedIndex: _selectedTab,
                   onDestinationSelected: (index) => setState(() => _selectedTab = index),
                   labelType: NavigationRailLabelType.all,
                   leading: Padding(

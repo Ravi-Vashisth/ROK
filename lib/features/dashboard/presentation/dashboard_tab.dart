@@ -6,7 +6,7 @@ import '../../business_profile/providers/business_profile_provider.dart';
 import '../../clients/providers/clients_provider.dart';
 import '../../expenses/providers/expenses_provider.dart';
 import '../../invoices/providers/invoices_provider.dart';
-import '../../billing/widgets/cash_flow_metrics_bar.dart';
+import '../../billing/presentation/widgets/cash_flow_metrics_bar.dart';
 
 class DashboardTab extends ConsumerWidget {
   final VoidCallback onNavigateToSales;
@@ -97,7 +97,7 @@ class DashboardTab extends ConsumerWidget {
           },
         ),
         const SizedBox(height: 20),
-        const CashFlowMetricsBar(),
+        CashFlowMetricsBar(),
         const SizedBox(height: 28),
         LayoutBuilder(
           builder: (context, constraints) {
