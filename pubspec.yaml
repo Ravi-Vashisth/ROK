@@ -17,6 +17,7 @@ dependencies:
   intl: ^0.19.0
   pdf: ^3.11.1
   printing: ^5.13.2
+  file_picker: ^8.1.4
 
 dev_dependencies:
   flutter_test:

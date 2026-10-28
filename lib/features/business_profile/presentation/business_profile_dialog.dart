@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -21,10 +24,11 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
   late final TextEditingController _paymentDetailsController;
   late final TextEditingController _defaultTermsController;
   late final TextEditingController _defaultNotesController;
-  late final TextEditingController _logoBase64Controller;
-  late final TextEditingController _signatureBase64Controller;
   late final TextEditingController _signatureLabelController;
   late String _selectedCurrencySymbol;
+
+  String _logoBase64 = '';
+  String _signatureBase64 = '';
 
   static const List<String> _currencyPresets = ['\$', '€', '£', '₹', 'C\$', 'A\$', '¥'];
 
@@ -37,14 +41,17 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     _phoneController = TextEditingController(text: profile.phone);
     _addressController = TextEditingController(text: profile.address);
     _taxIdController = TextEditingController(text: profile.taxId);
-    _paymentDetailsController = TextEditingController(text: profile.paymentDetails);
+    // Unescape literal \n into real linebreaks for editing
+    _paymentDetailsController = TextEditingController(
+      text: profile.paymentDetails.replaceAll(r'\n', '\n'),
+    );
     _defaultTermsController = TextEditingController(text: profile.defaultTerms);
     _defaultNotesController = TextEditingController(text: profile.defaultNotes);
-    _logoBase64Controller = TextEditingController(text: profile.logoBase64);
-    _signatureBase64Controller = TextEditingController(text: profile.signatureBase64);
     _signatureLabelController = TextEditingController(
       text: profile.signatureLabel.isNotEmpty ? profile.signatureLabel : 'Authorized Signatory',
     );
+    _logoBase64 = profile.logoBase64;
+    _signatureBase64 = profile.signatureBase64;
     _selectedCurrencySymbol = _currencyPresets.contains(profile.currencySymbol)
         ? profile.currencySymbol
         : '\$';
@@ -60,10 +67,52 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     _paymentDetailsController.dispose();
     _defaultTermsController.dispose();
     _defaultNotesController.dispose();
-    _logoBase64Controller.dispose();
-    _signatureBase64Controller.dispose();
     _signatureLabelController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickLogoFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+      );
+      if (result != null && result.files.single.path != null) {
+        final bytes = await File(result.files.single.path!).readAsBytes();
+        final b64 = 'data:image/png;base64,${base64Encode(bytes)}';
+        setState(() {
+          _logoBase64 = b64;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('File selection note: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickSignatureFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+      );
+      if (result != null && result.files.single.path != null) {
+        final bytes = await File(result.files.single.path!).readAsBytes();
+        final b64 = 'data:image/png;base64,${base64Encode(bytes)}';
+        setState(() {
+          _signatureBase64 = b64;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('File selection note: $e')),
+        );
+      }
+    }
   }
 
   void _handleSave() {
@@ -79,8 +128,8 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
           currencySymbol: _selectedCurrencySymbol,
           defaultTerms: _defaultTermsController.text.trim(),
           defaultNotes: _defaultNotesController.text.trim(),
-          logoBase64: _logoBase64Controller.text.trim(),
-          signatureBase64: _signatureBase64Controller.text.trim(),
+          logoBase64: _logoBase64.trim(),
+          signatureBase64: _signatureBase64.trim(),
           signatureLabel: _signatureLabelController.text.trim(),
         );
 
@@ -91,6 +140,62 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
         content: Text('Business profile, logo, signature & defaults saved to local SQLite.'),
       ),
     );
+  }
+
+  Widget _buildImagePreview(String base64Str, VoidCallback onRemove, String label) {
+    if (base64Str.isEmpty) {
+      return Container(
+        height: 60,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Theme.of(context).dividerColor, style: BorderStyle.solid),
+        ),
+        child: Center(
+          child: Text('No $label selected yet', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        ),
+      );
+    }
+
+    try {
+      final pureBase64 = base64Str.contains(',') ? base64Str.split(',').last : base64Str;
+      final bytes = base64Decode(pureBase64);
+      return Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.memory(bytes, height: 48, fit: BoxFit.contain),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text('$label uploaded', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            ),
+            TextButton.icon(
+              onPressed: onRemove,
+              icon: const Icon(Icons.close, size: 16, color: Colors.red),
+              label: const Text('Remove', style: TextStyle(color: Colors.red, fontSize: 12)),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      return Row(
+        children: [
+          const Icon(Icons.check_circle, color: Colors.green, size: 18),
+          const SizedBox(width: 8),
+          Text('$label configured', style: const TextStyle(fontSize: 12)),
+          const Spacer(),
+          TextButton(onPressed: onRemove, child: const Text('Remove', style: TextStyle(color: Colors.red))),
+        ],
+      );
+    }
   }
 
   @override
@@ -211,49 +316,45 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
                     prefixIcon: Icon(Icons.badge_outlined, size: 20),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
                 const Text(
                   'Branding: Company Logo & Digital Signature',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 6),
-                TextFormField(
-                  controller: _logoBase64Controller,
-                  decoration: const InputDecoration(
-                    labelText: 'Company Logo (Image URL or Base64 String)',
-                    hintText: 'Paste image URL or base64 data URI...',
-                    prefixIcon: Icon(Icons.image_outlined, size: 20),
-                  ),
-                ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Row(
                   children: [
-                    Expanded(
-                      flex: 3,
-                      child: TextFormField(
-                        controller: _signatureBase64Controller,
-                        decoration: const InputDecoration(
-                          labelText: 'Digital Signature (Typed Name or Image Base64)',
-                          hintText: 'e.g. Jane Doe, CEO',
-                          prefixIcon: Icon(Icons.draw_outlined, size: 20),
-                        ),
-                      ),
+                    FilledButton.tonalIcon(
+                      onPressed: _pickLogoFile,
+                      icon: const Icon(Icons.file_upload_outlined, size: 16),
+                      label: const Text('Select Logo File'),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      flex: 2,
-                      child: TextFormField(
-                        controller: _signatureLabelController,
-                        decoration: const InputDecoration(
-                          labelText: 'Signature Label',
-                          hintText: 'Authorized Signatory',
-                          prefixIcon: Icon(Icons.label_outlined, size: 20),
-                        ),
-                      ),
-                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildImagePreview(_logoBase64, () => setState(() => _logoBase64 = ''), 'Logo')),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    FilledButton.tonalIcon(
+                      onPressed: _pickSignatureFile,
+                      icon: const Icon(Icons.draw_outlined, size: 16),
+                      label: const Text('Select Signature'),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildImagePreview(_signatureBase64, () => setState(() => _signatureBase64 = ''), 'Signature')),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _signatureLabelController,
+                  decoration: const InputDecoration(
+                    labelText: 'Signature Label',
+                    hintText: 'Authorized Signatory',
+                    prefixIcon: Icon(Icons.label_outlined, size: 20),
+                  ),
+                ),
+                const SizedBox(height: 18),
                 const Text(
                   'Payment Instructions & Remittance Details',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
@@ -261,7 +362,7 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _paymentDetailsController,
-                  maxLines: 3,
+                  maxLines: 4,
                   decoration: const InputDecoration(
                     hintText:
                         'Bank: ACME Bank\nAccount: 123456789\nRouting / IFSC / SWIFT: ACM00123\nPayPal / UPI: pay@studio.com',

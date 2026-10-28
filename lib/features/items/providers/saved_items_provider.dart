@@ -83,6 +83,27 @@ class SavedItemsNotifier extends StateNotifier<List<SavedItem>> {
     loadItems();
   }
 
+  void updateItem({
+    required String id,
+    required String title,
+    required int defaultPriceCents,
+    String description = '',
+  }) {
+    if (title.trim().isEmpty) return;
+
+    final stmt = _db.prepare('''
+      UPDATE saved_items 
+      SET title = ?, default_price_cents = ?, description = ?
+      WHERE id = ?
+    ''');
+    try {
+      stmt.execute([title.trim(), defaultPriceCents, description.trim(), id]);
+    } finally {
+      stmt.dispose();
+    }
+    loadItems();
+  }
+
   void deleteItem(String id) {
     _db.execute('DELETE FROM saved_items WHERE id = ?', [id]);
     loadItems();

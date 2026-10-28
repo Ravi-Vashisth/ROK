@@ -62,14 +62,27 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
   }
 
   String getNextInvoiceNumber() {
-    final profileRes = _db.select("SELECT invoice_prefix, next_invoice_number FROM business_profile WHERE id = 'default'");
+    final profileRes = _db.select("SELECT invoice_prefix FROM business_profile WHERE id = 'default'");
     String prefix = 'INV-';
-    int nextNum = 1;
     if (profileRes.isNotEmpty) {
       prefix = (profileRes.first['invoice_prefix'] as String?) ?? 'INV-';
-      nextNum = (profileRes.first['next_invoice_number'] as int?) ?? 1;
     }
+
+    final numRes = _db.select('''
+      SELECT COALESCE(MAX(CAST(SUBSTR(invoice_number, 5) AS INTEGER)), 0) + 1 AS next_num FROM invoices;
+    ''');
+    final nextNum = (numRes.first['next_num'] as int?) ?? 1;
     return '$prefix${nextNum.toString().padLeft(4, '0')}';
+  }
+
+  void voidInvoice(String invoiceId) {
+    final stmt = _db.prepare("UPDATE invoices SET status = 'VOID' WHERE id = ?");
+    try {
+      stmt.execute([invoiceId]);
+    } finally {
+      stmt.dispose();
+    }
+    loadInvoices();
   }
 
   /// Fetches all line items associated with a specific invoice.

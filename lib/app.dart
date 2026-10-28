@@ -14,7 +14,7 @@ class BillingDesktopApp extends ConsumerWidget {
     final accentColor = ref.watch(accentColorProvider);
 
     return MaterialApp(
-      title: 'Local Billing',
+      title: 'Freelance Ledger',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme(seed: accentColor),
       darkTheme: AppTheme.darkTheme(seed: accentColor),

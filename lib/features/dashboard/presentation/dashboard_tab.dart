@@ -57,44 +57,9 @@ class DashboardTab extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isCompact = constraints.maxWidth < 650;
-            if (isCompact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Financial Overview & Dashboard',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      icon: const Icon(Icons.file_download, size: 18),
-                      label: const Text('Export P&L Report CSV'),
-                      onPressed: () => _handleExportCsv(context, ref),
-                    ),
-                  ),
-                ],
-              );
-            }
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Financial Overview & Dashboard',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                FilledButton.icon(
-                  icon: const Icon(Icons.file_download, size: 18),
-                  label: const Text('Export P&L Report CSV'),
-                  onPressed: () => _handleExportCsv(context, ref),
-                ),
-              ],
-            );
-          },
+        Text(
+          'Financial Overview & Dashboard',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 20),
         CashFlowMetricsBar(),

@@ -288,7 +288,7 @@ class OfflineInvoicesList extends ConsumerWidget {
                     ],
                   ),
                   subtitle: Text(
-                    'Terms: ${inv.paymentTerms} | Issue: ${inv.issueDate} | Total: ${formatCents(inv.totalCents, symbol: sym)}${inv.balanceDueCents > 0 ? " | Due: ${formatCents(inv.balanceDueCents, symbol: sym)}" : ""}',
+                    'Terms: ${inv.paymentTerms} • Issued: ${inv.issueDate} • Due: ${inv.dueDate}',
                     style: const TextStyle(fontSize: 11),
                   ),
                   trailing: Row(
@@ -307,15 +307,18 @@ class OfflineInvoicesList extends ConsumerWidget {
                                       : (isOverdue ? Colors.red.shade700 : null),
                                 ),
                           ),
-                          if (inv.balanceDueCents > 0)
-                            Text(
-                              'Bal: ${formatCents(inv.balanceDueCents, symbol: sym)}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: isOverdue ? Colors.red.shade700 : Colors.indigo.shade700,
-                              ),
+                          Text(
+                            inv.balanceDueCents > 0
+                                ? 'Bal: ${formatCents(inv.balanceDueCents, symbol: sym)}'
+                                : '✓ Settled',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: inv.balanceDueCents > 0
+                                  ? (isOverdue ? Colors.red.shade700 : Colors.indigo.shade700)
+                                  : Colors.green.shade700,
                             ),
+                          ),
                         ],
                       ),
                       const SizedBox(width: 8),
@@ -330,8 +333,8 @@ class OfflineInvoicesList extends ConsumerWidget {
                         onPressed: () => _handleDuplicate(context, ref, inv),
                       ),
                       const SizedBox(width: 6),
-                      // Record Payment Action Button
-                      if (inv.balanceDueCents > 0) ...[
+                      // Record Payment Action Button (only if balance due is greater than zero)
+                      if (inv.balanceDueCents > 0 && inv.status != 'VOID') ...[
                         OutlinedButton.icon(
                           icon: const Icon(Icons.add_card, size: 15),
                           label: const Text('Pay', style: TextStyle(fontSize: 12)),
@@ -354,6 +357,33 @@ class OfflineInvoicesList extends ConsumerWidget {
                         ),
                         onPressed: () => _handlePrint(context, ref, inv),
                       ),
+                      if (inv.status != 'VOID' && inv.balanceDueCents > 0) ...[
+                        const SizedBox(width: 4),
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert, size: 18),
+                          tooltip: 'More actions',
+                          onSelected: (val) {
+                            if (val == 'void') {
+                              ref.read(invoicesProvider.notifier).voidInvoice(inv.id);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Invoice ${inv.invoiceNumber} marked as VOID.')),
+                              );
+                            }
+                          },
+                          itemBuilder: (_) => [
+                            const PopupMenuItem(
+                              value: 'void',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.block, size: 16, color: Colors.red),
+                                  SizedBox(width: 8),
+                                  Text('Void / Cancel Invoice', style: TextStyle(color: Colors.red, fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                   children: [

@@ -141,8 +141,10 @@ class _SalesTabState extends ConsumerState<SalesTab> {
 
   @override
   Widget build(BuildContext context) {
-    final nextInvoiceNumber = ref.watch(invoicesProvider.notifier).getNextInvoiceNumber();
-    final nextEstimateNumber = ref.watch(estimatesProvider.notifier).getNextEstimateNumber();
+    ref.watch(invoicesProvider);
+    ref.watch(estimatesProvider);
+    final nextInvoiceNumber = ref.read(invoicesProvider.notifier).getNextInvoiceNumber();
+    final nextEstimateNumber = ref.read(estimatesProvider.notifier).getNextEstimateNumber();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

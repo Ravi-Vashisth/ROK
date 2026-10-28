@@ -182,6 +182,24 @@ Future<Database> openLocalDatabase() async {
     CREATE INDEX IF NOT EXISTS idx_payments_invoice_id ON payments (invoice_id);
   ''');
 
+  // Auto-sync repair: Ensure any invoice marked 'PAID' has a matching payment in the ledger
+  try {
+    db.execute('''
+      INSERT OR IGNORE INTO payments (id, invoice_id, amount_cents, payment_method, payment_date, notes, created_at)
+      SELECT 
+        'sync_pay_' || i.id,
+        i.id,
+        i.total_cents,
+        'Settled Ledger',
+        COALESCE(NULLIF(i.issue_date, ''), strftime('%Y-%m-%d', 'now')),
+        'Initial Settlement Payment',
+        COALESCE(NULLIF(i.created_at, ''), datetime('now'))
+      FROM invoices i
+      WHERE i.status = 'PAID'
+        AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.invoice_id = i.id);
+    ''');
+  } catch (_) {}
+
   // 6. Estimates / Quotes Table
   db.execute('''
     CREATE TABLE IF NOT EXISTS estimates (

@@ -123,34 +123,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                       ],
                     ),
                   ),
-                  trailing: Expanded(
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 24.0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: 'Business Profile & Branding',
-                              icon: const Icon(Icons.business_outlined),
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => const BusinessProfileDialog(),
-                                );
-                              },
-                            ),
-                            IconButton(
-                              tooltip: _getThemeModeTooltip(themeMode),
-                              icon: Icon(_getThemeModeIcon(themeMode)),
-                              onPressed: () => ref.read(themeModeProvider.notifier).cycleThemeMode(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
                   destinations: const [
                     NavigationRailDestination(
                       icon: Icon(Icons.dashboard_outlined),
@@ -178,7 +150,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                 Expanded(
                   child: Scaffold(
                     appBar: AppBar(
-                      title: const Text('Local Billing & Financial Ledger'),
+                      title: const Text('Freelance Ledger'),
                       elevation: 0,
                       actions: [
                         FilledButton.icon(
@@ -187,7 +159,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                             foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
                           ),
                           icon: const Icon(Icons.file_download, size: 16),
-                          label: const Text('Export Financial CSV', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          label: const Text('Export Accountant CSV', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                           onPressed: _handleExportCsv,
                         ),
                         const SizedBox(width: 8),
@@ -250,11 +222,11 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
           // Mobile / Half-screen compact view with BottomNavigationBar
           return Scaffold(
             appBar: AppBar(
-              title: const Text('Local Billing'),
+              title: const Text('Freelance Ledger'),
               elevation: 0,
               actions: [
                 IconButton(
-                  tooltip: 'Export CSV',
+                  tooltip: 'Export Accountant CSV',
                   icon: const Icon(Icons.file_download),
                   onPressed: _handleExportCsv,
                 ),

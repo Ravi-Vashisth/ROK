@@ -47,6 +47,54 @@ class ClientsNotifier extends StateNotifier<List<Client>> {
 
     loadClients();
   }
+
+  void updateClient({
+    required String id,
+    required String name,
+    String email = '',
+    String phone = '',
+    String address = '',
+    String taxId = '',
+  }) {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) return;
+
+    final stmt = _db.prepare('''
+      UPDATE clients 
+      SET name = ?, email = ?, phone = ?, address = ?, tax_id = ?
+      WHERE id = ?
+    ''');
+    try {
+      stmt.execute([
+        trimmedName,
+        email.trim(),
+        phone.trim(),
+        address.trim(),
+        taxId.trim(),
+        id,
+      ]);
+    } finally {
+      stmt.dispose();
+    }
+    loadClients();
+  }
+
+  bool deleteClient(String id) {
+    final check = _db.select('SELECT COUNT(*) AS count FROM invoices WHERE client_id = ?', [id]);
+    final count = (check.first['count'] as int?) ?? 0;
+    if (count > 0) {
+      return false;
+    }
+
+    final stmt = _db.prepare('DELETE FROM clients WHERE id = ?');
+    try {
+      stmt.execute([id]);
+    } finally {
+      stmt.dispose();
+    }
+    loadClients();
+    return true;
+  }
 }
 
 final clientsProvider = StateNotifierProvider<ClientsNotifier, List<Client>>((ref) {
