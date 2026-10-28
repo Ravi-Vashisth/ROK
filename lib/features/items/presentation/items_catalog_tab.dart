@@ -291,11 +291,14 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: Colors.slate.shade100,
+                                    color: const Color(0xFFF1F5F9), // Slate 100
                                     borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: Colors.slate.shade300),
+                                    border: Border.all(color: const Color(0xFFCBD5E1)), // Slate 300
                                   ),
-                                  child: const Text('Configurable %', style: TextStyle(fontSize: 11)),
+                                  child: const Text(
+                                    'Configurable %',
+                                    style: TextStyle(fontSize: 11, color: Color(0xFF334155), fontWeight: FontWeight.w500),
+                                  ),
                                 ),
                               ),
                               DataCell(

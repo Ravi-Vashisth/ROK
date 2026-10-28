@@ -94,7 +94,7 @@ jobs:
   # 4. BUILD IOS MOBILE (.IPA / RUNNER)
   # =========================================================================
   build-ios:
-    name: Build iOS Release (Unsigned)
+    name: Build iOS (Simulator / Unsigned)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -106,9 +106,18 @@ jobs:
         run: flutter create --platforms=ios .
       - run: flutter pub get
       - name: Compile iOS
-        run: flutter build ios --release --no-codesign
-      - name: Package iOS App
-        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app billing_app_ios_unsigned.zip
+        env:
+          IOS_DEV_TEAM: ${{ secrets.IOS_DEVELOPMENT_TEAM }}
+        run: |
+          if [ -n "$IOS_DEV_TEAM" ]; then
+            echo "Building iOS Release for device with Development Team..."
+            flutter build ios --release --no-codesign
+            ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app billing_app_ios_unsigned.zip
+          else
+            echo "No Development Team secret found; compiling iOS Simulator build (no codesigning required)..."
+            flutter build ios --simulator
+            ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app billing_app_ios_unsigned.zip
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: billing-app-ios
