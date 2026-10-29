@@ -119,6 +119,8 @@ export interface ExpenseRecord {
   total_cents: number;
   expense_date: string;
   notes: string;
+  receipt_base64?: string;
+  receipt_name?: string;
   created_at: string;
 }
 
@@ -353,6 +355,9 @@ export default function App() {
 
   // Modals & UI Controls
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [deletingCatalogItem, setDeletingCatalogItem] = useState<StoredItem | null>(null);
+  const [viewingReceiptExpense, setViewingReceiptExpense] = useState<ExpenseRecord | null>(null);
   const [recordPaymentInvoice, setRecordPaymentInvoice] = useState<InvoiceRecord | null>(null);
   const [previewInvoice, setPreviewInvoice] = useState<InvoiceRecord | null>(null);
   const [clientStatementClient, setClientStatementClient] = useState<Client | null>(null);
@@ -422,14 +427,10 @@ export default function App() {
     return `${prefix}${String(maxNum + 1).padStart(4, '0')}`;
   }, [estimates, businessProfile.estimate_prefix]);
 
-  // --- CSV Export (UTF-8 BOM + Accountant Grade) ---
-  const handleExportCsv = () => {
-    const lines: string[] = [];
-    lines.push('\uFEFF'); // UTF-8 BOM to prevent Excel mojibake
-
-    // Section 1: Invoices
-    lines.push('=== SECTION 1: INVOICES ===');
-    lines.push('Invoice Number,Issue Date,Due Date,Currency,Client Name,Client Tax ID,Subtotal,Tax,Total,Amount Paid,Balance Due,Status');
+  // --- Single-Table CSV Exports (UTF-8 BOM + Accountant Grade) ---
+  const handleExportInvoicesCsv = () => {
+    const lines: string[] = ['\uFEFF']; // UTF-8 BOM
+    lines.push('Invoice Number,Issue Date,Due Date,Currency Code,Client Name,Client Tax ID,Subtotal,Tax,Total,Amount Paid,Balance Due,Status');
     for (const inv of invoices) {
       const client = clients.find(c => c.id === inv.client_id);
       const paid = getInvoicePaidCents(inv.id);
@@ -437,10 +438,10 @@ export default function App() {
       const status = getComputedInvoiceStatus(inv);
 
       lines.push([
-        inv.invoice_number,
-        inv.issue_date,
-        inv.due_date,
-        businessProfile.currency_code || 'INR',
+        quote(inv.invoice_number),
+        quote(inv.issue_date),
+        quote(inv.due_date),
+        quote(businessProfile.currency_code || 'INR'),
         quote(inv.client_name),
         quote(client?.tax_id || ''),
         formatDecimal(inv.subtotal_cents),
@@ -448,44 +449,43 @@ export default function App() {
         formatDecimal(inv.total_cents),
         formatDecimal(paid),
         formatDecimal(bal),
-        status,
+        quote(status),
       ].join(','));
     }
-    lines.push(',,,,,,,,,,,'); // 12-column padding
-
-    // Section 2: Expenses
-    lines.push('=== SECTION 2: EXPENSES ===');
-    lines.push('Date,Category,Vendor,Currency,Expense Amount,Tax,Total Cost,Notes,,,,');
-    for (const exp of expenses) {
-      lines.push([
-        exp.expense_date,
-        quote(exp.category),
-        quote(exp.vendor),
-        businessProfile.currency_code || 'INR',
-        formatDecimal(exp.amount_cents),
-        formatDecimal(exp.tax_cents),
-        formatDecimal(exp.total_cents),
-        quote(exp.notes),
-        '', '', '', '',
-      ].join(','));
-    }
-    lines.push(',,,,,,,,,,,');
-
-    // Section 3: Financial Summary
-    lines.push('=== SECTION 3: FINANCIAL SUMMARY ===');
-    lines.push('Metric,Amount,Currency,,,,,,,,,,');
-    lines.push(`Total Invoiced Revenue,${formatDecimal(totalInvoicedCents)},${businessProfile.currency_code || 'INR'},,,,,,,,,`);
-    lines.push(`Total Collected Revenue,${formatDecimal(totalCollectedCents)},${businessProfile.currency_code || 'INR'},,,,,,,,,`);
-    lines.push(`Total Business Expenses,${formatDecimal(totalExpensesCents)},${businessProfile.currency_code || 'INR'},,,,,,,,,`);
-    lines.push(`Net Profit (Collected - Expenses),${formatDecimal(netProfitCents)},${businessProfile.currency_code || 'INR'},,,,,,,,,`);
-
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `financial_report_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `invoices_export.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    setIsCsvModalOpen(false);
+  };
+
+  const handleExportExpensesCsv = () => {
+    const lines: string[] = ['\uFEFF']; // UTF-8 BOM
+    lines.push('Expense ID,Date,Category,Vendor,Currency Code,Amount,Tax,Total,Notes');
+    for (const exp of expenses) {
+      lines.push([
+        quote(exp.id),
+        quote(exp.expense_date),
+        quote(exp.category),
+        quote(exp.vendor),
+        quote(businessProfile.currency_code || 'INR'),
+        formatDecimal(exp.amount_cents),
+        formatDecimal(exp.tax_cents),
+        formatDecimal(exp.total_cents),
+        quote(exp.notes),
+      ].join(','));
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `expenses_export.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setIsCsvModalOpen(false);
   };
 
   // --- Sales Tab Creation Form State ---
@@ -669,7 +669,20 @@ export default function App() {
   const [expAmount, setExpAmount] = useState('');
   const [expTax, setExpTax] = useState('0');
   const [expNotes, setExpNotes] = useState('');
+  const [expReceiptBase64, setExpReceiptBase64] = useState('');
+  const [expReceiptName, setExpReceiptName] = useState('');
   const [expenseSearch, setExpenseSearch] = useState('');
+
+  const handleReceiptFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setExpReceiptBase64(event.target?.result as string || '');
+      setExpReceiptName(file.name);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleAddExpense = (e: React.FormEvent) => {
     e.preventDefault();
@@ -693,6 +706,8 @@ export default function App() {
       total_cents: amtCents + taxCents,
       expense_date: expDate,
       notes: expNotes.trim(),
+      receipt_base64: expReceiptBase64,
+      receipt_name: expReceiptName,
       created_at: new Date().toISOString(),
     };
 
@@ -701,6 +716,8 @@ export default function App() {
     setExpAmount('');
     setExpTax('0');
     setExpNotes('');
+    setExpReceiptBase64('');
+    setExpReceiptName('');
   };
 
   const filteredExpenses = useMemo(() => {
@@ -779,12 +796,12 @@ export default function App() {
           <div className="flex items-center gap-3">
             {/* Single Prominent Export Accountant CSV Button */}
             <button
-              onClick={handleExportCsv}
+              onClick={() => setIsCsvModalOpen(true)}
               className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition shadow-sm cursor-pointer"
-              title="Download UTF-8 BOM Accountant-Ready CSV"
+              title="Export Accounting Data CSV (Invoices / Expenses)"
             >
               <Download className="w-4 h-4 text-indigo-600" />
-              <span>Export Financial CSV</span>
+              <span>Export Accounting Data</span>
             </button>
 
             {/* Business Profile Dialog Trigger */}
@@ -1520,7 +1537,32 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="flex justify-end pt-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs cursor-pointer transition">
+                        <Upload className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>{expReceiptName ? `Receipt: ${expReceiptName}` : 'Attach Receipt (Image/PDF)'}</span>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={handleReceiptFileChange}
+                          className="hidden"
+                        />
+                      </label>
+                      {expReceiptName && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExpReceiptBase64('');
+                            setExpReceiptName('');
+                          }}
+                          className="text-slate-400 hover:text-rose-600 text-xs font-bold"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+
                     <button
                       type="submit"
                       className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
@@ -1563,6 +1605,7 @@ export default function App() {
                           <th className="py-3 px-4 text-right">Amount</th>
                           <th className="py-3 px-4 text-right">Tax</th>
                           <th className="py-3 px-4 text-right">Total Cost</th>
+                          <th className="py-3 px-4">Receipt</th>
                           <th className="py-3 px-4">Notes</th>
                           <th className="py-3 px-4 text-center">Action</th>
                         </tr>
@@ -1580,11 +1623,24 @@ export default function App() {
                             <td className="py-3 px-4 text-right font-mono text-slate-600">{formatMoney(exp.amount_cents)}</td>
                             <td className="py-3 px-4 text-right font-mono text-slate-500">{formatMoney(exp.tax_cents)}</td>
                             <td className="py-3 px-4 text-right font-mono font-bold text-orange-600">{formatMoney(exp.total_cents)}</td>
+                            <td className="py-3 px-4">
+                              {exp.receipt_base64 ? (
+                                <button
+                                  onClick={() => setViewingReceiptExpense(exp)}
+                                  className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded text-[11px] font-bold border border-indigo-200 flex items-center gap-1 cursor-pointer"
+                                >
+                                  📎 Receipt
+                                </button>
+                              ) : (
+                                <span className="text-slate-300">—</span>
+                              )}
+                            </td>
                             <td className="py-3 px-4 text-slate-500 max-w-xs truncate">{exp.notes || '—'}</td>
                             <td className="py-3 px-4 text-center">
                               <button
                                 onClick={() => setExpenses(prev => prev.filter(e => e.id !== exp.id))}
                                 className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                                title="Delete Expense"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -1829,7 +1885,7 @@ export default function App() {
                                   <Edit2 className="w-3.5 h-3.5" />
                                 </button>
                                 <button
-                                  onClick={() => setSavedItems(prev => prev.filter(i => i.id !== item.id))}
+                                  onClick={() => setDeletingCatalogItem(item)}
                                   className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition cursor-pointer"
                                   title="Delete Item"
                                 >
@@ -2652,6 +2708,157 @@ export default function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ========================================================================= */}
+      {/* 10. EXPORT ACCOUNTING DATA MODAL */}
+      {/* ========================================================================= */}
+      {isCsvModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-indigo-600" />
+                <span>Export Accounting Data</span>
+              </h3>
+              <button
+                onClick={() => setIsCsvModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-slate-500 text-xs">
+              Select a single-table CSV dataset formatted for Excel, QuickBooks, and accountant importing:
+            </p>
+
+            <div className="space-y-3 pt-2">
+              <button
+                onClick={handleExportInvoicesCsv}
+                className="w-full p-4 bg-indigo-50/60 hover:bg-indigo-100/80 border border-indigo-200 rounded-xl text-left transition flex items-center justify-between group cursor-pointer"
+              >
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">Invoices CSV (invoices_export.csv)</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {invoices.length} invoices • Headers on row 1 • Raw decimals (=SUM formulas compliant)
+                  </p>
+                </div>
+                <Download className="w-5 h-5 text-indigo-600 group-hover:scale-110 transition shrink-0" />
+              </button>
+
+              <button
+                onClick={handleExportExpensesCsv}
+                className="w-full p-4 bg-amber-50/60 hover:bg-amber-100/80 border border-amber-200 rounded-xl text-left transition flex items-center justify-between group cursor-pointer"
+              >
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">Expenses CSV (expenses_export.csv)</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {expenses.length} expenses • Headers on row 1 • Expense tracking dataset
+                  </p>
+                </div>
+                <Download className="w-5 h-5 text-amber-600 group-hover:scale-110 transition shrink-0" />
+              </button>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setIsCsvModalOpen(false)}
+                className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 11. CATALOG ITEM DELETE CONFIRMATION MODAL */}
+      {/* ========================================================================= */}
+      {deletingCatalogItem && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-xs">
+            <h3 className="font-bold text-base text-slate-900">Delete Catalog Item</h3>
+            <p className="text-slate-600">
+              Are you sure you want to delete <strong className="text-slate-900">"{deletingCatalogItem.title}"</strong> from the catalog?
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeletingCatalogItem(null)}
+                className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSavedItems(prev => prev.filter(i => i.id !== deletingCatalogItem.id));
+                  setDeletingCatalogItem(null);
+                }}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-sm cursor-pointer"
+              >
+                Delete Item
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 12. EXPENSE RECEIPT VIEWER MODAL */}
+      {/* ========================================================================= */}
+      {viewingReceiptExpense && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-indigo-600" />
+                <span>Receipt: {viewingReceiptExpense.vendor}</span>
+              </h3>
+              <button
+                onClick={() => setViewingReceiptExpense(null)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {viewingReceiptExpense.receipt_name && (
+              <p className="text-slate-500 font-mono text-[11px]">
+                File: {viewingReceiptExpense.receipt_name}
+              </p>
+            )}
+
+            <div className="flex justify-center bg-slate-50 p-4 rounded-xl border border-slate-200 min-h-[200px] max-h-[400px] overflow-auto">
+              {viewingReceiptExpense.receipt_base64?.startsWith('data:image') ? (
+                <img
+                  src={viewingReceiptExpense.receipt_base64}
+                  alt="Expense Receipt"
+                  className="max-h-[360px] object-contain rounded-lg"
+                />
+              ) : viewingReceiptExpense.receipt_base64?.startsWith('data:application/pdf') ? (
+                <div className="flex flex-col items-center justify-center p-8 text-center space-y-2">
+                  <FileSpreadsheet className="w-12 h-12 text-rose-600" />
+                  <span className="font-bold text-slate-800">PDF Receipt Document Attached</span>
+                </div>
+              ) : (
+                <span className="text-slate-400 self-center">No receipt image preview available.</span>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setViewingReceiptExpense(null)}
+                className="px-4 py-2 bg-slate-800 text-white font-bold rounded-xl cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

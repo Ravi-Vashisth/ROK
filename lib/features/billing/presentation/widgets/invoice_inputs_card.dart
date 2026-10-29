@@ -535,6 +535,9 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
                 Expanded(
                   child: TextField(
                     controller: _termsController,
+                    minLines: 3,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
                     decoration: const InputDecoration(
                       labelText: 'Invoice Payment Terms / Legal Notice',
                       hintText: 'Payment due within agreed terms...',
@@ -546,6 +549,9 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
                 Expanded(
                   child: TextField(
                     controller: _notesController,
+                    minLines: 3,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
                     decoration: const InputDecoration(
                       labelText: 'Invoice Notes / Warranty',
                       hintText: 'Thank you for your business!',

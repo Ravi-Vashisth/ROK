@@ -213,8 +213,11 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
           ),
         ],
       ),
-      content: SizedBox(
-        width: 540,
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 580,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -377,6 +380,9 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _defaultTermsController,
+                  minLines: 2,
+                  maxLines: null,
+                  keyboardType: TextInputType.multiline,
                   decoration: const InputDecoration(
                     labelText: 'Default Payment Terms / Legal Notice',
                     hintText: 'Payment due within agreed terms. Thank you for your business!',
@@ -386,6 +392,9 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _defaultNotesController,
+                  minLines: 2,
+                  maxLines: null,
+                  keyboardType: TextInputType.multiline,
                   decoration: const InputDecoration(
                     labelText: 'Default Invoice Notes / Warranty',
                     hintText: 'e.g. All work includes 30 days post-delivery support.',

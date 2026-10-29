@@ -134,6 +134,33 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
     );
   }
 
+  void _confirmDeleteItem(BuildContext context, SavedItem item) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Delete Catalog Item'),
+        content: Text('Are you sure you want to delete "${item.title}" from the catalog?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              ref.read(savedItemsProvider.notifier).deleteItem(item.id);
+              Navigator.of(dialogCtx).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Removed "${item.title}" from catalog.')),
+              );
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final savedItems = ref.watch(savedItemsProvider);
@@ -313,12 +340,7 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                                     IconButton(
                                       tooltip: 'Delete Item',
                                       icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
-                                      onPressed: () {
-                                        ref.read(savedItemsProvider.notifier).deleteItem(item.id);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Removed "${item.title}" from catalog.')),
-                                        );
-                                      },
+                                      onPressed: () => _confirmDeleteItem(context, item),
                                     ),
                                   ],
                                 ),
@@ -372,12 +394,7 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                           IconButton(
                             tooltip: 'Delete Item',
                             icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
-                            onPressed: () {
-                              ref.read(savedItemsProvider.notifier).deleteItem(item.id);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Removed "${item.title}" from catalog.')),
-                              );
-                            },
+                            onPressed: () => _confirmDeleteItem(context, item),
                           ),
                         ],
                       ),

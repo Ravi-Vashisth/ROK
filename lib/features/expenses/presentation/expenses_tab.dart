@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/currency_formatter_provider.dart';
+import '../models/expense_record.dart';
 import '../providers/expenses_provider.dart';
 
 class ExpensesTab extends ConsumerStatefulWidget {
@@ -19,6 +23,8 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
 
   String _selectedCategory = 'Software';
   late TextEditingController _dateController;
+  String _receiptBase64 = '';
+  String _receiptName = '';
 
   static const List<String> _categories = [
     'Software',
@@ -49,6 +55,32 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
     super.dispose();
   }
 
+  Future<void> _pickReceiptFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'pdf'],
+      );
+      if (result != null && result.files.single.path != null) {
+        final file = File(result.files.single.path!);
+        final bytes = await file.readAsBytes();
+        final ext = result.files.single.extension?.toLowerCase() ?? 'png';
+        final mime = ext == 'pdf' ? 'application/pdf' : 'image/$ext';
+        final b64 = 'data:$mime;base64,${base64Encode(bytes)}';
+        setState(() {
+          _receiptBase64 = b64;
+          _receiptName = result.files.single.name;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('File selection error: $e')),
+        );
+      }
+    }
+  }
+
   void _handleAddExpense() {
     final vendor = _vendorController.text.trim();
     if (vendor.isEmpty) {
@@ -77,15 +109,88 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
           taxCents: taxCents,
           expenseDate: _dateController.text.trim(),
           notes: _notesController.text.trim(),
+          receiptBase64: _receiptBase64,
+          receiptName: _receiptName,
         );
 
     _vendorController.clear();
     _amountController.clear();
     _taxController.text = '0';
     _notesController.clear();
+    setState(() {
+      _receiptBase64 = '';
+      _receiptName = '';
+    });
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Expense booked locally successfully!')),
+    );
+  }
+
+  void _showReceiptDialog(BuildContext context, ExpenseRecord item) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.receipt_long, color: Colors.indigo),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Receipt: ${item.vendor}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (item.receiptName.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: Text('File: ${item.receiptName}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ),
+              if (item.receiptBase64.startsWith('data:image')) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.memory(
+                    base64Decode(item.receiptBase64.split(',').last),
+                    maxHeight: 320,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ] else if (item.receiptBase64.startsWith('data:application/pdf')) ...[
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.slate.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Column(
+                    children: [
+                      Icon(Icons.picture_as_pdf, size: 48, color: Colors.red),
+                      SizedBox(height: 8),
+                      Text('PDF Receipt Document Attached', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                const Text('No receipt image available preview.'),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -108,10 +213,10 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
           elevation: 0,
           shape: RoundedRectangleBorder(
             side: BorderSide(color: Theme.of(context).dividerColor),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -179,14 +284,32 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: _handleAddExpense,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Book Expense'),
-                  ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _pickReceiptFile,
+                      icon: const Icon(Icons.attach_file, size: 16),
+                      label: Text(_receiptName.isNotEmpty ? 'Receipt Attached: $_receiptName' : 'Attach Receipt (Image/PDF)'),
+                    ),
+                    if (_receiptName.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: 'Remove Attachment',
+                        icon: const Icon(Icons.close, color: Colors.red, size: 18),
+                        onPressed: () => setState(() {
+                          _receiptBase64 = '';
+                          _receiptName = '';
+                        }),
+                      ),
+                    ],
+                    const Spacer(),
+                    FilledButton.icon(
+                      onPressed: _handleAddExpense,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Book Expense'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -219,7 +342,7 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
               border: Border.all(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Center(
               child: Text('No expenses recorded matching criteria.', style: TextStyle(color: Colors.grey)),
@@ -230,7 +353,7 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
             elevation: 0,
             shape: RoundedRectangleBorder(
               side: BorderSide(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: ListView.separated(
               shrinkWrap: true,
@@ -244,7 +367,34 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                     backgroundColor: Colors.orange.shade100,
                     child: const Icon(Icons.receipt, color: Colors.orange, size: 18),
                   ),
-                  title: Text('${item.vendor} (${item.category})', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Row(
+                    children: [
+                      Text('${item.vendor} (${item.category})', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      if (item.hasReceipt) ...[
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: () => _showReceiptDialog(context, item),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.indigo.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.indigo.shade200),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.attach_file, size: 12, color: Colors.indigo),
+                                SizedBox(width: 2),
+                                Text('Receipt', style: TextStyle(fontSize: 10, color: Colors.indigo, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                   subtitle: Text('Date: ${item.expenseDate}${item.notes.isNotEmpty ? " • ${item.notes}" : ""}', style: const TextStyle(fontSize: 12)),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,

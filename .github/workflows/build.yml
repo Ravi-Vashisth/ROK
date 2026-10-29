@@ -16,8 +16,8 @@ jobs:
     name: Build Windows Release (.exe)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v4.2.2
+      - uses: subosito/flutter-action@v2.18.0
         with:
           channel: 'stable'
           cache: true
@@ -30,7 +30,7 @@ jobs:
         run: flutter build windows --release
       - name: Package Zip
         run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath billing_app_windows.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4.4.3
         with:
           name: billing-app-windows-x64
           path: billing_app_windows.zip
@@ -43,12 +43,12 @@ jobs:
     name: Build Android Release (.apk)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2.18.0
         with:
           channel: 'stable'
           cache: true
@@ -59,7 +59,7 @@ jobs:
       - run: flutter pub get
       - name: Compile Android APK
         run: flutter build apk --release --android-skip-build-dependency-validation
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4.4.3
         with:
           name: billing-app-android
           path: build/app/outputs/flutter-apk/app-release.apk
@@ -72,8 +72,8 @@ jobs:
     name: Build macOS Release (.app)
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v4.2.2
+      - uses: subosito/flutter-action@v2.18.0
         with:
           channel: 'stable'
           cache: true
@@ -86,7 +86,7 @@ jobs:
         run: flutter build macos --release
       - name: Package macOS Zip
         run: ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/*.app billing_app_macos.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4.4.3
         with:
           name: billing-app-macos
           path: billing_app_macos.zip
@@ -99,8 +99,8 @@ jobs:
     name: Build iOS (Simulator / Unsigned)
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v4.2.2
+      - uses: subosito/flutter-action@v2.18.0
         with:
           channel: 'stable'
           cache: true
@@ -120,7 +120,7 @@ jobs:
             flutter build ios --simulator
             ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app billing_app_ios_unsigned.zip
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4.4.3
         with:
           name: billing-app-ios
           path: billing_app_ios_unsigned.zip

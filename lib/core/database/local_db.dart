@@ -285,9 +285,20 @@ Future<Database> openLocalDatabase() async {
       tax_cents INTEGER DEFAULT 0,
       expense_date TEXT NOT NULL,
       notes TEXT DEFAULT '',
+      receipt_base64 TEXT DEFAULT '',
+      receipt_name TEXT DEFAULT '',
       created_at TEXT NOT NULL
     );
   ''');
+
+  for (final col in [
+    "receipt_base64 TEXT DEFAULT ''",
+    "receipt_name TEXT DEFAULT ''",
+  ]) {
+    try {
+      db.execute('ALTER TABLE expenses ADD COLUMN $col;');
+    } catch (_) {}
+  }
 
   return db;
 }

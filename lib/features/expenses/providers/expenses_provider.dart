@@ -23,16 +23,18 @@ class ExpensesNotifier extends StateNotifier<List<ExpenseRecord>> {
     int taxCents = 0,
     required String expenseDate,
     String notes = '',
+    String receiptBase64 = '',
+    String receiptName = '',
   }) {
     final id = generateUniqueId();
     final createdAt = DateTime.now().toUtc().toIso8601String();
 
     final stmt = _db.prepare('''
-      INSERT INTO expenses (id, category, vendor, amount_cents, tax_cents, expense_date, notes, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO expenses (id, category, vendor, amount_cents, tax_cents, expense_date, notes, receipt_base64, receipt_name, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''');
     try {
-      stmt.execute([id, category, vendor, amountCents, taxCents, expenseDate, notes, createdAt]);
+      stmt.execute([id, category, vendor, amountCents, taxCents, expenseDate, notes, receiptBase64, receiptName, createdAt]);
     } finally {
       stmt.dispose();
     }

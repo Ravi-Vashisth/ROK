@@ -24,31 +24,19 @@ class BillingDashboardScreen extends ConsumerStatefulWidget {
 class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen> {
   int _selectedTab = 0; // 0=Dashboard, 1=Sales, 2=Expenses, 3=Directory & Settings
 
-  void _handleExportCsv() async {
+  void _handleExportCsv() {
     final invoices = ref.read(invoicesProvider);
     final expenses = ref.read(expensesProvider);
     final clients = ref.read(clientsProvider);
     final profile = ref.read(businessProfileProvider);
 
-    try {
-      await CsvExportService.downloadCsvFile(
-        invoices: invoices,
-        expenses: expenses,
-        clients: clients,
-        currencySymbol: profile.currencySymbol,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comprehensive financial report CSV generated and downloaded successfully!')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('CSV Export Error: $e')),
-        );
-      }
-    }
+    CsvExportService.showExportModal(
+      context: context,
+      invoices: invoices,
+      expenses: expenses,
+      clients: clients,
+      currencySymbol: profile.currencySymbol,
+    );
   }
 
   IconData _getThemeModeIcon(ThemeMode mode) {

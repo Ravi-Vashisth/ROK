@@ -8,6 +8,8 @@ class ExpenseRecord {
   final int taxCents;
   final String expenseDate;
   final String notes;
+  final String receiptBase64;
+  final String receiptName;
   final String createdAt;
 
   const ExpenseRecord({
@@ -18,6 +20,8 @@ class ExpenseRecord {
     this.taxCents = 0,
     required this.expenseDate,
     this.notes = '',
+    this.receiptBase64 = '',
+    this.receiptName = '',
     required this.createdAt,
   });
 
@@ -30,9 +34,12 @@ class ExpenseRecord {
       taxCents: (row['tax_cents'] as int?) ?? 0,
       expenseDate: (row['expense_date'] as String?) ?? '',
       notes: (row['notes'] as String?) ?? '',
+      receiptBase64: (row['receipt_base64'] as String?) ?? '',
+      receiptName: (row['receipt_name'] as String?) ?? '',
       createdAt: (row['created_at'] as String?) ?? '',
     );
   }
 
   int get totalCents => amountCents + taxCents;
+  bool get hasReceipt => receiptBase64.isNotEmpty;
 }

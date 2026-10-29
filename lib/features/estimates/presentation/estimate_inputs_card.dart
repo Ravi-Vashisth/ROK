@@ -403,6 +403,9 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
                 Expanded(
                   child: TextField(
                     controller: _termsController,
+                    minLines: 3,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
                     decoration: const InputDecoration(
                       labelText: 'Estimate Terms / Proposal Notice',
                       hintText: 'Quote valid for 30 days...',
@@ -414,6 +417,9 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
                 Expanded(
                   child: TextField(
                     controller: _notesController,
+                    minLines: 3,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
                     decoration: const InputDecoration(
                       labelText: 'Estimate Notes / Scope Highlights',
                       hintText: 'Includes 30 days post-delivery support.',
