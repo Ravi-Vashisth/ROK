@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Applying Android build fixes: AGP 8.11.1, Settings repository mode, standard Google & MavenCentral repositories, root compileSdkVersion extra property, and AarMetadata bypass..."
+echo "Applying Android build fixes: AGP 8.11.1, Settings repository mode, download.flutter.io engine repo, root compileSdkVersion extra property, and AarMetadata bypass..."
 
 # 0. Remove any legacy init scripts that could conflict with settings dependency resolution
 rm -f "$HOME/.gradle/init.d/01-mirrors.gradle" || true
 
-# 1. Cleanly write android/settings.gradle.kts with AGP 8.11.1, PREFER_SETTINGS, google() & mavenCentral()
+# 1. Cleanly write android/settings.gradle.kts with AGP 8.11.1, PREFER_SETTINGS, google(), mavenCentral() & download.flutter.io
 if [ -d "android" ]; then
   cat << 'EOF' > android/settings.gradle.kts
 pluginManagement {
@@ -24,6 +24,7 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
+        maven { url = java.net.URI.create("https://storage.googleapis.com/download.flutter.io") }
     }
 }
 
@@ -38,6 +39,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url = java.net.URI.create("https://storage.googleapis.com/download.flutter.io") }
     }
 }
 

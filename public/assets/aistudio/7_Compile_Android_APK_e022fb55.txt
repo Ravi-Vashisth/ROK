@@ -1,0 +1,163 @@
+﻿2026-10-29T04:02:09.6338838Z ##[group]Run flutter build apk --release --android-skip-build-dependency-validation
+2026-10-29T04:02:09.6339262Z [36;1mflutter build apk --release --android-skip-build-dependency-validation[0m
+2026-10-29T04:02:09.6357295Z shell: /usr/bin/bash -e {0}
+2026-10-29T04:02:09.6357467Z env:
+2026-10-29T04:02:09.6357655Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T04:02:09.6357957Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T04:02:09.6358234Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.47.8-x64/flutter
+2026-10-29T04:02:09.6358456Z   PUB_CACHE: /home/runner/.pub-cache
+2026-10-29T04:02:09.6358613Z ##[endgroup]
+2026-10-29T04:03:14.3929304Z Running Gradle task 'assembleRelease'...                        
+2026-10-29T04:03:14.3930341Z Loading package information...                                                  
+2026-10-29T04:03:14.4887676Z Loading local repository...                                                     
+2026-10-29T04:03:14.4890398Z [                                       ] 3% Loading local repository...        
+2026-10-29T04:03:14.6985060Z [                                       ] 3% Fetch remote repository...         
+2026-10-29T04:03:14.9884624Z [=                                      ] 3% Fetch remote repository...         
+2026-10-29T04:03:15.0941749Z [=                                      ] 4% Fetch remote repository...         
+2026-10-29T04:03:15.0971541Z [=                                      ] 5% Fetch remote repository...         
+2026-10-29T04:03:15.1001368Z [==                                     ] 5% Fetch remote repository...         
+2026-10-29T04:03:15.1892246Z [==                                     ] 6% Fetch remote repository...         
+2026-10-29T04:03:15.2883835Z [==                                     ] 7% Fetch remote repository...         
+2026-10-29T04:03:15.2884662Z [==                                     ] 7% Computing updates...               
+2026-10-29T04:03:15.2885398Z [===                                    ] 8% Computing updates...               
+2026-10-29T04:03:15.2885972Z [===                                    ] 10% Computing updates...              
+2026-10-29T04:03:15.2886524Z [===                                    ] 10% Installing NDK (Side by side) 28.2
+2026-10-29T04:03:15.3892951Z [===                                    ] 10% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:15.4890114Z [====                                   ] 10% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:15.5887821Z [====                                   ] 11% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:15.6883420Z [====                                   ] 12% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:15.7881341Z [=====                                  ] 13% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:15.8881928Z [=====                                  ] 14% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:15.8882561Z [=====                                  ] 15% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:15.9879913Z [======                                 ] 15% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:15.9882512Z [======                                 ] 16% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.0878865Z [======                                 ] 17% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.1882844Z [=======                                ] 18% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.2880672Z [=======                                ] 19% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.2883100Z [=======                                ] 20% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.2883506Z [========                               ] 20% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.3883269Z [========                               ] 21% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.4883048Z [========                               ] 22% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.5885653Z [=========                              ] 23% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.5886110Z [=========                              ] 24% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.6879345Z [=========                              ] 25% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.6879797Z [==========                             ] 25% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.7883344Z [==========                             ] 26% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.7885121Z [==========                             ] 27% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.8881143Z [===========                            ] 28% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.9887605Z [===========                            ] 29% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.9891231Z [===========                            ] 30% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:16.9893715Z [============                           ] 30% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:17.0881569Z [============                           ] 31% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:17.1881452Z [============                           ] 32% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:17.1881882Z [============                           ] 33% Downloading android-ndk-r28c-linux
+2026-10-29T04:03:17.3918738Z [============                           ] 33% Unzipping...                      
+2026-10-29T04:03:17.3922491Z [============                           ] 33% Unzipping... android-ndk-r28c/    
+2026-10-29T04:03:17.3932166Z [============                           ] 33% Unzipping... android-ndk-r28c/READ
+2026-10-29T04:03:17.3936214Z [=============                          ] 33% Unzipping... android-ndk-r28c/READ
+2026-10-29T04:03:17.3936758Z [=============                          ] 33% Unzipping... android-ndk-r28c/meta
+2026-10-29T04:03:17.4884124Z [=============                          ] 33% Unzipping... android-ndk-r28c/shad
+2026-10-29T04:03:17.4887463Z [=============                          ] 33% Unzipping... android-ndk-r28c/ndk-
+2026-10-29T04:03:17.4888054Z [=============                          ] 33% Unzipping... android-ndk-r28c/wrap
+2026-10-29T04:03:17.4888549Z [=============                          ] 33% Unzipping... android-ndk-r28c/ndk-
+2026-10-29T04:03:17.7881657Z [=============                          ] 33% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:18.6881593Z [=============                          ] 34% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:19.3881977Z [=============                          ] 35% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:19.5881383Z [==============                         ] 35% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:19.8881215Z [==============                         ] 36% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:21.1882492Z [==============                         ] 37% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:22.5882237Z [===============                        ] 38% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:23.1881646Z [===============                        ] 39% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:23.4881117Z [===============                        ] 40% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:23.8882763Z [================                       ] 40% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:24.4881633Z [================                       ] 41% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:25.1881516Z [================                       ] 42% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:26.0882369Z [=================                      ] 43% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:26.8881785Z [=================                      ] 44% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:28.8881613Z [=================                      ] 45% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:29.9884144Z [==================                     ] 45% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:30.5881605Z [==================                     ] 46% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:31.2881188Z [==================                     ] 47% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:31.8881806Z [===================                    ] 48% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:32.5881404Z [===================                    ] 49% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:32.7881551Z [===================                    ] 50% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:33.0882524Z [====================                   ] 50% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:33.8881745Z [====================                   ] 51% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:34.1881983Z [====================                   ] 52% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:35.1882092Z [=====================                  ] 53% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:35.4881134Z [=====================                  ] 54% Unzipping... android-ndk-r28c/tool
+2026-10-29T04:03:35.5881628Z [=====================                  ] 54% Unzipping... android-ndk-r28c/buil
+2026-10-29T04:03:35.7882038Z [=====================                  ] 54% Unzipping... android-ndk-r28c/sour
+2026-10-29T04:03:35.7882786Z [=====================                  ] 54% Unzipping... android-ndk-r28c/NOTI
+2026-10-29T04:03:35.7883192Z [=====================                  ] 54% Unzipping... android-ndk-r28c/ndk-
+2026-10-29T04:03:35.7883581Z [=====================                  ] 54% Unzipping... android-ndk-r28c/NOTI
+2026-10-29T04:03:35.7883967Z [=====================                  ] 54% Unzipping... android-ndk-r28c/pyth
+2026-10-29T04:03:35.7884353Z [=====================                  ] 54% Unzipping... android-ndk-r28c/preb
+2026-10-29T04:03:35.7884735Z [=====================                  ] 54% Unzipping... android-ndk-r28c/ndk-
+2026-10-29T04:03:35.7885134Z [=====================                  ] 54% Unzipping... android-ndk-r28c/sour
+2026-10-29T04:03:35.8881146Z [=====================                  ] 54% Unzipping... android-ndk-r28c/simp
+2026-10-29T04:03:35.9881861Z [=====================                  ] 55% Unzipping... android-ndk-r28c/simp
+2026-10-29T04:03:36.0881931Z [=====================                  ] 55% Unzipping... android-ndk-r28c/CHAN
+2026-10-29T04:03:36.0882404Z [=======================================] 100% Unzipping... android-ndk-r28c/CHA
+2026-10-29T04:03:36.3883578Z 
+2026-10-29T04:04:24.8903058Z Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 10352 bytes (99.4% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+2026-10-29T04:04:38.3887602Z Checking the license for package CMake 3.22.1 in /usr/local/lib/android/sdk/licenses
+2026-10-29T04:04:38.3891789Z License for package CMake 3.22.1 accepted.
+2026-10-29T04:04:38.3892174Z Preparing "Install CMake 3.22.1 v.3.22.1".
+2026-10-29T04:04:39.2882129Z "Install CMake 3.22.1 v.3.22.1" ready.
+2026-10-29T04:04:39.2882913Z Installing CMake 3.22.1 in /usr/local/lib/android/sdk/cmake/3.22.1
+2026-10-29T04:04:39.2883505Z "Install CMake 3.22.1 v.3.22.1" complete.
+2026-10-29T04:04:39.3941367Z "Install CMake 3.22.1 v.3.22.1" finished.
+2026-10-29T04:04:42.2981637Z 
+2026-10-29T04:04:42.3011757Z FAILURE: Build failed with an exception.
+2026-10-29T04:04:42.3081252Z 
+2026-10-29T04:04:42.3111777Z * What went wrong:
+2026-10-29T04:04:42.3112413Z Execution failed for task ':app:mergeReleaseNativeLibs'.
+2026-10-29T04:04:42.3141543Z > Could not resolve all files for configuration ':app:releaseRuntimeClasspath'.
+2026-10-29T04:04:42.3171400Z    > Could not resolve all dependencies for configuration ':app:releaseRuntimeClasspath'.
+2026-10-29T04:04:42.3172136Z       > Could not find io.flutter:armeabi_v7a_release:1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8.
+2026-10-29T04:04:42.3201469Z         Searched in the following locations:
+2026-10-29T04:04:42.3232021Z           - https://dl.google.com/dl/android/maven2/io/flutter/armeabi_v7a_release/1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8/armeabi_v7a_release-1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8.pom
+2026-10-29T04:04:42.3233683Z           - https://repo.maven.apache.org/maven2/io/flutter/armeabi_v7a_release/1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8/armeabi_v7a_release-1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8.pom
+2026-10-29T04:04:42.3261374Z         Required by:
+2026-10-29T04:04:42.3281474Z             project ':app'
+2026-10-29T04:04:42.3281833Z    > Could not resolve all dependencies for configuration ':app:releaseRuntimeClasspath'.
+2026-10-29T04:04:42.3282259Z       > Could not find io.flutter:arm64_v8a_release:1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8.
+2026-10-29T04:04:42.3282584Z         Searched in the following locations:
+2026-10-29T04:04:42.3283102Z           - https://dl.google.com/dl/android/maven2/io/flutter/arm64_v8a_release/1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8/arm64_v8a_release-1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8.pom
+2026-10-29T04:04:42.3283947Z           - https://repo.maven.apache.org/maven2/io/flutter/arm64_v8a_release/1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8/arm64_v8a_release-1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8.pom
+2026-10-29T04:04:42.3284426Z         Required by:
+2026-10-29T04:04:42.3284621Z             project ':app'
+2026-10-29T04:04:42.3284911Z    > Could not resolve all dependencies for configuration ':app:releaseRuntimeClasspath'.
+2026-10-29T04:04:42.3285293Z       > Could not find io.flutter:x86_64_release:1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8.
+2026-10-29T04:04:42.3285600Z         Searched in the following locations:
+2026-10-29T04:04:42.3286067Z           - https://dl.google.com/dl/android/maven2/io/flutter/x86_64_release/1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8/x86_64_release-1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8.pom
+2026-10-29T04:04:42.3286768Z           - https://repo.maven.apache.org/maven2/io/flutter/x86_64_release/1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8/x86_64_release-1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8.pom
+2026-10-29T04:04:42.3287212Z         Required by:
+2026-10-29T04:04:42.3287399Z             project ':app'
+2026-10-29T04:04:42.3287682Z    > Could not resolve all dependencies for configuration ':app:releaseRuntimeClasspath'.
+2026-10-29T04:04:42.3288079Z       > Could not find io.flutter:flutter_embedding_release:1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8.
+2026-10-29T04:04:42.3288407Z         Searched in the following locations:
+2026-10-29T04:04:42.3288922Z           - https://dl.google.com/dl/android/maven2/io/flutter/flutter_embedding_release/1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8/flutter_embedding_release-1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8.pom
+2026-10-29T04:04:42.3289707Z           - https://repo.maven.apache.org/maven2/io/flutter/flutter_embedding_release/1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8/flutter_embedding_release-1.0.0-cf636b1dfb818dd6a3ff16e390e93b1a036969c8.pom
+2026-10-29T04:04:42.3290199Z         Required by:
+2026-10-29T04:04:42.3290403Z             project ':app' > project :file_picker
+2026-10-29T04:04:42.3290674Z             project ':app' > project :flutter_plugin_android_lifecycle
+2026-10-29T04:04:42.3291398Z             project ':app' > project :jni
+2026-10-29T04:04:42.3291627Z             project ':app' > project :jni_flutter
+2026-10-29T04:04:42.3291860Z             project ':app' > project :printing
+2026-10-29T04:04:42.3292106Z             project ':app' > project :sqlite3_flutter_libs
+2026-10-29T04:04:42.3292291Z 
+2026-10-29T04:04:42.3292398Z * Try:
+2026-10-29T04:04:42.3292700Z > The project declares repositories, effectively ignoring the repositories you have declared in the settings.
+2026-10-29T04:04:42.3293154Z    To determine how project repositories are declared, configure your build to fail on project repositories.
+2026-10-29T04:04:42.3293725Z    For more information, please refer to https://docs.gradle.org/9.3.1/userguide/declaring_repositories.html#sub:fail_build_on_project_repositories in the Gradle documentation.
+2026-10-29T04:04:42.3294309Z > Run with --stacktrace option to get the stack trace.
+2026-10-29T04:04:42.3294588Z > Run with --info or --debug option to get more log output.
+2026-10-29T04:04:42.3294905Z > Run with --scan to get full insights from a Build Scan (powered by Develocity).
+2026-10-29T04:04:42.3295198Z > Get more help at https://help.gradle.org.
+2026-10-29T04:04:42.3295372Z 
+2026-10-29T04:04:42.3295487Z BUILD FAILED in 2m 32s
+2026-10-29T04:04:42.6644616Z Running Gradle task 'assembleRelease'...                          152.6s
+2026-10-29T04:04:42.6671549Z Gradle task assembleRelease failed with exit code 1
+2026-10-29T04:04:42.6740354Z ##[error]Process completed with exit code 1.
