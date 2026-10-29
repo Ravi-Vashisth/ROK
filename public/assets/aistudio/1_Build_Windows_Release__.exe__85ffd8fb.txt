@@ -1,0 +1,503 @@
+﻿2026-10-29T08:55:29.2708203Z Current runner version: '2.338.0'
+2026-10-29T08:55:29.2742892Z ##[group]Runner Image Provisioner
+2026-10-29T08:55:29.2743808Z Hosted Compute Agent
+2026-10-29T08:55:29.2744368Z Version: 20261021.618
+2026-10-29T08:55:29.2745363Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-29T08:55:29.2747286Z Build Date: 2026-10-21T00:45:21Z
+2026-10-29T08:55:29.2748575Z Worker ID: {3ee6cf3d-11d6-4950-9591-b698e98d3cf9}
+2026-10-29T08:55:29.2749890Z Region: eastus
+2026-10-29T08:55:29.2751088Z Cloud: Azure
+2026-10-29T08:55:29.2752070Z ##[endgroup]
+2026-10-29T08:55:29.2753755Z ##[group]Operating System
+2026-10-29T08:55:29.2754393Z Microsoft Windows Server 2025
+2026-10-29T08:55:29.2755025Z 10.0.26100
+2026-10-29T08:55:29.2755536Z Datacenter
+2026-10-29T08:55:29.2756050Z ##[endgroup]
+2026-10-29T08:55:29.2756615Z ##[group]Runner Image
+2026-10-29T08:55:29.2757282Z Image: windows-2025-vs2026
+2026-10-29T08:55:29.2757886Z Version: 20261021.278.1
+2026-10-29T08:55:29.2759424Z Included Software: https://github.com/actions/runner-images/blob/win25-vs2026/20261021.278/images/windows/Windows2025-VS2026-Readme.md
+2026-10-29T08:55:29.2761055Z Image Release: https://github.com/actions/runner-images/releases/tag/win25-vs2026%2F20261021.278
+2026-10-29T08:55:29.2761995Z ##[endgroup]
+2026-10-29T08:55:29.2763049Z ##[group]GITHUB_TOKEN Permissions
+2026-10-29T08:55:29.2764892Z Contents: write
+2026-10-29T08:55:29.2765502Z Metadata: read
+2026-10-29T08:55:29.2766027Z ##[endgroup]
+2026-10-29T08:55:29.2768059Z Secret source: Actions
+2026-10-29T08:55:29.2769003Z Cache mode: write
+2026-10-29T08:55:29.2769637Z Prepare workflow directory
+2026-10-29T08:55:29.3098057Z Prepare all required actions
+2026-10-29T08:55:29.3146992Z Getting action download info
+2026-10-29T08:55:29.4836795Z Download action repository 'actions/checkout@v4.2.2' (SHA:11bd71901bbe5b1630ceea73d27597364c9af683)
+2026-10-29T08:55:29.6213946Z Download action repository 'subosito/flutter-action@v2.18.0' (SHA:f2c4f6686ca8e8d6e6d0f28410eeef506ed66aff)
+2026-10-29T08:55:29.7465368Z Download action repository 'actions/upload-artifact@v4.4.3' (SHA:b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882)
+2026-10-29T08:55:29.9792704Z Getting action download info
+2026-10-29T08:55:30.0398721Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-10-29T08:55:30.2334430Z Complete job name: Build Windows Release (.exe)
+2026-10-29T08:55:30.3963093Z ##[group]Run actions/checkout@v4.2.2
+2026-10-29T08:55:30.3964450Z with:
+2026-10-29T08:55:30.3964978Z   repository: Ravi-Vashisth/ROK
+2026-10-29T08:55:30.3969455Z   token: ***
+2026-10-29T08:55:30.3969867Z   ssh-strict: true
+2026-10-29T08:55:30.3970275Z   ssh-user: git
+2026-10-29T08:55:30.3970684Z   persist-credentials: true
+2026-10-29T08:55:30.3971128Z   clean: true
+2026-10-29T08:55:30.3971529Z   sparse-checkout-cone-mode: true
+2026-10-29T08:55:30.3972010Z   fetch-depth: 1
+2026-10-29T08:55:30.3972393Z   fetch-tags: false
+2026-10-29T08:55:30.3972790Z   show-progress: true
+2026-10-29T08:55:30.3973214Z   lfs: false
+2026-10-29T08:55:30.3973584Z   submodules: false
+2026-10-29T08:55:30.3974000Z   set-safe-directory: true
+2026-10-29T08:55:30.3974667Z ##[endgroup]
+2026-10-29T08:55:30.5393301Z Syncing repository: Ravi-Vashisth/ROK
+2026-10-29T08:55:30.5395370Z ##[group]Getting Git version info
+2026-10-29T08:55:30.5395956Z Working directory is 'D:\a\ROK\ROK'
+2026-10-29T08:55:30.6341175Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-29T08:55:31.0096709Z git version 2.56.0.windows.2
+2026-10-29T08:55:31.0142370Z ##[endgroup]
+2026-10-29T08:55:31.0161717Z Temporarily overriding HOME='D:\a\_temp\38dff182-1d91-4737-9cbf-3ac6df87892c' before making global git config changes
+2026-10-29T08:55:31.0163602Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-29T08:55:31.0172295Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\ROK\ROK
+2026-10-29T08:55:31.0842719Z Deleting the contents of 'D:\a\ROK\ROK'
+2026-10-29T08:55:31.0849178Z ##[group]Initializing the repository
+2026-10-29T08:55:31.0857050Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\ROK\ROK
+2026-10-29T08:55:31.1907382Z Initialized empty Git repository in D:/a/ROK/ROK/.git/
+2026-10-29T08:55:31.1952997Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/Ravi-Vashisth/ROK
+2026-10-29T08:55:31.2832503Z ##[endgroup]
+2026-10-29T08:55:31.2835656Z ##[group]Disabling automatic garbage collection
+2026-10-29T08:55:31.2838429Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+2026-10-29T08:55:31.3256898Z ##[endgroup]
+2026-10-29T08:55:31.3259523Z ##[group]Setting up auth
+2026-10-29T08:55:31.3269430Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-29T08:55:31.3655490Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-29T08:55:32.9778880Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-29T08:55:33.0151606Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-29T08:55:33.6090009Z [command]"C:\Program Files\Git\bin\git.exe" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+2026-10-29T08:55:33.6504584Z ##[endgroup]
+2026-10-29T08:55:33.6505383Z ##[group]Fetching the repository
+2026-10-29T08:55:33.6524593Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +790b5ba8bc58e9225df74908586da30b8b526d2a:refs/remotes/origin/main
+2026-10-29T08:55:34.9407940Z From https://github.com/Ravi-Vashisth/ROK
+2026-10-29T08:55:34.9409114Z  * [new ref]         790b5ba8bc58e9225df74908586da30b8b526d2a -> origin/main
+2026-10-29T08:55:34.9444833Z ##[endgroup]
+2026-10-29T08:55:34.9445301Z ##[group]Determining the checkout info
+2026-10-29T08:55:34.9448899Z ##[endgroup]
+2026-10-29T08:55:34.9463791Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+2026-10-29T08:55:34.9878441Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-10-29T08:55:35.0240975Z ##[group]Checking out the ref
+2026-10-29T08:55:35.0254876Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force -B main refs/remotes/origin/main
+2026-10-29T08:55:35.1183801Z Switched to a new branch 'main'
+2026-10-29T08:55:35.1207036Z branch 'main' set up to track 'origin/main'.
+2026-10-29T08:55:35.1252152Z ##[endgroup]
+2026-10-29T08:55:35.1639801Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+2026-10-29T08:55:35.2006360Z 790b5ba8bc58e9225df74908586da30b8b526d2a
+2026-10-29T08:55:35.2610138Z ##[group]Run subosito/flutter-action@v2.18.0
+2026-10-29T08:55:35.2610501Z with:
+2026-10-29T08:55:35.2610674Z   channel: stable
+2026-10-29T08:55:35.2610856Z   cache: true
+2026-10-29T08:55:35.2611043Z   architecture: X64
+2026-10-29T08:55:35.2611250Z   pub-cache-path: default
+2026-10-29T08:55:35.2611462Z   dry-run: false
+2026-10-29T08:55:35.2611712Z   git-source: https://github.com/flutter/flutter.git
+2026-10-29T08:55:35.2612001Z ##[endgroup]
+2026-10-29T08:55:35.2675223Z ##[start-action display=Make yq tool available on Windows runners;id=__subosito_flutter-action.__run]
+2026-10-29T08:55:35.2840536Z ##[group]Run choco install yq
+2026-10-29T08:55:35.2840843Z [36;1mchoco install yq[0m
+2026-10-29T08:55:35.2863108Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-10-29T08:55:35.2863812Z ##[endgroup]
+2026-10-29T08:55:38.6575768Z Chocolatey v2.7.4
+2026-10-29T08:55:38.9466919Z Installing the following packages:
+2026-10-29T08:55:38.9471883Z yq
+2026-10-29T08:55:38.9475872Z By installing, you accept licenses for the packages.
+2026-10-29T08:55:42.3854842Z Downloading package from source 'https://community.chocolatey.org/api/v2/'
+2026-10-29T08:55:42.4984654Z 
+2026-10-29T08:55:42.4987495Z Progress: Downloading yq 4.54.1... 28%
+2026-10-29T08:55:42.4994719Z Progress: Downloading yq 4.54.1... 83%
+2026-10-29T08:55:42.4995909Z Progress: Downloading yq 4.54.1... 100%
+2026-10-29T08:55:42.7475770Z 
+2026-10-29T08:55:42.7476247Z yq v4.54.1 [Approved]
+2026-10-29T08:55:42.7700209Z yq package files install completed. Performing other installation steps.
+2026-10-29T08:55:45.8885158Z Downloading yq 64 bit
+2026-10-29T08:55:45.8885709Z   from 'https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_windows_amd64.exe'
+2026-10-29T08:55:46.0164755Z 
+2026-10-29T08:55:46.0190904Z Progress: 1% - Saving 160 KB of 13.94 MB
+2026-10-29T08:55:46.0220848Z Progress: 2% - Saving 320 KB of 13.94 MB
+2026-10-29T08:55:46.0259301Z Progress: 3% - Saving 480 KB of 13.94 MB
+2026-10-29T08:55:46.0293603Z Progress: 4% - Saving 635 KB of 13.94 MB
+2026-10-29T08:55:46.0326314Z Progress: 5% - Saving 795 KB of 13.94 MB
+2026-10-29T08:55:46.0369223Z Progress: 6% - Saving 955 KB of 13.94 MB
+2026-10-29T08:55:46.0399473Z Progress: 7% - Saving 1.09 MB of 13.94 MB
+2026-10-29T08:55:46.0436675Z Progress: 8% - Saving 1.25 MB of 13.94 MB
+2026-10-29T08:55:46.0466087Z Progress: 10% - Saving 1.4 MB of 13.94 MB
+2026-10-29T08:55:46.0489033Z Progress: 11% - Saving 1.56 MB of 13.94 MB
+2026-10-29T08:55:46.0515463Z Progress: 12% - Saving 1.7 MB of 13.94 MB
+2026-10-29T08:55:46.0538715Z Progress: 13% - Saving 1.86 MB of 13.94 MB
+2026-10-29T08:55:46.0563057Z Progress: 14% - Saving 2.02 MB of 13.94 MB
+2026-10-29T08:55:46.0583245Z Progress: 15% - Saving 2.17 MB of 13.94 MB
+2026-10-29T08:55:46.0605576Z Progress: 16% - Saving 2.32 MB of 13.94 MB
+2026-10-29T08:55:46.0623524Z Progress: 17% - Saving 2.48 MB of 13.94 MB
+2026-10-29T08:55:46.0644176Z Progress: 18% - Saving 2.64 MB of 13.94 MB
+2026-10-29T08:55:46.0668793Z Progress: 20% - Saving 2.79 MB of 13.94 MB
+2026-10-29T08:55:46.0687195Z Progress: 21% - Saving 2.94 MB of 13.94 MB
+2026-10-29T08:55:46.0708201Z Progress: 22% - Saving 3.09 MB of 13.94 MB
+2026-10-29T08:55:46.0730993Z Progress: 23% - Saving 3.25 MB of 13.94 MB
+2026-10-29T08:55:46.0768415Z Progress: 24% - Saving 3.4 MB of 13.94 MB
+2026-10-29T08:55:46.0787047Z Progress: 25% - Saving 3.55 MB of 13.94 MB
+2026-10-29T08:55:46.0808807Z Progress: 26% - Saving 3.71 MB of 13.94 MB
+2026-10-29T08:55:46.0830132Z Progress: 27% - Saving 3.86 MB of 13.94 MB
+2026-10-29T08:55:46.0849285Z Progress: 28% - Saving 4.01 MB of 13.94 MB
+2026-10-29T08:55:46.0868853Z Progress: 29% - Saving 4.16 MB of 13.94 MB
+2026-10-29T08:55:46.0893562Z Progress: 30% - Saving 4.31 MB of 13.94 MB
+2026-10-29T08:55:46.0912160Z Progress: 32% - Saving 4.47 MB of 13.94 MB
+2026-10-29T08:55:46.0931983Z Progress: 33% - Saving 4.63 MB of 13.94 MB
+2026-10-29T08:55:46.0958373Z Progress: 34% - Saving 4.78 MB of 13.94 MB
+2026-10-29T08:55:46.0980063Z Progress: 35% - Saving 4.93 MB of 13.94 MB
+2026-10-29T08:55:46.0996894Z Progress: 36% - Saving 5.09 MB of 13.94 MB
+2026-10-29T08:55:46.1021173Z Progress: 37% - Saving 5.25 MB of 13.94 MB
+2026-10-29T08:55:46.1039016Z Progress: 38% - Saving 5.4 MB of 13.94 MB
+2026-10-29T08:55:46.1058103Z Progress: 39% - Saving 5.55 MB of 13.94 MB
+2026-10-29T08:55:46.1081935Z Progress: 40% - Saving 5.71 MB of 13.94 MB
+2026-10-29T08:55:46.1101356Z Progress: 42% - Saving 5.87 MB of 13.94 MB
+2026-10-29T08:55:46.1119891Z Progress: 43% - Saving 6.02 MB of 13.94 MB
+2026-10-29T08:55:46.1147504Z Progress: 44% - Saving 6.17 MB of 13.94 MB
+2026-10-29T08:55:46.1170243Z Progress: 45% - Saving 6.33 MB of 13.94 MB
+2026-10-29T08:55:46.1187999Z Progress: 46% - Saving 6.48 MB of 13.94 MB
+2026-10-29T08:55:46.1206288Z Progress: 47% - Saving 6.64 MB of 13.94 MB
+2026-10-29T08:55:46.1230671Z Progress: 48% - Saving 6.79 MB of 13.94 MB
+2026-10-29T08:55:46.1248942Z Progress: 49% - Saving 6.95 MB of 13.94 MB
+2026-10-29T08:55:46.1268185Z Progress: 50% - Saving 7.1 MB of 13.94 MB
+2026-10-29T08:55:46.1291017Z Progress: 52% - Saving 7.26 MB of 13.94 MB
+2026-10-29T08:55:46.1309828Z Progress: 53% - Saving 7.41 MB of 13.94 MB
+2026-10-29T08:55:46.1329070Z Progress: 54% - Saving 7.57 MB of 13.94 MB
+2026-10-29T08:55:46.1352160Z Progress: 55% - Saving 7.72 MB of 13.94 MB
+2026-10-29T08:55:46.1372197Z Progress: 56% - Saving 7.88 MB of 13.94 MB
+2026-10-29T08:55:46.1391177Z Progress: 57% - Saving 8.04 MB of 13.94 MB
+2026-10-29T08:55:46.1414284Z Progress: 58% - Saving 8.19 MB of 13.94 MB
+2026-10-29T08:55:46.1433716Z Progress: 59% - Saving 8.34 MB of 13.94 MB
+2026-10-29T08:55:46.1452204Z Progress: 60% - Saving 8.5 MB of 13.94 MB
+2026-10-29T08:55:46.1470915Z Progress: 62% - Saving 8.66 MB of 13.94 MB
+2026-10-29T08:55:46.1499351Z Progress: 63% - Saving 8.81 MB of 13.94 MB
+2026-10-29T08:55:46.1517383Z Progress: 64% - Saving 8.96 MB of 13.94 MB
+2026-10-29T08:55:46.1535637Z Progress: 65% - Saving 9.12 MB of 13.94 MB
+2026-10-29T08:55:46.1560852Z Progress: 66% - Saving 9.27 MB of 13.94 MB
+2026-10-29T08:55:46.1578100Z Progress: 67% - Saving 9.43 MB of 13.94 MB
+2026-10-29T08:55:46.1597296Z Progress: 68% - Saving 9.58 MB of 13.94 MB
+2026-10-29T08:55:46.1619977Z Progress: 69% - Saving 9.74 MB of 13.94 MB
+2026-10-29T08:55:46.1638326Z Progress: 70% - Saving 9.89 MB of 13.94 MB
+2026-10-29T08:55:46.1657407Z Progress: 71% - Saving 10.03 MB of 13.94 MB
+2026-10-29T08:55:46.1677826Z Progress: 73% - Saving 10.19 MB of 13.94 MB
+2026-10-29T08:55:46.1698417Z Progress: 74% - Saving 10.34 MB of 13.94 MB
+2026-10-29T08:55:46.1717700Z Progress: 75% - Saving 10.5 MB of 13.94 MB
+2026-10-29T08:55:46.1735808Z Progress: 76% - Saving 10.66 MB of 13.94 MB
+2026-10-29T08:55:46.1756930Z Progress: 77% - Saving 10.81 MB of 13.94 MB
+2026-10-29T08:55:46.1775385Z Progress: 78% - Saving 10.97 MB of 13.94 MB
+2026-10-29T08:55:46.1793817Z Progress: 79% - Saving 11.12 MB of 13.94 MB
+2026-10-29T08:55:46.1816089Z Progress: 80% - Saving 11.28 MB of 13.94 MB
+2026-10-29T08:55:46.1834190Z Progress: 82% - Saving 11.43 MB of 13.94 MB
+2026-10-29T08:55:46.1857462Z Progress: 83% - Saving 11.59 MB of 13.94 MB
+2026-10-29T08:55:46.1880982Z Progress: 84% - Saving 11.75 MB of 13.94 MB
+2026-10-29T08:55:46.1898435Z Progress: 85% - Saving 11.9 MB of 13.94 MB
+2026-10-29T08:55:46.1916360Z Progress: 86% - Saving 12.06 MB of 13.94 MB
+2026-10-29T08:55:46.1940240Z Progress: 87% - Saving 12.22 MB of 13.94 MB
+2026-10-29T08:55:46.1957406Z Progress: 88% - Saving 12.37 MB of 13.94 MB
+2026-10-29T08:55:46.1975696Z Progress: 89% - Saving 12.53 MB of 13.94 MB
+2026-10-29T08:55:46.1997113Z Progress: 91% - Saving 12.68 MB of 13.94 MB
+2026-10-29T08:55:46.2016540Z Progress: 92% - Saving 12.84 MB of 13.94 MB
+2026-10-29T08:55:46.2034714Z Progress: 93% - Saving 13 MB of 13.94 MB
+2026-10-29T08:55:46.2056195Z Progress: 94% - Saving 13.15 MB of 13.94 MB
+2026-10-29T08:55:46.2073452Z Progress: 95% - Saving 13.31 MB of 13.94 MB
+2026-10-29T08:55:46.2092616Z Progress: 96% - Saving 13.47 MB of 13.94 MB
+2026-10-29T08:55:46.2111444Z Progress: 97% - Saving 13.62 MB of 13.94 MB
+2026-10-29T08:55:46.2129451Z Progress: 98% - Saving 13.78 MB of 13.94 MB
+2026-10-29T08:55:46.2140888Z Progress: 99% - Saving 13.93 MB of 13.94 MB
+2026-10-29T08:55:46.2146422Z Progress: 100% - Completed download of C:\ProgramData\chocolatey\lib\yq\tools\yq.exe (13.94 MB).
+2026-10-29T08:55:46.2165827Z Download of yq.exe (13.94 MB) completed.
+2026-10-29T08:55:51.1392622Z Hashes match.
+2026-10-29T08:55:51.1840765Z C:\ProgramData\chocolatey\lib\yq\tools\yq.exe
+2026-10-29T08:55:52.2282208Z  ShimGen has successfully created a shim for yq.exe
+2026-10-29T08:55:52.2812386Z  The install of yq was successful.
+2026-10-29T08:55:52.2865397Z   Software install location not explicitly set, it could be in package or
+2026-10-29T08:55:52.2866079Z   default install location of installer.
+2026-10-29T08:55:52.3186219Z 
+2026-10-29T08:55:52.3186585Z Chocolatey installed 1/1 packages. 
+2026-10-29T08:55:52.3187275Z  See the log for details (C:\ProgramData\chocolatey\logs\chocolatey.log).
+2026-10-29T08:55:52.3639808Z ##[end-action id=__subosito_flutter-action.__run;outcome=success;conclusion=success;duration_ms=17096]
+2026-10-29T08:55:52.3642670Z ##[start-action display=Make setup script executable;id=__subosito_flutter-action.__run_2]
+2026-10-29T08:55:52.3774030Z ##[group]Run chmod +x "$GITHUB_ACTION_PATH/setup.sh"
+2026-10-29T08:55:52.3774385Z [36;1mchmod +x "$GITHUB_ACTION_PATH/setup.sh"[0m
+2026-10-29T08:55:52.3789148Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-10-29T08:55:52.3789546Z ##[endgroup]
+2026-10-29T08:55:52.4441689Z ##[end-action id=__subosito_flutter-action.__run_2;outcome=success;conclusion=success;duration_ms=79]
+2026-10-29T08:55:52.4444013Z ##[start-action display=Set action inputs;id=__subosito_flutter-action.flutter-action]
+2026-10-29T08:55:52.4589454Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh -p \
+2026-10-29T08:55:52.4589793Z [36;1m$GITHUB_ACTION_PATH/setup.sh -p \[0m
+2026-10-29T08:55:52.4590086Z [36;1m  -n '' \[0m
+2026-10-29T08:55:52.4590281Z [36;1m  -f '' \[0m
+2026-10-29T08:55:52.4590456Z [36;1m  -a 'X64' \[0m
+2026-10-29T08:55:52.4590632Z [36;1m  -k '' \[0m
+2026-10-29T08:55:52.4590801Z [36;1m  -c '' \[0m
+2026-10-29T08:55:52.4590965Z [36;1m  -l '' \[0m
+2026-10-29T08:55:52.4591138Z [36;1m  -d 'default' \[0m
+2026-10-29T08:55:52.4591420Z [36;1m  -g 'https://github.com/flutter/flutter.git' \[0m
+2026-10-29T08:55:52.4591722Z [36;1m  stable[0m
+2026-10-29T08:55:52.4605720Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-10-29T08:55:52.4606111Z ##[endgroup]
+2026-10-29T08:55:55.0299167Z ##[end-action id=__subosito_flutter-action.flutter-action;outcome=success;conclusion=success;duration_ms=2585]
+2026-10-29T08:55:55.0303804Z ##[start-action display=Cache Flutter;id=__subosito_flutter-action.__actions_cache]
+2026-10-29T08:55:55.0454778Z ##[group]Run actions/cache@v4
+2026-10-29T08:55:55.0455269Z with:
+2026-10-29T08:55:55.0455528Z   path: C:\hostedtoolcache\windows\flutter\stable-3.47.8-x64
+2026-10-29T08:55:55.0456013Z   key: flutter-windows-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e
+2026-10-29T08:55:55.0474151Z   restore-keys: flutter-windows-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e
+
+2026-10-29T08:55:55.0474728Z   enableCrossOsArchive: false
+2026-10-29T08:55:55.0475310Z   fail-on-cache-miss: false
+2026-10-29T08:55:55.0475540Z   lookup-only: false
+2026-10-29T08:55:55.0475739Z   save-always: false
+2026-10-29T08:55:55.0475926Z ##[endgroup]
+2026-10-29T08:55:55.1847042Z (node:1540) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-29T08:55:55.1847756Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-29T08:55:55.4218452Z Cache hit for: flutter-windows-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e
+2026-10-29T08:55:55.4338879Z (node:1540) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-29T08:55:56.4975115Z Received 176160768 of 1930838308 (9.1%), 165.2 MBs/sec
+2026-10-29T08:55:57.5162670Z Received 390070272 of 1930838308 (20.2%), 182.9 MBs/sec
+2026-10-29T08:55:58.5381082Z Received 553648128 of 1930838308 (28.7%), 172.8 MBs/sec
+2026-10-29T08:55:59.5524249Z Received 746586112 of 1930838308 (38.7%), 174.7 MBs/sec
+2026-10-29T08:56:00.5535971Z Received 939524096 of 1930838308 (48.7%), 176.5 MBs/sec
+2026-10-29T08:56:01.5617756Z Received 1166016512 of 1930838308 (60.4%), 182.7 MBs/sec
+2026-10-29T08:56:02.5674516Z Received 1342177280 of 1930838308 (69.5%), 180.5 MBs/sec
+2026-10-29T08:56:03.5920317Z Received 1564475392 of 1930838308 (81.0%), 183.8 MBs/sec
+2026-10-29T08:56:04.6123511Z Received 1702887424 of 1930838308 (88.2%), 177.9 MBs/sec
+2026-10-29T08:56:05.6278160Z Received 1862270976 of 1930838308 (96.4%), 175.0 MBs/sec
+2026-10-29T08:56:06.1797399Z Received 1930838308 of 1930838308 (100.0%), 172.0 MBs/sec
+2026-10-29T08:56:06.1801914Z Cache Size: ~1841 MB (1930838308 B)
+2026-10-29T08:56:06.1893635Z [command]"C:\Program Files\Git\usr\bin\tar.exe" -xf D:/a/_temp/e38b8276-ace5-458a-ae53-5fe5cf1e0460/cache.tzst -P -C D:/a/ROK/ROK --force-local --use-compress-program "zstd -d"
+2026-10-29T08:57:05.1502488Z Cache restored successfully
+2026-10-29T08:57:05.2674987Z Cache restored from key: flutter-windows-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e
+2026-10-29T08:57:05.2805825Z ##[end-action id=__subosito_flutter-action.__actions_cache;outcome=success;conclusion=success;duration_ms=70249]
+2026-10-29T08:57:05.2808868Z ##[start-action display=Cache pub dependencies;id=__subosito_flutter-action.__actions_cache_2]
+2026-10-29T08:57:05.5509541Z ##[group]Run actions/cache@v4
+2026-10-29T08:57:05.5509790Z with:
+2026-10-29T08:57:05.5510025Z   path: C:\Users\runneradmin\AppData\Local\Pub\Cache
+2026-10-29T08:57:05.5510557Z   key: flutter-pub-windows-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e-
+2026-10-29T08:57:05.5511626Z   restore-keys: flutter-pub-windows-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e-
+flutter-pub-windows-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e
+
+2026-10-29T08:57:05.5512490Z   enableCrossOsArchive: false
+2026-10-29T08:57:05.5512744Z   fail-on-cache-miss: false
+2026-10-29T08:57:05.5512978Z   lookup-only: false
+2026-10-29T08:57:05.5513191Z   save-always: false
+2026-10-29T08:57:05.5513389Z ##[endgroup]
+2026-10-29T08:57:05.6799434Z (node:5280) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-29T08:57:05.6800473Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-29T08:57:05.8356432Z Cache hit for: flutter-pub-windows-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e-
+2026-10-29T08:57:05.8470403Z (node:5280) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-29T08:57:06.1315642Z Received 28384471 of 28384471 (100.0%), 111.9 MBs/sec
+2026-10-29T08:57:06.1317425Z Cache Size: ~27 MB (28384471 B)
+2026-10-29T08:57:06.1342772Z [command]"C:\Program Files\Git\usr\bin\tar.exe" -xf D:/a/_temp/1a14bca9-ec44-4ade-9808-ee1f07adbb09/cache.tzst -P -C D:/a/ROK/ROK --force-local --use-compress-program "zstd -d"
+2026-10-29T08:57:25.1778487Z Cache restored successfully
+2026-10-29T08:57:25.1910041Z Cache restored from key: flutter-pub-windows-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e-
+2026-10-29T08:57:25.2023217Z ##[end-action id=__subosito_flutter-action.__actions_cache_2;outcome=success;conclusion=success;duration_ms=19921]
+2026-10-29T08:57:25.2026379Z ##[start-action display=Run setup script;id=__subosito_flutter-action.__run_3]
+2026-10-29T08:57:25.2178397Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh \
+2026-10-29T08:57:25.2178750Z [36;1m$GITHUB_ACTION_PATH/setup.sh \[0m
+2026-10-29T08:57:25.2179016Z [36;1m  -n '3.47.8' \[0m
+2026-10-29T08:57:25.2179241Z [36;1m  -a 'x64' \[0m
+2026-10-29T08:57:25.2179548Z [36;1m  -c 'C:\hostedtoolcache\windows\flutter\stable-3.47.8-x64' \[0m
+2026-10-29T08:57:25.2179887Z [36;1m  stable[0m
+2026-10-29T08:57:25.2194788Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-10-29T08:57:25.2195193Z ##[endgroup]
+2026-10-29T08:57:27.1982432Z   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+2026-10-29T08:57:27.1983341Z                                  Dload  Upload  Total   Spent   Left   Speed
+2026-10-29T08:57:27.1984284Z 
+2026-10-29T08:57:28.1991602Z   0      0   0      0   0      0      0      0                              0
+2026-10-29T08:57:29.2005620Z  15  1.80G  15 284.7M   0      0 272.8M      0   00:06   00:01   00:05 284.5M
+2026-10-29T08:57:30.2006066Z  32  1.80G  32 601.2M   0      0 293.9M      0   00:06   00:02   00:04 300.2M
+2026-10-29T08:57:31.2009271Z  47  1.80G  47 881.9M   0      0 289.6M      0   00:06   00:03   00:03 293.7M
+2026-10-29T08:57:32.2009255Z  64  1.80G  64  1.16G   0      0 294.3M      0   00:06   00:04   00:02 297.4M
+2026-10-29T08:57:33.2018879Z  80  1.80G  80  1.44G   0      0 293.1M      0   00:06   00:05   00:01 295.6M
+2026-10-29T08:57:33.3948977Z  96  1.80G  96  1.74G   0      0 295.0M      0   00:06   00:06         299.6M
+2026-10-29T08:57:33.3949620Z 100  1.80G 100  1.80G   0      0 296.1M      0   00:06   00:06         299.6M
+2026-10-29T08:57:33.3951813Z 100  1.80G 100  1.80G   0      0 296.0M      0   00:06   00:06         299.6M
+2026-10-29T08:57:33.3953128Z 100  1.80G 100  1.80G   0      0 296.0M      0   00:06   00:06         299.6M
+2026-10-29T08:59:23.1353270Z ##[end-action id=__subosito_flutter-action.__run_3;outcome=success;conclusion=success;duration_ms=117930]
+2026-10-29T08:59:23.1550313Z ##[group]Run flutter config --enable-windows-desktop
+2026-10-29T08:59:23.1550931Z [36;1mflutter config --enable-windows-desktop[0m
+2026-10-29T08:59:23.1551341Z [36;1mflutter create --platforms=windows .[0m
+2026-10-29T08:59:23.2866795Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-29T08:59:23.2867317Z env:
+2026-10-29T08:59:23.2867763Z   FLUTTER_ROOT: C:\hostedtoolcache\windows\flutter\stable-3.47.8-x64
+2026-10-29T08:59:23.2868655Z   PUB_CACHE: C:\Users\runneradmin\AppData\Local\Pub\Cache
+2026-10-29T08:59:23.2869129Z ##[endgroup]
+2026-10-29T08:59:24.7896920Z Building flutter tool... 
+2026-10-29T08:59:24.7936736Z Running pub upgrade... 
+2026-10-29T08:59:24.8295306Z Resolving dependencies...
+2026-10-29T08:59:25.4547960Z Downloading packages...
+2026-10-29T08:59:25.4725717Z Got dependencies.
+2026-10-29T08:59:44.0964312Z Setting "enable-windows-desktop" value to "true".
+2026-10-29T08:59:44.0965945Z 
+2026-10-29T08:59:44.0966584Z You may need to restart any open editors for them to read new settings.
+2026-10-29T08:59:45.0670634Z Recreating project ....
+2026-10-29T08:59:45.1260661Z   .idea\libraries\Dart_SDK.xml (created)
+2026-10-29T08:59:45.1352229Z   .idea\libraries\KotlinJavaRuntime.xml (created)
+2026-10-29T08:59:45.1365160Z   .idea\modules.xml (created)
+2026-10-29T08:59:45.1385393Z   .idea\runConfigurations\main_dart.xml (created)
+2026-10-29T08:59:45.1398023Z   .idea\workspace.xml (created)
+2026-10-29T08:59:45.1417601Z   analysis_options.yaml (created)
+2026-10-29T08:59:45.1461252Z   billing_app.iml (created)
+2026-10-29T08:59:45.1477716Z   README.md (created)
+2026-10-29T08:59:45.1489942Z   windows\.gitignore (created)
+2026-10-29T08:59:45.1517980Z   windows\CMakeLists.txt (created)
+2026-10-29T08:59:45.1540172Z   windows\flutter\CMakeLists.txt (created)
+2026-10-29T08:59:45.1554131Z   windows\runner\CMakeLists.txt (created)
+2026-10-29T08:59:45.1566491Z   windows\runner\flutter_window.cpp (created)
+2026-10-29T08:59:45.1577131Z   windows\runner\flutter_window.h (created)
+2026-10-29T08:59:45.1588356Z   windows\runner\main.cpp (created)
+2026-10-29T08:59:45.1599528Z   windows\runner\resource.h (created)
+2026-10-29T08:59:45.1611651Z   windows\runner\resources\app_icon.ico (created)
+2026-10-29T08:59:45.1629666Z   windows\runner\runner.exe.manifest (created)
+2026-10-29T08:59:45.1643474Z   windows\runner\Runner.rc (created)
+2026-10-29T08:59:45.1656480Z   windows\runner\utils.cpp (created)
+2026-10-29T08:59:45.1668436Z   windows\runner\utils.h (created)
+2026-10-29T08:59:45.1680213Z   windows\runner\win32_window.cpp (created)
+2026-10-29T08:59:45.1696892Z   windows\runner\win32_window.h (created)
+2026-10-29T08:59:45.1709081Z   test\widget_test.dart (created)
+2026-10-29T08:59:45.2623981Z Resolving dependencies...
+2026-10-29T08:59:45.7846567Z Downloading packages...
+2026-10-29T08:59:49.3580141Z Got dependencies.
+2026-10-29T08:59:49.6436088Z Wrote 24 files.
+2026-10-29T08:59:49.6436463Z 
+2026-10-29T08:59:49.6436886Z All done!
+2026-10-29T08:59:49.6447487Z You can find general documentation for Flutter at: https://docs.flutter.dev/
+2026-10-29T08:59:49.6448756Z Detailed API documentation is available at: https://api.flutter.dev/
+2026-10-29T08:59:49.6449727Z If you prefer video documentation, consider: https://www.youtube.com/c/flutterdev
+2026-10-29T08:59:49.6450303Z 
+2026-10-29T08:59:49.6450554Z In order to run your application, type:
+2026-10-29T08:59:49.6450983Z 
+2026-10-29T08:59:49.6451404Z   $ flutter run
+2026-10-29T08:59:49.6452046Z 
+2026-10-29T08:59:49.6452303Z Your application code is in .\lib\main.dart.
+2026-10-29T08:59:49.6452710Z 
+2026-10-29T08:59:49.7992530Z ##[group]Run flutter pub get
+2026-10-29T08:59:49.7992900Z [36;1mflutter pub get[0m
+2026-10-29T08:59:49.8079175Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-29T08:59:49.8079572Z env:
+2026-10-29T08:59:49.8079926Z   FLUTTER_ROOT: C:\hostedtoolcache\windows\flutter\stable-3.47.8-x64
+2026-10-29T08:59:49.8080389Z   PUB_CACHE: C:\Users\runneradmin\AppData\Local\Pub\Cache
+2026-10-29T08:59:49.8080759Z ##[endgroup]
+2026-10-29T08:59:50.9839046Z Resolving dependencies...
+2026-10-29T08:59:51.1011473Z Downloading packages...
+2026-10-29T08:59:51.2117309Z   code_assets 1.2.1 (2.1.0 available)
+2026-10-29T08:59:51.2117855Z   cross_file 0.3.5+5 (0.4.0 available)
+2026-10-29T08:59:51.2118270Z   file_picker 8.3.7 (13.3.0 available)
+2026-10-29T08:59:51.2118590Z   flutter_lints 4.0.0 (6.0.0 available)
+2026-10-29T08:59:51.2119122Z   flutter_riverpod 2.6.1 (3.4.3 available)
+2026-10-29T08:59:51.2119703Z   hooks 2.0.2 (2.2.0 available)
+2026-10-29T08:59:51.2120062Z   intl 0.19.0 (0.20.3 available)
+2026-10-29T08:59:51.2120343Z   lints 4.0.0 (6.1.0 available)
+2026-10-29T08:59:51.2120653Z   material_color_utilities 0.13.0 (0.13.1 available)
+2026-10-29T08:59:51.2121007Z   meta 1.18.3 (1.19.0 available)
+2026-10-29T08:59:51.2121281Z   objective_c 9.5.0 (9.6.2 available)
+2026-10-29T08:59:51.2121580Z   petitparser 7.0.2 (7.1.0 available)
+2026-10-29T08:59:51.2121881Z   qr 3.0.2 (4.0.0 available)
+2026-10-29T08:59:51.2122211Z   record_use 0.6.0 (1.1.1 available)
+2026-10-29T08:59:51.2122699Z   riverpod 2.6.1 (3.4.3 available)
+2026-10-29T08:59:51.2123084Z   sqlite3 2.9.4 (3.8.0 available)
+2026-10-29T08:59:51.2123441Z   sqlite3_flutter_libs 0.5.42 (0.6.0+eol available)
+2026-10-29T08:59:51.2123835Z   test_api 0.7.12 (0.7.15 available)
+2026-10-29T08:59:51.2124146Z   vector_math 2.4.0 (2.4.4 available)
+2026-10-29T08:59:51.2124477Z   win32 5.15.0 (6.4.0 available)
+2026-10-29T08:59:51.2124767Z   xml 7.0.1 (7.1.0 available)
+2026-10-29T08:59:51.2125158Z Got dependencies!
+2026-10-29T08:59:51.2125600Z 21 packages have newer versions incompatible with dependency constraints.
+2026-10-29T08:59:51.2126129Z Try `flutter pub outdated` for more information.
+2026-10-29T08:59:51.5602575Z ##[group]Run flutter build windows --release
+2026-10-29T08:59:51.5603119Z [36;1mflutter build windows --release[0m
+2026-10-29T08:59:51.5673158Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-29T08:59:51.5673581Z env:
+2026-10-29T08:59:51.5673877Z   FLUTTER_ROOT: C:\hostedtoolcache\windows\flutter\stable-3.47.8-x64
+2026-10-29T08:59:51.5674329Z   PUB_CACHE: C:\Users\runneradmin\AppData\Local\Pub\Cache
+2026-10-29T08:59:51.5674630Z ##[endgroup]
+2026-10-29T09:00:22.8779260Z lib/features/billing/services/invoice_pdf_service.dart(108,23): error G297C951C: Can't find ']' to match '['. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:22.8780642Z Building Windows application...                                 
+2026-10-29T09:00:24.2784201Z lib/features/invoices/presentation/invoice_editor_screen.dart(237,26): error G5FE39F1E: Type 'BusinessProfile' not found. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:24.2787425Z lib/features/invoices/presentation/invoice_editor_screen.dart(254,27): error G5FE39F1E: Type 'BusinessProfile' not found. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:24.2790071Z lib/features/invoices/presentation/invoice_editor_screen.dart(272,23): error G5FE39F1E: Type 'BusinessProfile' not found. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:24.2792950Z lib/features/invoices/presentation/invoice_editor_screen.dart(536,24): error G5FE39F1E: Type 'BusinessProfile' not found. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:27.7393084Z lib/features/billing/presentation/billing_dashboard_screen.dart(30,30): error G4127D1E8: The getter 'clientsProvider' isn't defined for the type '_BillingDashboardScreenState'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:29.3882559Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart(27,31): error G4127D1E8: The getter 'taxCollectedOnPaymentsCents' isn't defined for the type 'CashFlowMetricsBar'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:29.3885508Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart(27,61): error G4127D1E8: The getter 'totalExpenseTaxCents' isn't defined for the type 'CashFlowMetricsBar'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:29.3889280Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart(28,36): error G4127D1E8: The getter 'totalCollectedGrossCents' isn't defined for the type 'CashFlowMetricsBar'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:29.3892296Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart(28,63): error G4127D1E8: The getter 'taxCollectedOnPaymentsCents' isn't defined for the type 'CashFlowMetricsBar'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:29.3895387Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart(29,57): error G4127D1E8: The getter 'totalExpensesExclTaxCents' isn't defined for the type 'CashFlowMetricsBar'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:29.3898447Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart(55,37): error G4127D1E8: The getter 'totalCollectedGrossCents' isn't defined for the type 'CashFlowMetricsBar'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:29.4006721Z lib/features/invoices/presentation/invoice_editor_screen.dart(237,26): error GB7E98E8D: 'BusinessProfile' isn't a type. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:29.4009178Z lib/features/invoices/presentation/invoice_editor_screen.dart(254,27): error GB7E98E8D: 'BusinessProfile' isn't a type. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:29.4013112Z lib/features/invoices/presentation/invoice_editor_screen.dart(272,23): error GB7E98E8D: 'BusinessProfile' isn't a type. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:29.4045411Z lib/features/invoices/presentation/invoice_editor_screen.dart(536,24): error GB7E98E8D: 'BusinessProfile' isn't a type. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8787955Z lib/features/billing/services/invoice_pdf_service.dart(397,17): error G67247B7E: Expected ';' after this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8800272Z lib/features/billing/services/invoice_pdf_service.dart(397,18): error G25387D61: Expected an identifier, but got ','. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8879856Z lib/features/billing/services/invoice_pdf_service.dart(397,18): error G5BADBE1C: Unexpected token ';'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8882759Z lib/features/billing/services/invoice_pdf_service.dart(398,15): error G25387D61: Expected an identifier, but got ']'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8884488Z lib/features/billing/services/invoice_pdf_service.dart(397,18): error G67247B7E: Expected ';' after this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8886573Z lib/features/billing/services/invoice_pdf_service.dart(398,15): error G5BADBE1C: Unexpected token ';'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8887716Z lib/features/billing/services/invoice_pdf_service.dart(398,16): error G25387D61: Expected an identifier, but got ','. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8890366Z lib/features/billing/services/invoice_pdf_service.dart(398,15): error G67247B7E: Expected ';' after this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8892713Z lib/features/billing/services/invoice_pdf_service.dart(398,16): error G5BADBE1C: Unexpected token ';'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8894673Z lib/features/billing/services/invoice_pdf_service.dart(466,15): error G67247B7E: Expected ';' after this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8896683Z lib/features/billing/services/invoice_pdf_service.dart(466,16): error G25387D61: Expected an identifier, but got ','. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8898766Z lib/features/billing/services/invoice_pdf_service.dart(466,16): error G5BADBE1C: Unexpected token ';'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8899899Z lib/features/billing/services/invoice_pdf_service.dart(468,25): error G67247B7E: Expected ';' after this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8901063Z lib/features/billing/services/invoice_pdf_service.dart(468,26): error G25387D61: Expected an identifier, but got ','. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8902249Z lib/features/billing/services/invoice_pdf_service.dart(468,26): error G5BADBE1C: Unexpected token ';'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8903356Z lib/features/billing/services/invoice_pdf_service.dart(470,75): error G25387D61: Expected an identifier, but got '...'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8904481Z lib/features/billing/services/invoice_pdf_service.dart(496,18): error G67247B7E: Expected ']' before this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8905552Z lib/features/billing/services/invoice_pdf_service.dart(498,15): error G67247B7E: Expected ';' after this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8930274Z lib/features/billing/services/invoice_pdf_service.dart(498,16): error G25387D61: Expected an identifier, but got ','. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8931751Z lib/features/billing/services/invoice_pdf_service.dart(498,16): error G5BADBE1C: Unexpected token ';'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8932924Z lib/features/billing/services/invoice_pdf_service.dart(500,88): error G25387D61: Expected an identifier, but got '...'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8934048Z lib/features/billing/services/invoice_pdf_service.dart(525,18): error G67247B7E: Expected ']' before this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8935134Z lib/features/billing/services/invoice_pdf_service.dart(527,15): error G67247B7E: Expected ';' after this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8936238Z lib/features/billing/services/invoice_pdf_service.dart(527,16): error G25387D61: Expected an identifier, but got ','. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8937347Z lib/features/billing/services/invoice_pdf_service.dart(527,16): error G5BADBE1C: Unexpected token ';'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8940066Z lib/features/billing/services/invoice_pdf_service.dart(529,27): error G25387D61: Expected an identifier, but got '...'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8942047Z lib/features/billing/services/invoice_pdf_service.dart(552,18): error G67247B7E: Expected ']' before this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8943750Z lib/features/billing/services/invoice_pdf_service.dart(553,15): error G67247B7E: Expected ';' after this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8944926Z lib/features/billing/services/invoice_pdf_service.dart(553,112): error G25387D61: Expected an identifier, but got '...'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8946074Z lib/features/billing/services/invoice_pdf_service.dart(619,18): error G67247B7E: Expected ']' before this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8947164Z lib/features/billing/services/invoice_pdf_service.dart(620,15): error G67247B7E: Expected ';' after this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8948282Z lib/features/billing/services/invoice_pdf_service.dart(620,16): error G25387D61: Expected an identifier, but got ','. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8949393Z lib/features/billing/services/invoice_pdf_service.dart(620,16): error G5BADBE1C: Unexpected token ';'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8950493Z lib/features/billing/services/invoice_pdf_service.dart(621,13): error G25387D61: Expected an identifier, but got ']'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8951655Z lib/features/billing/services/invoice_pdf_service.dart(620,16): error G67247B7E: Expected ';' after this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8952901Z lib/features/billing/services/invoice_pdf_service.dart(621,13): error G5BADBE1C: Unexpected token ';'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8953993Z lib/features/billing/services/invoice_pdf_service.dart(621,14): error G25387D61: Expected an identifier, but got ','. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8955311Z lib/features/billing/services/invoice_pdf_service.dart(621,13): error G67247B7E: Expected ';' after this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8956402Z lib/features/billing/services/invoice_pdf_service.dart(621,14): error G5BADBE1C: Unexpected token ';'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8958001Z lib/features/billing/services/invoice_pdf_service.dart(622,11): error G25387D61: Expected an identifier, but got ')'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8959403Z lib/features/billing/services/invoice_pdf_service.dart(621,14): error G67247B7E: Expected ';' after this. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:30.8960506Z lib/features/billing/services/invoice_pdf_service.dart(622,11): error G5BADBE1C: Unexpected token ';'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:00:37.0875885Z C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(254,5): error MSB8066: Custom build for 'D:\a\ROK\ROK\build\windows\x64\CMakeFiles\19627551d09c41d4165d7d6420f9c6ec\flutter_windows.dll.rule;D:\a\ROK\ROK\build\windows\x64\CMakeFiles\d6ed33900a02492419d4f80071b9737c\flutter_assemble.rule;D:\a\ROK\ROK\windows\flutter\CMakeLists.txt' exited with code 1. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T09:01:05.3342004Z Building Windows application...                                    71.9s
+2026-10-29T09:01:05.3371963Z Build process failed.
+2026-10-29T09:01:05.4436542Z ##[error]Process completed with exit code 1.
+2026-10-29T09:01:05.4741211Z Post job cleanup.
+2026-10-29T09:01:05.4745542Z ##[start-action display=Cache pub dependencies;id=__bc06607c-a47e-40fc-8571-3707862005dc.__actions_cache_2]
+2026-10-29T09:01:05.4749082Z ##[end-action id=__bc06607c-a47e-40fc-8571-3707862005dc.__actions_cache_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-29T09:01:05.4751097Z ##[start-action display=Cache Flutter;id=__bc06607c-a47e-40fc-8571-3707862005dc.__actions_cache]
+2026-10-29T09:01:05.4753250Z ##[end-action id=__bc06607c-a47e-40fc-8571-3707862005dc.__actions_cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-29T09:01:05.4954247Z Post job cleanup.
+2026-10-29T09:01:05.7066316Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-29T09:01:05.7432224Z git version 2.56.0.windows.2
+2026-10-29T09:01:05.7497820Z Temporarily overriding HOME='D:\a\_temp\a04abceb-c5e1-4029-8fa5-787584255583' before making global git config changes
+2026-10-29T09:01:05.7499011Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-29T09:01:05.7509445Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\ROK\ROK
+2026-10-29T09:01:05.7884522Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-29T09:01:05.8308883Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-29T09:01:06.4127686Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-29T09:01:06.4501501Z http.https://github.com/.extraheader
+2026-10-29T09:01:06.4559289Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+2026-10-29T09:01:06.4988934Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-29T09:01:07.0649432Z Cleaning up orphan processes
+2026-10-29T09:01:07.0850128Z Terminate orphan process: pid (9084) (vctip)
+2026-10-29T09:01:07.1364593Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, actions/checkout@v4.2.2. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

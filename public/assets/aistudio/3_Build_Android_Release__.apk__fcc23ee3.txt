@@ -1,0 +1,711 @@
+﻿2026-10-29T08:55:29.1004627Z Current runner version: '2.338.0'
+2026-10-29T08:55:29.1022704Z ##[group]Runner Image Provisioner
+2026-10-29T08:55:29.1023317Z Hosted Compute Agent
+2026-10-29T08:55:29.1023753Z Version: 20261021.618
+2026-10-29T08:55:29.1024149Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-29T08:55:29.1024637Z Build Date: 2026-10-21T00:45:21Z
+2026-10-29T08:55:29.1025094Z Worker ID: {47565ad0-da22-43fa-9259-17ba48acb425}
+2026-10-29T08:55:29.1025551Z Region: southcentralus
+2026-10-29T08:55:29.1025966Z Cloud: Azure
+2026-10-29T08:55:29.1026308Z ##[endgroup]
+2026-10-29T08:55:29.1027126Z ##[group]Operating System
+2026-10-29T08:55:29.1027506Z Ubuntu
+2026-10-29T08:55:29.1027831Z 24.04.5
+2026-10-29T08:55:29.1028236Z LTS
+2026-10-29T08:55:29.1028569Z ##[endgroup]
+2026-10-29T08:55:29.1029180Z ##[group]Runner Image
+2026-10-29T08:55:29.1029646Z Image: ubuntu-24.04
+2026-10-29T08:55:29.1029992Z Version: 20261025.353.1
+2026-10-29T08:55:29.1030865Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261025.353/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-29T08:55:29.1031754Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261025.353
+2026-10-29T08:55:29.1032380Z ##[endgroup]
+2026-10-29T08:55:29.1033377Z ##[group]GITHUB_TOKEN Permissions
+2026-10-29T08:55:29.1034792Z Contents: write
+2026-10-29T08:55:29.1035144Z Metadata: read
+2026-10-29T08:55:29.1035560Z ##[endgroup]
+2026-10-29T08:55:29.1036893Z Secret source: Actions
+2026-10-29T08:55:29.1037562Z Cache mode: write
+2026-10-29T08:55:29.1037990Z Prepare workflow directory
+2026-10-29T08:55:29.1251491Z Prepare all required actions
+2026-10-29T08:55:29.1290083Z Getting action download info
+2026-10-29T08:55:29.3959843Z Download action repository 'actions/checkout@v4.2.2' (SHA:11bd71901bbe5b1630ceea73d27597364c9af683)
+2026-10-29T08:55:29.5472496Z Download action repository 'actions/setup-java@v5' (SHA:b6effb05e454b25005698d916606bdc6ffcbf961)
+2026-10-29T08:55:30.0952678Z Download action repository 'subosito/flutter-action@v2.18.0' (SHA:f2c4f6686ca8e8d6e6d0f28410eeef506ed66aff)
+2026-10-29T08:55:30.3644543Z Download action repository 'actions/upload-artifact@v4.4.3' (SHA:b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882)
+2026-10-29T08:55:30.6483301Z Getting action download info
+2026-10-29T08:55:30.7525984Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-10-29T08:55:30.9888595Z Complete job name: Build Android Release (.apk)
+2026-10-29T08:55:31.0483673Z ##[group]Run actions/checkout@v4.2.2
+2026-10-29T08:55:31.0484433Z with:
+2026-10-29T08:55:31.0484941Z   repository: Ravi-Vashisth/ROK
+2026-10-29T08:55:31.0489382Z   token: ***
+2026-10-29T08:55:31.0489899Z   ssh-strict: true
+2026-10-29T08:55:31.0490416Z   ssh-user: git
+2026-10-29T08:55:31.0490954Z   persist-credentials: true
+2026-10-29T08:55:31.0491532Z   clean: true
+2026-10-29T08:55:31.0492071Z   sparse-checkout-cone-mode: true
+2026-10-29T08:55:31.0492692Z   fetch-depth: 1
+2026-10-29T08:55:31.0493208Z   fetch-tags: false
+2026-10-29T08:55:31.0493731Z   show-progress: true
+2026-10-29T08:55:31.0494282Z   lfs: false
+2026-10-29T08:55:31.0494766Z   submodules: false
+2026-10-29T08:55:31.0495295Z   set-safe-directory: true
+2026-10-29T08:55:31.0496209Z ##[endgroup]
+2026-10-29T08:55:31.2547162Z Syncing repository: Ravi-Vashisth/ROK
+2026-10-29T08:55:31.2549658Z ##[group]Getting Git version info
+2026-10-29T08:55:31.2550726Z Working directory is '/home/runner/work/ROK/ROK'
+2026-10-29T08:55:31.2552092Z [command]/usr/bin/git version
+2026-10-29T08:55:31.2610545Z git version 2.56.0
+2026-10-29T08:55:31.2625578Z ##[endgroup]
+2026-10-29T08:55:31.2635685Z Temporarily overriding HOME='/home/runner/work/_temp/dcc88bd6-c63f-4dac-af6a-0977b503ceda' before making global git config changes
+2026-10-29T08:55:31.2637366Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-29T08:55:31.2639120Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/ROK/ROK
+2026-10-29T08:55:31.2688499Z Deleting the contents of '/home/runner/work/ROK/ROK'
+2026-10-29T08:55:31.2693060Z ##[group]Initializing the repository
+2026-10-29T08:55:31.2696154Z [command]/usr/bin/git init /home/runner/work/ROK/ROK
+2026-10-29T08:55:31.2777757Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-29T08:55:31.2779133Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-29T08:55:31.2780214Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-29T08:55:31.2781048Z hint: call:
+2026-10-29T08:55:31.2781508Z hint:
+2026-10-29T08:55:31.2782108Z hint: 	git config --global init.defaultBranch <name>
+2026-10-29T08:55:31.2782805Z hint:
+2026-10-29T08:55:31.2783469Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-29T08:55:31.2784517Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-29T08:55:31.2785344Z hint:
+2026-10-29T08:55:31.2785825Z hint: 	git branch -m <name>
+2026-10-29T08:55:31.2786373Z hint:
+2026-10-29T08:55:31.2787100Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-29T08:55:31.2798035Z Initialized empty Git repository in /home/runner/work/ROK/ROK/.git/
+2026-10-29T08:55:31.2806377Z [command]/usr/bin/git remote add origin https://github.com/Ravi-Vashisth/ROK
+2026-10-29T08:55:31.2846213Z ##[endgroup]
+2026-10-29T08:55:31.2847127Z ##[group]Disabling automatic garbage collection
+2026-10-29T08:55:31.2849263Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-29T08:55:31.2878276Z ##[endgroup]
+2026-10-29T08:55:31.2879425Z ##[group]Setting up auth
+2026-10-29T08:55:31.2883414Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-29T08:55:31.2920306Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-29T08:55:31.3241123Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-29T08:55:31.3280398Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-29T08:55:31.3481299Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-29T08:55:31.3525119Z ##[endgroup]
+2026-10-29T08:55:31.3526275Z ##[group]Fetching the repository
+2026-10-29T08:55:31.3535129Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +790b5ba8bc58e9225df74908586da30b8b526d2a:refs/remotes/origin/main
+2026-10-29T08:55:32.0358176Z From https://github.com/Ravi-Vashisth/ROK
+2026-10-29T08:55:32.0359835Z  * [new ref]         790b5ba8bc58e9225df74908586da30b8b526d2a -> origin/main
+2026-10-29T08:55:32.0361741Z ##[endgroup]
+2026-10-29T08:55:32.0362182Z ##[group]Determining the checkout info
+2026-10-29T08:55:32.0363985Z ##[endgroup]
+2026-10-29T08:55:32.0368412Z [command]/usr/bin/git sparse-checkout disable
+2026-10-29T08:55:32.0421439Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-29T08:55:32.0457167Z ##[group]Checking out the ref
+2026-10-29T08:55:32.0460476Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-10-29T08:55:32.0654587Z Switched to a new branch 'main'
+2026-10-29T08:55:32.0657048Z branch 'main' set up to track 'origin/main'.
+2026-10-29T08:55:32.0663623Z ##[endgroup]
+2026-10-29T08:55:32.0720055Z [command]/usr/bin/git log -1 --format=%H
+2026-10-29T08:55:32.0753181Z 790b5ba8bc58e9225df74908586da30b8b526d2a
+2026-10-29T08:55:32.1010008Z ##[group]Run actions/setup-java@v5
+2026-10-29T08:55:32.1010274Z with:
+2026-10-29T08:55:32.1010436Z   distribution: temurin
+2026-10-29T08:55:32.1010605Z   java-version: 17
+2026-10-29T08:55:32.1010760Z   java-package: jdk
+2026-10-29T08:55:32.1010927Z   check-latest: false
+2026-10-29T08:55:32.1011087Z   set-default: true
+2026-10-29T08:55:32.1011404Z   verify-signature: false
+2026-10-29T08:55:32.1011576Z   server-id: github
+2026-10-29T08:55:32.1011742Z   server-username: GITHUB_ACTOR
+2026-10-29T08:55:32.1011929Z   server-password: GITHUB_TOKEN
+2026-10-29T08:55:32.1012121Z   overwrite-settings: true
+2026-10-29T08:55:32.1012299Z   job-status: success
+2026-10-29T08:55:32.1013714Z   token: ***
+2026-10-29T08:55:32.1013888Z   show-download-progress: false
+2026-10-29T08:55:32.1014076Z ##[endgroup]
+2026-10-29T08:55:32.2039084Z ##[group]Installed distributions
+2026-10-29T08:55:32.2155410Z Resolved Java 17.0.21+9 from tool-cache
+2026-10-29T08:55:32.2155954Z Setting Java 17.0.21+9 as the default
+2026-10-29T08:55:32.2162685Z Creating toolchains.xml for JDK version 17 from temurin
+2026-10-29T08:55:32.2207600Z Writing to /home/runner/.m2/toolchains.xml
+2026-10-29T08:55:32.2208007Z 
+2026-10-29T08:55:32.2208113Z Java configuration:
+2026-10-29T08:55:32.2208562Z   Distribution: temurin
+2026-10-29T08:55:32.2208813Z   Version: 17.0.21+9
+2026-10-29T08:55:32.2209320Z   Path: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:55:32.2209585Z 
+2026-10-29T08:55:32.2209840Z ##[endgroup]
+2026-10-29T08:55:32.2241273Z Creating settings.xml with server-id: github
+2026-10-29T08:55:32.2241714Z Writing to /home/runner/.m2/settings.xml
+2026-10-29T08:55:32.2242522Z Configured MAVEN_ARGS to include -ntp to suppress Maven transfer progress logs. Set 'show-download-progress: true' to keep the download progress output.
+2026-10-29T08:55:32.2484179Z ##[group]Run subosito/flutter-action@v2.18.0
+2026-10-29T08:55:32.2484642Z with:
+2026-10-29T08:55:32.2484933Z   channel: stable
+2026-10-29T08:55:32.2485244Z   cache: true
+2026-10-29T08:55:32.2485528Z   architecture: X64
+2026-10-29T08:55:32.2485860Z   pub-cache-path: default
+2026-10-29T08:55:32.2486200Z   dry-run: false
+2026-10-29T08:55:32.2486600Z   git-source: https://github.com/flutter/flutter.git
+2026-10-29T08:55:32.2486951Z env:
+2026-10-29T08:55:32.2487279Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:55:32.2487795Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:55:32.2488201Z   MAVEN_ARGS: -ntp
+2026-10-29T08:55:32.2488438Z ##[endgroup]
+2026-10-29T08:55:32.2548561Z ##[start-action display=Make yq tool available on Windows runners;id=__subosito_flutter-action.__run]
+2026-10-29T08:55:32.2553866Z ##[end-action id=__subosito_flutter-action.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-29T08:55:32.2555364Z ##[start-action display=Make setup script executable;id=__subosito_flutter-action.__run_2]
+2026-10-29T08:55:32.2585676Z ##[group]Run chmod +x "$GITHUB_ACTION_PATH/setup.sh"
+2026-10-29T08:55:32.2585989Z [36;1mchmod +x "$GITHUB_ACTION_PATH/setup.sh"[0m
+2026-10-29T08:55:32.2606884Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-29T08:55:32.2607120Z env:
+2026-10-29T08:55:32.2607337Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:55:32.2607651Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:55:32.2607908Z   MAVEN_ARGS: -ntp
+2026-10-29T08:55:32.2608061Z ##[endgroup]
+2026-10-29T08:55:32.2678845Z ##[end-action id=__subosito_flutter-action.__run_2;outcome=success;conclusion=success;duration_ms=12]
+2026-10-29T08:55:32.2680788Z ##[start-action display=Set action inputs;id=__subosito_flutter-action.flutter-action]
+2026-10-29T08:55:32.2709700Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh -p \
+2026-10-29T08:55:32.2709964Z [36;1m$GITHUB_ACTION_PATH/setup.sh -p \[0m
+2026-10-29T08:55:32.2710167Z [36;1m  -n '' \[0m
+2026-10-29T08:55:32.2710320Z [36;1m  -f '' \[0m
+2026-10-29T08:55:32.2710473Z [36;1m  -a 'X64' \[0m
+2026-10-29T08:55:32.2710623Z [36;1m  -k '' \[0m
+2026-10-29T08:55:32.2710769Z [36;1m  -c '' \[0m
+2026-10-29T08:55:32.2710919Z [36;1m  -l '' \[0m
+2026-10-29T08:55:32.2711072Z [36;1m  -d 'default' \[0m
+2026-10-29T08:55:32.2711302Z [36;1m  -g 'https://github.com/flutter/flutter.git' \[0m
+2026-10-29T08:55:32.2711686Z [36;1m  stable[0m
+2026-10-29T08:55:32.2726959Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-29T08:55:32.2727177Z env:
+2026-10-29T08:55:32.2727386Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:55:32.2727702Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:55:32.2727944Z   MAVEN_ARGS: -ntp
+2026-10-29T08:55:32.2728098Z ##[endgroup]
+2026-10-29T08:55:32.4400268Z ##[end-action id=__subosito_flutter-action.flutter-action;outcome=success;conclusion=success;duration_ms=171]
+2026-10-29T08:55:32.4404147Z ##[start-action display=Cache Flutter;id=__subosito_flutter-action.__actions_cache]
+2026-10-29T08:55:32.4503286Z ##[group]Run actions/cache@v4
+2026-10-29T08:55:32.4503471Z with:
+2026-10-29T08:55:32.4503659Z   path: /opt/hostedtoolcache/flutter/stable-3.47.8-x64
+2026-10-29T08:55:32.4503956Z   key: flutter-linux-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e
+2026-10-29T08:55:32.4504325Z   restore-keys: flutter-linux-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e
+
+2026-10-29T08:55:32.4504621Z   enableCrossOsArchive: false
+2026-10-29T08:55:32.4504802Z   fail-on-cache-miss: false
+2026-10-29T08:55:32.4504967Z   lookup-only: false
+2026-10-29T08:55:32.4505122Z   save-always: false
+2026-10-29T08:55:32.4505266Z env:
+2026-10-29T08:55:32.4505469Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:55:32.4505944Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:55:32.4506188Z   MAVEN_ARGS: -ntp
+2026-10-29T08:55:32.4506335Z ##[endgroup]
+2026-10-29T08:55:32.5211192Z (node:2232) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-29T08:55:32.5211948Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-29T08:55:32.6691335Z Cache hit for: flutter-linux-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e
+2026-10-29T08:55:32.6752842Z (node:2232) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-29T08:55:33.8312797Z Received 109051904 of 1726339706 (6.3%), 104.0 MBs/sec
+2026-10-29T08:55:34.8321534Z Received 289406976 of 1726339706 (16.8%), 138.0 MBs/sec
+2026-10-29T08:55:35.8326677Z Received 490733568 of 1726339706 (28.4%), 155.9 MBs/sec
+2026-10-29T08:55:36.8344347Z Received 650117120 of 1726339706 (37.7%), 154.9 MBs/sec
+2026-10-29T08:55:37.8345280Z Received 805306368 of 1726339706 (46.6%), 153.5 MBs/sec
+2026-10-29T08:55:38.8350567Z Received 939524096 of 1726339706 (54.4%), 149.3 MBs/sec
+2026-10-29T08:55:39.8351546Z Received 1111490560 of 1726339706 (64.4%), 151.4 MBs/sec
+2026-10-29T08:55:40.8361985Z Received 1262485504 of 1726339706 (73.1%), 150.4 MBs/sec
+2026-10-29T08:55:41.8366172Z Received 1417674752 of 1726339706 (82.1%), 150.1 MBs/sec
+2026-10-29T08:55:42.8363063Z Received 1568669696 of 1726339706 (90.9%), 149.5 MBs/sec
+2026-10-29T08:55:43.8088249Z Received 1726339706 of 1726339706 (100.0%), 150.0 MBs/sec
+2026-10-29T08:55:43.8089437Z Cache Size: ~1646 MB (1726339706 B)
+2026-10-29T08:55:43.8201210Z [command]/usr/bin/tar -xf /home/runner/work/_temp/3d369fd5-c141-44ef-9f4e-480e8b610b6a/cache.tzst -P -C /home/runner/work/ROK/ROK --use-compress-program unzstd
+2026-10-29T08:55:53.0176521Z Cache restored successfully
+2026-10-29T08:55:53.1919383Z Cache restored from key: flutter-linux-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e
+2026-10-29T08:55:53.2084581Z ##[end-action id=__subosito_flutter-action.__actions_cache;outcome=success;conclusion=success;duration_ms=20767]
+2026-10-29T08:55:53.2086787Z ##[start-action display=Cache pub dependencies;id=__subosito_flutter-action.__actions_cache_2]
+2026-10-29T08:55:53.3202846Z ##[group]Run actions/cache@v4
+2026-10-29T08:55:53.3203017Z with:
+2026-10-29T08:55:53.3203147Z   path: /home/runner/.pub-cache
+2026-10-29T08:55:53.3203645Z   key: flutter-pub-linux-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e-
+2026-10-29T08:55:53.3204158Z   restore-keys: flutter-pub-linux-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e-
+flutter-pub-linux-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e
+
+2026-10-29T08:55:53.3204582Z   enableCrossOsArchive: false
+2026-10-29T08:55:53.3204729Z   fail-on-cache-miss: false
+2026-10-29T08:55:53.3204868Z   lookup-only: false
+2026-10-29T08:55:53.3205005Z   save-always: false
+2026-10-29T08:55:53.3205131Z env:
+2026-10-29T08:55:53.3205300Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:55:53.3205569Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:55:53.3205805Z   MAVEN_ARGS: -ntp
+2026-10-29T08:55:53.3205962Z ##[endgroup]
+2026-10-29T08:55:53.3909929Z (node:2275) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-29T08:55:53.3910446Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-29T08:55:53.5523216Z Cache hit for: flutter-pub-linux-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e-
+2026-10-29T08:55:53.5590541Z (node:2275) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-29T08:55:54.2772061Z Received 29709578 of 29709578 (100.0%), 48.9 MBs/sec
+2026-10-29T08:55:54.2772626Z Cache Size: ~28 MB (29709578 B)
+2026-10-29T08:55:54.2850259Z [command]/usr/bin/tar -xf /home/runner/work/_temp/fe62bbb1-eae9-4659-9f52-c2a1ddd0854b/cache.tzst -P -C /home/runner/work/ROK/ROK --use-compress-program unzstd
+2026-10-29T08:55:54.7507272Z Cache restored successfully
+2026-10-29T08:55:54.7570995Z Cache restored from key: flutter-pub-linux-stable-3.47.8-x64-737ba8f885dc774b53b442759999a312c9461e4e-
+2026-10-29T08:55:54.7670891Z ##[end-action id=__subosito_flutter-action.__actions_cache_2;outcome=success;conclusion=success;duration_ms=1558]
+2026-10-29T08:55:54.7672850Z ##[start-action display=Run setup script;id=__subosito_flutter-action.__run_3]
+2026-10-29T08:55:54.7701964Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh \
+2026-10-29T08:55:54.7702185Z [36;1m$GITHUB_ACTION_PATH/setup.sh \[0m
+2026-10-29T08:55:54.7702345Z [36;1m  -n '3.47.8' \[0m
+2026-10-29T08:55:54.7702483Z [36;1m  -a 'x64' \[0m
+2026-10-29T08:55:54.7702683Z [36;1m  -c '/opt/hostedtoolcache/flutter/stable-3.47.8-x64' \[0m
+2026-10-29T08:55:54.7702872Z [36;1m  stable[0m
+2026-10-29T08:55:54.7718850Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-29T08:55:54.7719159Z env:
+2026-10-29T08:55:54.7719335Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:55:54.7719604Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:55:54.7719817Z   MAVEN_ARGS: -ntp
+2026-10-29T08:55:54.7719951Z ##[endgroup]
+2026-10-29T08:55:54.9133173Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+2026-10-29T08:55:54.9133618Z                                  Dload  Upload   Total   Spent    Left  Speed
+2026-10-29T08:55:54.9133818Z 
+2026-10-29T08:55:55.5676719Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+2026-10-29T08:55:56.5676256Z  10 1508M   10  160M    0     0   245M      0  0:00:06 --:--:--  0:00:06  244M
+2026-10-29T08:55:57.5677042Z  32 1508M   32  494M    0     0   299M      0  0:00:05  0:00:01  0:00:04  298M
+2026-10-29T08:55:58.5679792Z  55 1508M   55  832M    0     0   313M      0  0:00:04  0:00:02  0:00:02  313M
+2026-10-29T08:55:59.5676686Z  75 1508M   75 1132M    0     0   309M      0  0:00:04  0:00:03  0:00:01  309M
+2026-10-29T08:55:59.6768784Z  97 1508M   97 1469M    0     0   315M      0  0:00:04  0:00:04 --:--:--  315M
+2026-10-29T08:55:59.6769240Z 100 1508M  100 1508M    0     0   316M      0  0:00:04  0:00:04 --:--:--  328M
+2026-10-29T08:56:39.9805597Z ##[end-action id=__subosito_flutter-action.__run_3;outcome=success;conclusion=success;duration_ms=45213]
+2026-10-29T08:56:39.9903845Z ##[group]Run flutter create --platforms=android .
+2026-10-29T08:56:39.9904105Z [36;1mflutter create --platforms=android .[0m
+2026-10-29T08:56:39.9904286Z [36;1mbash scripts/patch_android.sh[0m
+2026-10-29T08:56:39.9921652Z shell: /usr/bin/bash -e {0}
+2026-10-29T08:56:39.9921800Z env:
+2026-10-29T08:56:39.9921980Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:56:39.9922255Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:56:39.9922479Z   MAVEN_ARGS: -ntp
+2026-10-29T08:56:39.9922655Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.47.8-x64
+2026-10-29T08:56:39.9922860Z   PUB_CACHE: /home/runner/.pub-cache
+2026-10-29T08:56:39.9923017Z ##[endgroup]
+2026-10-29T08:56:40.7133216Z Recreating project ....
+2026-10-29T08:56:40.7542181Z   analysis_options.yaml (created)
+2026-10-29T08:56:40.7589842Z   billing_app.iml (created)
+2026-10-29T08:56:40.7593982Z   android/app/build.gradle.kts (created)
+2026-10-29T08:56:40.7605648Z   android/app/src/main/kotlin/com/example/billing_app/MainActivity.kt (created)
+2026-10-29T08:56:40.7613130Z   android/billing_app_android.iml (created)
+2026-10-29T08:56:40.7619470Z   android/build.gradle.kts (created)
+2026-10-29T08:56:40.7624581Z   README.md (created)
+2026-10-29T08:56:40.7628178Z   .idea/libraries/Dart_SDK.xml (created)
+2026-10-29T08:56:40.7634593Z   .idea/libraries/KotlinJavaRuntime.xml (created)
+2026-10-29T08:56:40.7638125Z   .idea/workspace.xml (created)
+2026-10-29T08:56:40.7642569Z   .idea/runConfigurations/main_dart.xml (created)
+2026-10-29T08:56:40.7645256Z   .idea/modules.xml (created)
+2026-10-29T08:56:40.7649335Z   android/app/src/debug/AndroidManifest.xml (created)
+2026-10-29T08:56:40.7652144Z   android/app/src/main/AndroidManifest.xml (created)
+2026-10-29T08:56:40.7657087Z   android/app/src/main/res/mipmap-xhdpi/ic_launcher.png (created)
+2026-10-29T08:56:40.7660002Z   android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png (created)
+2026-10-29T08:56:40.7662664Z   android/app/src/main/res/values/styles.xml (created)
+2026-10-29T08:56:40.7664934Z   android/app/src/main/res/drawable/launch_background.xml (created)
+2026-10-29T08:56:40.7667262Z   android/app/src/main/res/values-night/styles.xml (created)
+2026-10-29T08:56:40.7669809Z   android/app/src/main/res/mipmap-hdpi/ic_launcher.png (created)
+2026-10-29T08:56:40.7672532Z   android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png (created)
+2026-10-29T08:56:40.7675016Z   android/app/src/main/res/drawable-v21/launch_background.xml (created)
+2026-10-29T08:56:40.7677383Z   android/app/src/main/res/mipmap-mdpi/ic_launcher.png (created)
+2026-10-29T08:56:40.7680063Z   android/app/src/profile/AndroidManifest.xml (created)
+2026-10-29T08:56:40.7684552Z   android/gradle.properties (created)
+2026-10-29T08:56:40.7686531Z   android/.gitignore (created)
+2026-10-29T08:56:40.7688536Z   android/settings.gradle.kts (created)
+2026-10-29T08:56:40.7692417Z   android/gradle/wrapper/gradle-wrapper.properties (created)
+2026-10-29T08:56:40.7696154Z   test/widget_test.dart (created)
+2026-10-29T08:56:40.8282342Z Resolving dependencies...
+2026-10-29T08:56:41.1505684Z Downloading packages...
+2026-10-29T08:56:42.5855592Z Got dependencies.
+2026-10-29T08:56:42.7070438Z Wrote 32 files.
+2026-10-29T08:56:42.7070643Z 
+2026-10-29T08:56:42.7070718Z All done!
+2026-10-29T08:56:42.7075847Z You can find general documentation for Flutter at: https://docs.flutter.dev/
+2026-10-29T08:56:42.7076290Z Detailed API documentation is available at: https://api.flutter.dev/
+2026-10-29T08:56:42.7076707Z If you prefer video documentation, consider: https://www.youtube.com/c/flutterdev
+2026-10-29T08:56:42.7076967Z 
+2026-10-29T08:56:42.7077067Z In order to run your application, type:
+2026-10-29T08:56:42.7077224Z 
+2026-10-29T08:56:42.7077299Z   $ flutter run
+2026-10-29T08:56:42.7077398Z 
+2026-10-29T08:56:42.7077499Z Your application code is in ./lib/main.dart.
+2026-10-29T08:56:42.7078084Z 
+2026-10-29T08:56:43.6682193Z Applying Android build fixes: AGP 8.11.1, Settings repository mode, download.flutter.io engine repo, root compileSdkVersion extra property, and AarMetadata bypass...
+2026-10-29T08:56:43.6749056Z Android patches applied successfully.
+2026-10-29T08:56:43.6779694Z ##[group]Run flutter pub get
+2026-10-29T08:56:43.6781306Z [36;1mflutter pub get[0m
+2026-10-29T08:56:43.6801474Z shell: /usr/bin/bash -e {0}
+2026-10-29T08:56:43.6801615Z env:
+2026-10-29T08:56:43.6801788Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:56:43.6802062Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:56:43.6802269Z   MAVEN_ARGS: -ntp
+2026-10-29T08:56:43.6802438Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.47.8-x64
+2026-10-29T08:56:43.6802636Z   PUB_CACHE: /home/runner/.pub-cache
+2026-10-29T08:56:43.6818485Z ##[endgroup]
+2026-10-29T08:56:43.7864330Z Resolving dependencies...
+2026-10-29T08:56:43.8442857Z Downloading packages...
+2026-10-29T08:56:43.9015767Z   code_assets 1.2.1 (2.1.0 available)
+2026-10-29T08:56:43.9016017Z   cross_file 0.3.5+5 (0.4.0 available)
+2026-10-29T08:56:43.9016275Z   file_picker 8.3.7 (13.3.0 available)
+2026-10-29T08:56:43.9016498Z   flutter_lints 4.0.0 (6.0.0 available)
+2026-10-29T08:56:43.9016659Z   flutter_riverpod 2.6.1 (3.4.3 available)
+2026-10-29T08:56:43.9016818Z   hooks 2.0.2 (2.2.0 available)
+2026-10-29T08:56:43.9016962Z   intl 0.19.0 (0.20.3 available)
+2026-10-29T08:56:43.9017104Z   lints 4.0.0 (6.1.0 available)
+2026-10-29T08:56:43.9017267Z   material_color_utilities 0.13.0 (0.13.1 available)
+2026-10-29T08:56:43.9017440Z   meta 1.18.3 (1.19.0 available)
+2026-10-29T08:56:43.9017582Z   objective_c 9.5.0 (9.6.2 available)
+2026-10-29T08:56:43.9017811Z   petitparser 7.0.2 (7.1.0 available)
+2026-10-29T08:56:43.9018041Z   qr 3.0.2 (4.0.0 available)
+2026-10-29T08:56:43.9018184Z   record_use 0.6.0 (1.1.1 available)
+2026-10-29T08:56:43.9018330Z   riverpod 2.6.1 (3.4.3 available)
+2026-10-29T08:56:43.9018481Z   sqlite3 2.9.4 (3.8.0 available)
+2026-10-29T08:56:43.9018645Z   sqlite3_flutter_libs 0.5.42 (0.6.0+eol available)
+2026-10-29T08:56:43.9018811Z   test_api 0.7.12 (0.7.15 available)
+2026-10-29T08:56:43.9019118Z   vector_math 2.4.0 (2.4.4 available)
+2026-10-29T08:56:43.9019262Z   win32 5.15.0 (6.4.0 available)
+2026-10-29T08:56:43.9019397Z   xml 7.0.1 (7.1.0 available)
+2026-10-29T08:56:43.9019578Z Got dependencies!
+2026-10-29T08:56:43.9019768Z 21 packages have newer versions incompatible with dependency constraints.
+2026-10-29T08:56:43.9020000Z Try `flutter pub outdated` for more information.
+2026-10-29T08:56:44.0211665Z ##[group]Run flutter build apk --release --android-skip-build-dependency-validation
+2026-10-29T08:56:44.0212027Z [36;1mflutter build apk --release --android-skip-build-dependency-validation[0m
+2026-10-29T08:56:44.0228681Z shell: /usr/bin/bash -e {0}
+2026-10-29T08:56:44.0228820Z env:
+2026-10-29T08:56:44.0229349Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:56:44.0229637Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-10-29T08:56:44.0229843Z   MAVEN_ARGS: -ntp
+2026-10-29T08:56:44.0230019Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.47.8-x64
+2026-10-29T08:56:44.0230214Z   PUB_CACHE: /home/runner/.pub-cache
+2026-10-29T08:56:44.0230365Z ##[endgroup]
+2026-10-29T08:57:55.2151410Z Running Gradle task 'assembleRelease'...                        
+2026-10-29T08:57:55.2152934Z Loading package information...                                                  
+2026-10-29T08:57:55.2157117Z Loading local repository...                                                     
+2026-10-29T08:57:55.2157739Z [                                       ] 3% Loading local repository...        
+2026-10-29T08:57:55.5138255Z [                                       ] 3% Fetch remote repository...         
+2026-10-29T08:57:55.8137010Z [=                                      ] 3% Fetch remote repository...         
+2026-10-29T08:57:55.9170393Z [=                                      ] 4% Fetch remote repository...         
+2026-10-29T08:57:55.9209969Z [=                                      ] 5% Fetch remote repository...         
+2026-10-29T08:57:55.9239648Z [==                                     ] 5% Fetch remote repository...         
+2026-10-29T08:57:56.0130325Z [==                                     ] 6% Fetch remote repository...         
+2026-10-29T08:57:56.0139808Z [==                                     ] 7% Fetch remote repository...         
+2026-10-29T08:57:56.0160108Z [==                                     ] 7% Computing updates...               
+2026-10-29T08:57:56.0160564Z [===                                    ] 8% Computing updates...               
+2026-10-29T08:57:56.1129617Z [===                                    ] 10% Computing updates...              
+2026-10-29T08:57:56.1138236Z [===                                    ] 10% Installing NDK (Side by side) 28.2
+2026-10-29T08:57:56.2120799Z [===                                    ] 10% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:56.3117113Z [====                                   ] 10% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:56.4118145Z [====                                   ] 11% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:56.5116332Z [====                                   ] 12% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:56.6115363Z [=====                                  ] 13% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:56.7117738Z [=====                                  ] 14% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:56.8117778Z [=====                                  ] 15% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:56.8118662Z [======                                 ] 15% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:56.9118101Z [======                                 ] 16% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.0125610Z [======                                 ] 17% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.1117376Z [=======                                ] 18% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.2117091Z [=======                                ] 19% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.2117534Z [=======                                ] 20% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.2118348Z [========                               ] 20% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.3119435Z [========                               ] 21% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.4116625Z [========                               ] 22% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.4117095Z [=========                              ] 23% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.5117982Z [=========                              ] 24% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.5119695Z [=========                              ] 25% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.6120592Z [==========                             ] 25% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.6121255Z [==========                             ] 26% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.7118058Z [==========                             ] 27% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.8118570Z [===========                            ] 28% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.8119390Z [===========                            ] 29% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.8119976Z [===========                            ] 30% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.9116811Z [============                           ] 30% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:57.9117424Z [============                           ] 31% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:58.0115953Z [============                           ] 32% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:58.0116742Z [============                           ] 33% Downloading android-ndk-r28c-linux
+2026-10-29T08:57:58.3120931Z [============                           ] 33% Unzipping...                      
+2026-10-29T08:57:58.3121629Z [============                           ] 33% Unzipping... android-ndk-r28c/    
+2026-10-29T08:57:58.3122195Z [============                           ] 33% Unzipping... android-ndk-r28c/READ
+2026-10-29T08:57:58.3122753Z [=============                          ] 33% Unzipping... android-ndk-r28c/READ
+2026-10-29T08:57:58.3123326Z [=============                          ] 33% Unzipping... android-ndk-r28c/meta
+2026-10-29T08:57:58.4116497Z [=============                          ] 33% Unzipping... android-ndk-r28c/shad
+2026-10-29T08:57:58.4117054Z [=============                          ] 33% Unzipping... android-ndk-r28c/ndk-
+2026-10-29T08:57:58.4117423Z [=============                          ] 33% Unzipping... android-ndk-r28c/wrap
+2026-10-29T08:57:58.4117902Z [=============                          ] 33% Unzipping... android-ndk-r28c/ndk-
+2026-10-29T08:57:58.7115521Z [=============                          ] 33% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:57:59.5116402Z [=============                          ] 34% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:00.2116126Z [=============                          ] 35% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:00.4115679Z [==============                         ] 35% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:00.7115928Z [==============                         ] 36% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:02.0116423Z [==============                         ] 37% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:03.3117870Z [===============                        ] 38% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:03.9116310Z [===============                        ] 39% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:04.3116135Z [===============                        ] 40% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:04.6116593Z [================                       ] 40% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:05.3117184Z [================                       ] 41% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:05.9116581Z [================                       ] 42% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:06.7115618Z [=================                      ] 43% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:08.2116610Z [=================                      ] 44% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:09.6116596Z [=================                      ] 45% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:10.1117140Z [==================                     ] 45% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:10.7116125Z [==================                     ] 46% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:11.3116386Z [==================                     ] 47% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:12.0116399Z [===================                    ] 48% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:12.5115725Z [===================                    ] 49% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:12.8116282Z [===================                    ] 50% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:13.1117167Z [====================                   ] 50% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:13.9116287Z [====================                   ] 51% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:14.2115848Z [====================                   ] 52% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:15.2115976Z [=====================                  ] 53% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:15.5116092Z [=====================                  ] 54% Unzipping... android-ndk-r28c/tool
+2026-10-29T08:58:15.5116495Z [=====================                  ] 54% Unzipping... android-ndk-r28c/buil
+2026-10-29T08:58:15.8115909Z [=====================                  ] 54% Unzipping... android-ndk-r28c/sour
+2026-10-29T08:58:15.8116583Z [=====================                  ] 54% Unzipping... android-ndk-r28c/NOTI
+2026-10-29T08:58:15.8116869Z [=====================                  ] 54% Unzipping... android-ndk-r28c/ndk-
+2026-10-29T08:58:15.8117153Z [=====================                  ] 54% Unzipping... android-ndk-r28c/NOTI
+2026-10-29T08:58:15.8117441Z [=====================                  ] 54% Unzipping... android-ndk-r28c/pyth
+2026-10-29T08:58:15.8117658Z [=====================                  ] 54% Unzipping... android-ndk-r28c/preb
+2026-10-29T08:58:15.8117910Z [=====================                  ] 54% Unzipping... android-ndk-r28c/ndk-
+2026-10-29T08:58:15.8118162Z [=====================                  ] 54% Unzipping... android-ndk-r28c/sour
+2026-10-29T08:58:15.9116272Z [=====================                  ] 54% Unzipping... android-ndk-r28c/simp
+2026-10-29T08:58:16.0115453Z [=====================                  ] 55% Unzipping... android-ndk-r28c/simp
+2026-10-29T08:58:16.1116109Z [=====================                  ] 55% Unzipping... android-ndk-r28c/CHAN
+2026-10-29T08:58:16.1116537Z [=======================================] 100% Unzipping... android-ndk-r28c/CHA
+2026-10-29T08:58:16.4116112Z 
+2026-10-29T08:58:51.7138629Z lib/features/billing/services/invoice_pdf_service.dart:108:23: Error: Can't find ']' to match '['.
+2026-10-29T08:58:51.7139822Z             children: [
+2026-10-29T08:58:51.7140228Z                       ^
+2026-10-29T08:58:52.9134672Z lib/features/invoices/presentation/invoice_editor_screen.dart:237:26: Error: Type 'BusinessProfile' not found.
+2026-10-29T08:58:52.9142970Z   Widget _buildSplitView(BusinessProfile profile) {
+2026-10-29T08:58:52.9143544Z                          ^^^^^^^^^^^^^^^
+2026-10-29T08:58:52.9144283Z lib/features/invoices/presentation/invoice_editor_screen.dart:254:27: Error: Type 'BusinessProfile' not found.
+2026-10-29T08:58:52.9144855Z   Widget _buildMobileView(BusinessProfile profile) {
+2026-10-29T08:58:52.9145163Z                           ^^^^^^^^^^^^^^^
+2026-10-29T08:58:52.9145636Z lib/features/invoices/presentation/invoice_editor_screen.dart:272:23: Error: Type 'BusinessProfile' not found.
+2026-10-29T08:58:52.9146107Z   Widget _buildEditor(BusinessProfile profile) {
+2026-10-29T08:58:52.9146373Z                       ^^^^^^^^^^^^^^^
+2026-10-29T08:58:52.9146809Z lib/features/invoices/presentation/invoice_editor_screen.dart:536:24: Error: Type 'BusinessProfile' not found.
+2026-10-29T08:58:52.9147283Z   Widget _buildPreview(BusinessProfile profile) {
+2026-10-29T08:58:52.9148081Z                        ^^^^^^^^^^^^^^^
+2026-10-29T08:58:55.2118214Z lib/features/billing/presentation/billing_dashboard_screen.dart:30:30: Error: The getter 'clientsProvider' isn't defined for the type '_BillingDashboardScreenState'.
+2026-10-29T08:58:55.2119981Z  - '_BillingDashboardScreenState' is from 'package:billing_app/features/billing/presentation/billing_dashboard_screen.dart' ('lib/features/billing/presentation/billing_dashboard_screen.dart').
+2026-10-29T08:58:55.2121318Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'clientsProvider'.
+2026-10-29T08:58:55.2122121Z     final clients = ref.read(clientsProvider);
+2026-10-29T08:58:55.2122694Z                              ^^^^^^^^^^^^^^^
+2026-10-29T08:58:56.4117811Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart:27:31: Error: The getter 'taxCollectedOnPaymentsCents' isn't defined for the type 'CashFlowMetricsBar'.
+2026-10-29T08:58:56.4140657Z  - 'CashFlowMetricsBar' is from 'package:billing_app/features/billing/presentation/widgets/cash_flow_metrics_bar.dart' ('lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart').
+2026-10-29T08:58:56.4141967Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'taxCollectedOnPaymentsCents'.
+2026-10-29T08:58:56.4142983Z     final taxLiabilityCents = taxCollectedOnPaymentsCents - totalExpenseTaxCents;
+2026-10-29T08:58:56.4144271Z                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-29T08:58:56.4145142Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart:27:61: Error: The getter 'totalExpenseTaxCents' isn't defined for the type 'CashFlowMetricsBar'.
+2026-10-29T08:58:56.4146475Z  - 'CashFlowMetricsBar' is from 'package:billing_app/features/billing/presentation/widgets/cash_flow_metrics_bar.dart' ('lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart').
+2026-10-29T08:58:56.4147644Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'totalExpenseTaxCents'.
+2026-10-29T08:58:56.4148448Z     final taxLiabilityCents = taxCollectedOnPaymentsCents - totalExpenseTaxCents;
+2026-10-29T08:58:56.4149166Z                                                             ^^^^^^^^^^^^^^^^^^^^
+2026-10-29T08:58:56.4150025Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart:28:36: Error: The getter 'totalCollectedGrossCents' isn't defined for the type 'CashFlowMetricsBar'.
+2026-10-29T08:58:56.4151337Z  - 'CashFlowMetricsBar' is from 'package:billing_app/features/billing/presentation/widgets/cash_flow_metrics_bar.dart' ('lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart').
+2026-10-29T08:58:56.4152495Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'totalCollectedGrossCents'.
+2026-10-29T08:58:56.4153305Z     final netRevenueExclTaxCents = totalCollectedGrossCents - taxCollectedOnPaymentsCents;
+2026-10-29T08:58:56.4153893Z                                    ^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-29T08:58:56.4154722Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart:28:63: Error: The getter 'taxCollectedOnPaymentsCents' isn't defined for the type 'CashFlowMetricsBar'.
+2026-10-29T08:58:56.4156016Z  - 'CashFlowMetricsBar' is from 'package:billing_app/features/billing/presentation/widgets/cash_flow_metrics_bar.dart' ('lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart').
+2026-10-29T08:58:56.4157136Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'taxCollectedOnPaymentsCents'.
+2026-10-29T08:58:56.4157961Z     final netRevenueExclTaxCents = totalCollectedGrossCents - taxCollectedOnPaymentsCents;
+2026-10-29T08:58:56.4158571Z                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-29T08:58:56.4159551Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart:29:57: Error: The getter 'totalExpensesExclTaxCents' isn't defined for the type 'CashFlowMetricsBar'.
+2026-10-29T08:58:56.4161186Z  - 'CashFlowMetricsBar' is from 'package:billing_app/features/billing/presentation/widgets/cash_flow_metrics_bar.dart' ('lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart').
+2026-10-29T08:58:56.4162308Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'totalExpensesExclTaxCents'.
+2026-10-29T08:58:56.4163090Z     final realNetProfitCents = netRevenueExclTaxCents - totalExpensesExclTaxCents;
+2026-10-29T08:58:56.4163673Z                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-29T08:58:56.4164526Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart:55:37: Error: The getter 'totalCollectedGrossCents' isn't defined for the type 'CashFlowMetricsBar'.
+2026-10-29T08:58:56.4165816Z  - 'CashFlowMetricsBar' is from 'package:billing_app/features/billing/presentation/widgets/cash_flow_metrics_bar.dart' ('lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart').
+2026-10-29T08:58:56.4166964Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'totalCollectedGrossCents'.
+2026-10-29T08:58:56.4167703Z               value: formatCurrency(totalCollectedGrossCents),
+2026-10-29T08:58:56.4168199Z                                     ^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-29T08:58:56.4168833Z lib/features/invoices/presentation/invoice_editor_screen.dart:237:26: Error: 'BusinessProfile' isn't a type.
+2026-10-29T08:58:56.4169916Z   Widget _buildSplitView(BusinessProfile profile) {
+2026-10-29T08:58:56.4170368Z                          ^^^^^^^^^^^^^^^
+2026-10-29T08:58:56.4170999Z lib/features/invoices/presentation/invoice_editor_screen.dart:254:27: Error: 'BusinessProfile' isn't a type.
+2026-10-29T08:58:56.4171697Z   Widget _buildMobileView(BusinessProfile profile) {
+2026-10-29T08:58:56.4172149Z                           ^^^^^^^^^^^^^^^
+2026-10-29T08:58:56.4173052Z lib/features/invoices/presentation/invoice_editor_screen.dart:272:23: Error: 'BusinessProfile' isn't a type.
+2026-10-29T08:58:56.4173749Z   Widget _buildEditor(BusinessProfile profile) {
+2026-10-29T08:58:56.4174154Z                       ^^^^^^^^^^^^^^^
+2026-10-29T08:58:56.4174732Z lib/features/invoices/presentation/invoice_editor_screen.dart:536:24: Error: 'BusinessProfile' isn't a type.
+2026-10-29T08:58:56.4175342Z   Widget _buildPreview(BusinessProfile profile) {
+2026-10-29T08:58:56.4175759Z                        ^^^^^^^^^^^^^^^
+2026-10-29T08:58:57.0119172Z lib/features/billing/services/invoice_pdf_service.dart:397:17: Error: Expected ';' after this.
+2026-10-29T08:58:57.0139920Z                 ),
+2026-10-29T08:58:57.0140952Z                 ^
+2026-10-29T08:58:57.0141642Z lib/features/billing/services/invoice_pdf_service.dart:397:18: Error: Expected an identifier, but got ','.
+2026-10-29T08:58:57.0142391Z Try inserting an identifier before ','.
+2026-10-29T08:58:57.0171899Z                 ),
+2026-10-29T08:58:57.0172376Z                  ^
+2026-10-29T08:58:57.0172952Z lib/features/billing/services/invoice_pdf_service.dart:397:18: Error: Unexpected token ';'.
+2026-10-29T08:58:57.0173434Z                 ),
+2026-10-29T08:58:57.0173657Z                  ^
+2026-10-29T08:58:57.0174015Z lib/features/billing/services/invoice_pdf_service.dart:398:15: Error: Expected an identifier, but got ']'.
+2026-10-29T08:58:57.0174411Z Try inserting an identifier before ']'.
+2026-10-29T08:58:57.0174681Z               ],
+2026-10-29T08:58:57.0174892Z               ^
+2026-10-29T08:58:57.0175218Z lib/features/billing/services/invoice_pdf_service.dart:397:18: Error: Expected ';' after this.
+2026-10-29T08:58:57.0175567Z                 ),
+2026-10-29T08:58:57.0175779Z                  ^
+2026-10-29T08:58:57.0176089Z lib/features/billing/services/invoice_pdf_service.dart:398:15: Error: Unexpected token ';'.
+2026-10-29T08:58:57.0176427Z               ],
+2026-10-29T08:58:57.0176635Z               ^
+2026-10-29T08:58:57.0176968Z lib/features/billing/services/invoice_pdf_service.dart:398:16: Error: Expected an identifier, but got ','.
+2026-10-29T08:58:57.0177921Z Try inserting an identifier before ','.
+2026-10-29T08:58:57.0178276Z               ],
+2026-10-29T08:58:57.0178542Z                ^
+2026-10-29T08:58:57.0179109Z lib/features/billing/services/invoice_pdf_service.dart:398:15: Error: Expected ';' after this.
+2026-10-29T08:58:57.0179662Z               ],
+2026-10-29T08:58:57.0179928Z               ^
+2026-10-29T08:58:57.0180358Z lib/features/billing/services/invoice_pdf_service.dart:398:16: Error: Unexpected token ';'.
+2026-10-29T08:58:57.0180822Z               ],
+2026-10-29T08:58:57.0181096Z                ^
+2026-10-29T08:58:57.0181512Z lib/features/billing/services/invoice_pdf_service.dart:466:15: Error: Expected ';' after this.
+2026-10-29T08:58:57.0181972Z               ),
+2026-10-29T08:58:57.0182222Z               ^
+2026-10-29T08:58:57.0182572Z lib/features/billing/services/invoice_pdf_service.dart:466:16: Error: Expected an identifier, but got ','.
+2026-10-29T08:58:57.0182952Z Try inserting an identifier before ','.
+2026-10-29T08:58:57.0183207Z               ),
+2026-10-29T08:58:57.0183415Z                ^
+2026-10-29T08:58:57.0183727Z lib/features/billing/services/invoice_pdf_service.dart:466:16: Error: Unexpected token ';'.
+2026-10-29T08:58:57.0184062Z               ),
+2026-10-29T08:58:57.0184272Z                ^
+2026-10-29T08:58:57.0184583Z lib/features/billing/services/invoice_pdf_service.dart:468:25: Error: Expected ';' after this.
+2026-10-29T08:58:57.0185488Z               pw.Spacer(),
+2026-10-29T08:58:57.0185728Z                         ^
+2026-10-29T08:58:57.0186077Z lib/features/billing/services/invoice_pdf_service.dart:468:26: Error: Expected an identifier, but got ','.
+2026-10-29T08:58:57.0186450Z Try inserting an identifier before ','.
+2026-10-29T08:58:57.0186704Z               pw.Spacer(),
+2026-10-29T08:58:57.0186936Z                          ^
+2026-10-29T08:58:57.0187259Z lib/features/billing/services/invoice_pdf_service.dart:468:26: Error: Unexpected token ';'.
+2026-10-29T08:58:57.0187607Z               pw.Spacer(),
+2026-10-29T08:58:57.0187839Z                          ^
+2026-10-29T08:58:57.0188191Z lib/features/billing/services/invoice_pdf_service.dart:470:75: Error: Expected an identifier, but got '...'.
+2026-10-29T08:58:57.0188573Z Try inserting an identifier before '...'.
+2026-10-29T08:58:57.0189041Z               if (effectiveTerms.isNotEmpty || effectiveNotes.isNotEmpty) ...[
+2026-10-29T08:58:57.0189513Z                                                                           ^^^
+2026-10-29T08:58:57.0189930Z lib/features/billing/services/invoice_pdf_service.dart:496:18: Error: Expected ']' before this.
+2026-10-29T08:58:57.0190290Z                 ),
+2026-10-29T08:58:57.0190458Z                  ^
+2026-10-29T08:58:57.0190777Z lib/features/billing/services/invoice_pdf_service.dart:498:15: Error: Expected ';' after this.
+2026-10-29T08:58:57.0191137Z               ],
+2026-10-29T08:58:57.0191305Z               ^
+2026-10-29T08:58:57.0191667Z lib/features/billing/services/invoice_pdf_service.dart:498:16: Error: Expected an identifier, but got ','.
+2026-10-29T08:58:57.0192075Z Try inserting an identifier before ','.
+2026-10-29T08:58:57.0192296Z               ],
+2026-10-29T08:58:57.0192465Z                ^
+2026-10-29T08:58:57.0192787Z lib/features/billing/services/invoice_pdf_service.dart:498:16: Error: Unexpected token ';'.
+2026-10-29T08:58:57.0193168Z               ],
+2026-10-29T08:58:57.0193339Z                ^
+2026-10-29T08:58:57.0193702Z lib/features/billing/services/invoice_pdf_service.dart:500:88: Error: Expected an identifier, but got '...'.
+2026-10-29T08:58:57.0194119Z Try inserting an identifier before '...'.
+2026-10-29T08:58:57.0194412Z               if (signatureBytes != null || businessProfile.signatureLabel.isNotEmpty) ...[
+2026-10-29T08:58:57.0194805Z                                                                                        ^^^
+2026-10-29T08:58:57.0195239Z lib/features/billing/services/invoice_pdf_service.dart:525:18: Error: Expected ']' before this.
+2026-10-29T08:58:57.0195623Z                 ),
+2026-10-29T08:58:57.0196015Z                  ^
+2026-10-29T08:58:57.0196350Z lib/features/billing/services/invoice_pdf_service.dart:527:15: Error: Expected ';' after this.
+2026-10-29T08:58:57.0196721Z               ],
+2026-10-29T08:58:57.0196895Z               ^
+2026-10-29T08:58:57.0197289Z lib/features/billing/services/invoice_pdf_service.dart:527:16: Error: Expected an identifier, but got ','.
+2026-10-29T08:58:57.0197720Z Try inserting an identifier before ','.
+2026-10-29T08:58:57.0197931Z               ],
+2026-10-29T08:58:57.0198042Z                ^
+2026-10-29T08:58:57.0198250Z lib/features/billing/services/invoice_pdf_service.dart:527:16: Error: Unexpected token ';'.
+2026-10-29T08:58:57.0198492Z               ],
+2026-10-29T08:58:57.0198600Z                ^
+2026-10-29T08:58:57.0198834Z lib/features/billing/services/invoice_pdf_service.dart:529:27: Error: Expected an identifier, but got '...'.
+2026-10-29T08:58:57.0199339Z Try inserting an identifier before '...'.
+2026-10-29T08:58:57.0199505Z               if (isPaid) ...[
+2026-10-29T08:58:57.0199684Z                           ^^^
+2026-10-29T08:58:57.0199923Z lib/features/billing/services/invoice_pdf_service.dart:552:18: Error: Expected ']' before this.
+2026-10-29T08:58:57.0200178Z                 ),
+2026-10-29T08:58:57.0200291Z                  ^
+2026-10-29T08:58:57.0200509Z lib/features/billing/services/invoice_pdf_service.dart:553:15: Error: Expected ';' after this.
+2026-10-29T08:58:57.0201009Z               ] else if (paymentInstructions.isNotEmpty || businessProfile.paymentQrPayload.trim().isNotEmpty) ...[
+2026-10-29T08:58:57.0201278Z               ^
+2026-10-29T08:58:57.0201519Z lib/features/billing/services/invoice_pdf_service.dart:553:112: Error: Expected an identifier, but got '...'.
+2026-10-29T08:58:57.0201796Z Try inserting an identifier before '...'.
+2026-10-29T08:58:57.0202077Z               ] else if (paymentInstructions.isNotEmpty || businessProfile.paymentQrPayload.trim().isNotEmpty) ...[
+2026-10-29T08:58:57.0202390Z                                                                                           ^^^
+2026-10-29T08:58:57.0202668Z lib/features/billing/services/invoice_pdf_service.dart:619:18: Error: Expected ']' before this.
+2026-10-29T08:58:57.0202907Z                 ),
+2026-10-29T08:58:57.0203019Z                  ^
+2026-10-29T08:58:57.0203233Z lib/features/billing/services/invoice_pdf_service.dart:620:15: Error: Expected ';' after this.
+2026-10-29T08:58:57.0203472Z               ],
+2026-10-29T08:58:57.0203581Z               ^
+2026-10-29T08:58:57.0203811Z lib/features/billing/services/invoice_pdf_service.dart:620:16: Error: Expected an identifier, but got ','.
+2026-10-29T08:58:57.0204079Z Try inserting an identifier before ','.
+2026-10-29T08:58:57.0204229Z               ],
+2026-10-29T08:58:57.0204340Z                ^
+2026-10-29T08:58:57.0204545Z lib/features/billing/services/invoice_pdf_service.dart:620:16: Error: Unexpected token ';'.
+2026-10-29T08:58:57.0204779Z               ],
+2026-10-29T08:58:57.0204886Z                ^
+2026-10-29T08:58:57.0205120Z lib/features/billing/services/invoice_pdf_service.dart:621:13: Error: Expected an identifier, but got ']'.
+2026-10-29T08:58:57.0205396Z Try inserting an identifier before ']'.
+2026-10-29T08:58:57.0205543Z             ],
+2026-10-29T08:58:57.0205654Z             ^
+2026-10-29T08:58:57.0205867Z lib/features/billing/services/invoice_pdf_service.dart:620:16: Error: Expected ';' after this.
+2026-10-29T08:58:57.0206110Z               ],
+2026-10-29T08:58:57.0206221Z                ^
+2026-10-29T08:58:57.0206432Z lib/features/billing/services/invoice_pdf_service.dart:621:13: Error: Unexpected token ';'.
+2026-10-29T08:58:57.0206674Z             ],
+2026-10-29T08:58:57.0206784Z             ^
+2026-10-29T08:58:57.0207017Z lib/features/billing/services/invoice_pdf_service.dart:621:14: Error: Expected an identifier, but got ','.
+2026-10-29T08:58:57.0207287Z Try inserting an identifier before ','.
+2026-10-29T08:58:57.0207431Z             ],
+2026-10-29T08:58:57.0207541Z              ^
+2026-10-29T08:58:57.0207869Z lib/features/billing/services/invoice_pdf_service.dart:621:13: Error: Expected ';' after this.
+2026-10-29T08:58:57.0208113Z             ],
+2026-10-29T08:58:57.0208223Z             ^
+2026-10-29T08:58:57.0208429Z lib/features/billing/services/invoice_pdf_service.dart:621:14: Error: Unexpected token ';'.
+2026-10-29T08:58:57.0208762Z             ],
+2026-10-29T08:58:57.0209042Z              ^
+2026-10-29T08:58:57.0209278Z lib/features/billing/services/invoice_pdf_service.dart:622:11: Error: Expected an identifier, but got ')'.
+2026-10-29T08:58:57.0209549Z Try inserting an identifier before ')'.
+2026-10-29T08:58:57.0209700Z           );
+2026-10-29T08:58:57.0209807Z           ^
+2026-10-29T08:58:57.0210017Z lib/features/billing/services/invoice_pdf_service.dart:621:14: Error: Expected ';' after this.
+2026-10-29T08:58:57.0210288Z             ],
+2026-10-29T08:58:57.0210397Z              ^
+2026-10-29T08:58:57.0210605Z lib/features/billing/services/invoice_pdf_service.dart:622:11: Error: Unexpected token ';'.
+2026-10-29T08:58:57.0210843Z           );
+2026-10-29T08:58:57.0210957Z           ^
+2026-10-29T08:59:02.1119485Z Target kernel_snapshot_program failed: Exception
+2026-10-29T08:59:02.1139329Z 
+2026-10-29T08:59:02.1171966Z 
+2026-10-29T08:59:02.1180326Z FAILURE: Build failed with an exception.
+2026-10-29T08:59:02.1180779Z 
+2026-10-29T08:59:02.1181062Z * What went wrong:
+2026-10-29T08:59:02.1181507Z Execution failed for task ':app:compileFlutterBuildRelease'.
+2026-10-29T08:59:02.1182862Z > Process 'command '/opt/hostedtoolcache/flutter/stable-3.47.8-x64/bin/flutter'' finished with non-zero exit value 1
+2026-10-29T08:59:02.1183446Z 
+2026-10-29T08:59:02.1183643Z * Try:
+2026-10-29T08:59:02.1184096Z > Run with --stacktrace option to get the stack trace.
+2026-10-29T08:59:02.1184589Z > Run with --info or --debug option to get more log output.
+2026-10-29T08:59:02.1185162Z > Run with --scan to get full insights from a Build Scan (powered by Develocity).
+2026-10-29T08:59:02.1185699Z > Get more help at https://help.gradle.org.
+2026-10-29T08:59:02.1186052Z 
+2026-10-29T08:59:02.1186268Z BUILD FAILED in 2m 17s
+2026-10-29T08:59:02.6166330Z Running Gradle task 'assembleRelease'...                          138.3s
+2026-10-29T08:59:02.6194914Z Gradle task assembleRelease failed with exit code 1
+2026-10-29T08:59:02.6288079Z ##[error]Process completed with exit code 1.
+2026-10-29T08:59:02.6560995Z Post job cleanup.
+2026-10-29T08:59:02.6564190Z ##[start-action display=Cache pub dependencies;id=__394a169c-5b52-475a-b175-e2838e48dac5.__actions_cache_2]
+2026-10-29T08:59:02.6565767Z ##[end-action id=__394a169c-5b52-475a-b175-e2838e48dac5.__actions_cache_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-29T08:59:02.6566872Z ##[start-action display=Cache Flutter;id=__394a169c-5b52-475a-b175-e2838e48dac5.__actions_cache]
+2026-10-29T08:59:02.6567823Z ##[end-action id=__394a169c-5b52-475a-b175-e2838e48dac5.__actions_cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-29T08:59:02.6613468Z Post job cleanup.
+2026-10-29T08:59:02.7865829Z Post job cleanup.
+2026-10-29T08:59:02.8601732Z [command]/usr/bin/git version
+2026-10-29T08:59:02.8670953Z git version 2.56.0
+2026-10-29T08:59:02.8708186Z Temporarily overriding HOME='/home/runner/work/_temp/46c429b1-6197-4369-a207-29c1e62c8c0e' before making global git config changes
+2026-10-29T08:59:02.8709343Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-29T08:59:02.8712960Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/ROK/ROK
+2026-10-29T08:59:02.8756360Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-29T08:59:02.8796842Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-29T08:59:02.9072691Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-29T08:59:02.9097355Z http.https://github.com/.extraheader
+2026-10-29T08:59:02.9108056Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-29T08:59:02.9154183Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-29T08:59:02.9537192Z Cleaning up orphan processes
+2026-10-29T08:59:02.9828178Z Terminate orphan process: pid (2595) (java)
+2026-10-29T08:59:02.9866836Z Terminate orphan process: pid (2710) (java)
+2026-10-29T08:59:02.9934728Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, actions/checkout@v4.2.2. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

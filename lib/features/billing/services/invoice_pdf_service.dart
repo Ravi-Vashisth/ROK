@@ -394,8 +394,6 @@ class InvoicePdfService {
                   ],
                 ),
               ],
-                ),
-              ],
 
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.end,

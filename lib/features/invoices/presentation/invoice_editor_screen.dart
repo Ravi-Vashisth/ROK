@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/currency_formatter_provider.dart';
 import '../../../core/utils/money_utils.dart';
 import '../../billing/presentation/widgets/client_autocomplete_picker.dart';
+import '../../business_profile/models/business_profile.dart';
 import '../../business_profile/providers/business_profile_provider.dart';
 import '../../clients/models/client.dart';
 import '../../clients/providers/clients_provider.dart';

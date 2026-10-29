@@ -16,13 +16,30 @@ class CashFlowMetricsBar extends ConsumerWidget {
 
     int totalUnpaidReceivablesCents = 0;
     int totalOverdueReceivablesCents = 0;
+    int totalCollectedGrossCents = 0;
+    int taxCollectedOnPaymentsCents = 0;
+
     for (final inv in invoices) {
-      if (inv.isVoid || inv.isFullyPaid) continue;
-      totalUnpaidReceivablesCents += inv.balanceDueCents;
-      if (inv.isOverdue) {
-        totalOverdueReceivablesCents += inv.balanceDueCents;
+      if (inv.isVoid) continue;
+      if (!inv.isFullyPaid) {
+        totalUnpaidReceivablesCents += inv.balanceDueCents;
+        if (inv.isOverdue) {
+          totalOverdueReceivablesCents += inv.balanceDueCents;
+        }
+      }
+      totalCollectedGrossCents += inv.paidCents;
+      if (inv.totalCents > 0) {
+        taxCollectedOnPaymentsCents += ((inv.paidCents * inv.taxCents) ~/ inv.totalCents);
       }
     }
+
+    int totalExpensesGrossCents = 0;
+    int totalExpenseTaxCents = 0;
+    for (final exp in expenses) {
+      totalExpensesGrossCents += exp.totalCents;
+      totalExpenseTaxCents += exp.taxCents;
+    }
+    final totalExpensesExclTaxCents = (totalExpensesGrossCents - totalExpenseTaxCents).clamp(0, totalExpensesGrossCents);
 
     final taxLiabilityCents = taxCollectedOnPaymentsCents - totalExpenseTaxCents;
     final netRevenueExclTaxCents = totalCollectedGrossCents - taxCollectedOnPaymentsCents;
@@ -33,7 +50,7 @@ class CashFlowMetricsBar extends ConsumerWidget {
         final isCompact = constraints.maxWidth < 750;
 
         return GridView.count(
-          crossAxisCount: isCompact ? 2 : 5,
+          crossAxisCount: isCompact ? 2 : 4,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
           shrinkWrap: true,

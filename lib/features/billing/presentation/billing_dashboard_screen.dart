@@ -6,6 +6,7 @@ import '../../../core/theme/theme_provider.dart';
 import '../../../core/utils/csv_export_service.dart';
 import '../../business_profile/presentation/business_profile_dialog.dart';
 import '../../business_profile/providers/business_profile_provider.dart';
+import '../../clients/providers/clients_provider.dart';
 import '../../dashboard/presentation/dashboard_tab.dart';
 import '../../expenses/presentation/expenses_tab.dart';
 import '../../expenses/providers/expenses_provider.dart';
