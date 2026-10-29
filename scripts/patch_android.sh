@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Applying Android build fixes: AGP 8.11.1, Settings repository mode, Maven mirrors (anti-429), compileSdk 36, safe state.executed subproject evaluation, and AarMetadata bypass..."
+echo "Applying Android build fixes: AGP 8.11.1, Settings repository mode, Maven mirrors (anti-429), compileSdk 36 via plugin listeners, and AarMetadata bypass..."
 
 # 0. Remove any legacy init scripts that could conflict with settings dependency resolution
 rm -f "$HOME/.gradle/init.d/01-mirrors.gradle" || true
@@ -80,17 +80,19 @@ allprojects {
 }
 
 subprojects { proj ->
-    def applyPatch = {
+    proj.plugins.withId('com.android.library') {
         if (proj.hasProperty('android')) {
             try {
                 proj.android.compileSdkVersion 36
             } catch (Exception ignored) {}
         }
     }
-    if (proj.state.executed) {
-        applyPatch()
-    } else {
-        proj.afterEvaluate { applyPatch() }
+    proj.plugins.withId('com.android.application') {
+        if (proj.hasProperty('android')) {
+            try {
+                proj.android.compileSdkVersion 36
+            } catch (Exception ignored) {}
+        }
     }
 }
 EOF
@@ -106,20 +108,13 @@ allprojects {
     }
 }
 subprojects {
-    val applyPatch = Runnable {
-        if (project.hasProperty("android")) {
-            val androidExt = project.extensions.findByName("android")
-            if (androidExt is com.android.build.gradle.BaseExtension) {
-                androidExt.compileSdkVersion(36)
-            }
-        }
+    plugins.withId("com.android.library") {
+        val androidExt = extensions.findByName("android") as? com.android.build.gradle.BaseExtension
+        androidExt?.compileSdkVersion(36)
     }
-    if (project.state.executed) {
-        applyPatch.run()
-    } else {
-        project.afterEvaluate {
-            applyPatch.run()
-        }
+    plugins.withId("com.android.application") {
+        val androidExt = extensions.findByName("android") as? com.android.build.gradle.BaseExtension
+        androidExt?.compileSdkVersion(36)
     }
 }
 EOF
