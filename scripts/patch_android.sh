@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Applying Android build fixes: AGP 8.11.1, Settings repository mode, Maven mirrors (anti-429), compileSdk 36 via plugin listeners, and AarMetadata bypass..."
+echo "Applying Android build fixes: AGP 8.11.1, Settings repository mode, Maven mirrors (anti-429), root compileSdkVersion extra property (anti-'too late to set compileSdk'), and AarMetadata bypass..."
 
 # 0. Remove any legacy init scripts that could conflict with settings dependency resolution
 rm -f "$HOME/.gradle/init.d/01-mirrors.gradle" || true
@@ -48,6 +48,7 @@ fi
 # 2. Patch android/gradle.properties
 if [ -f "android/gradle.properties" ]; then
   cat << 'EOF' >> android/gradle.properties
+android.compileSdk=36
 systemProp.org.gradle.internal.http.socketTimeout=120000
 systemProp.org.gradle.internal.http.connectionTimeout=120000
 systemProp.http.keepAlive=false
@@ -69,30 +70,24 @@ if [ -f "android/app/build.gradle.kts" ]; then
   sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle.kts || true
 fi
 
-# 5. Append subprojects override & disable AarMetadata check in root android/build.gradle (Groovy)
+# 5. Append root extra compileSdkVersion & disable AarMetadata check in root android/build.gradle (Groovy)
 if [ -f "android/build.gradle" ]; then
   cat << 'EOF' >> android/build.gradle
 
-allprojects {
-    tasks.matching { it.name.contains("AarMetadata") }.configureEach {
-        enabled = false
+buildscript {
+    ext {
+        compileSdkVersion = 36
+        targetSdkVersion = 36
     }
 }
 
-subprojects { proj ->
-    proj.plugins.withId('com.android.library') {
-        if (proj.hasProperty('android')) {
-            try {
-                proj.android.compileSdkVersion 36
-            } catch (Exception ignored) {}
-        }
+allprojects {
+    ext {
+        compileSdkVersion = 36
+        targetSdkVersion = 36
     }
-    proj.plugins.withId('com.android.application') {
-        if (proj.hasProperty('android')) {
-            try {
-                proj.android.compileSdkVersion 36
-            } catch (Exception ignored) {}
-        }
+    tasks.matching { it.name.contains("AarMetadata") }.configureEach {
+        enabled = false
     }
 }
 EOF
@@ -102,19 +97,14 @@ fi
 if [ -f "android/build.gradle.kts" ]; then
   cat << 'EOF' >> android/build.gradle.kts
 
+extra["compileSdkVersion"] = 36
+extra["targetSdkVersion"] = 36
+
 allprojects {
+    extra["compileSdkVersion"] = 36
+    extra["targetSdkVersion"] = 36
     tasks.matching { it.name.contains("AarMetadata") }.configureEach {
         enabled = false
-    }
-}
-subprojects {
-    plugins.withId("com.android.library") {
-        val androidExt = extensions.findByName("android") as? com.android.build.gradle.BaseExtension
-        androidExt?.compileSdkVersion(36)
-    }
-    plugins.withId("com.android.application") {
-        val androidExt = extensions.findByName("android") as? com.android.build.gradle.BaseExtension
-        androidExt?.compileSdkVersion(36)
     }
 }
 EOF
