@@ -1,0 +1,370 @@
+﻿2026-10-29T07:21:11.0642490Z ##[group]Run flutter build macos --release
+2026-10-29T07:21:11.0642870Z [36;1mflutter build macos --release[0m
+2026-10-29T07:21:11.0682200Z shell: /bin/bash -e {0}
+2026-10-29T07:21:11.0682430Z env:
+2026-10-29T07:21:11.0682740Z   FLUTTER_ROOT: /Users/runner/hostedtoolcache/flutter/stable-3.47.8-arm64
+2026-10-29T07:21:11.0683160Z   PUB_CACHE: /Users/runner/.pub-cache
+2026-10-29T07:21:11.0684260Z ##[endgroup]
+2026-10-29T07:21:32.8013390Z Xcode is fetching Swift Package Manager dependencies. This may take several minutes...
+2026-10-29T07:21:36.7855230Z   Fetching from https://github.com/simolus3/CSQLite.git...      
+2026-10-29T07:22:55.5326470Z Building macOS application...                                   
+2026-10-29T07:22:55.5422640Z lib/features/clients/presentation/clients_tab.dart:3:8: Error: Error when reading 'lib/clients/providers/clients_provider.dart': No such file or directory
+2026-10-29T07:22:55.5530380Z import '../../../clients/providers/clients_provider.dart';
+2026-10-29T07:22:55.5665450Z        ^
+2026-10-29T07:22:55.5810350Z lib/features/clients/presentation/clients_tab.dart:4:8: Error: Error when reading 'lib/invoices/providers/invoices_provider.dart': No such file or directory
+2026-10-29T07:22:55.5948410Z import '../../../invoices/providers/invoices_provider.dart';
+2026-10-29T07:22:55.6104470Z        ^
+2026-10-29T07:22:55.6213580Z Error: Couldn't resolve the package 'url_launcher' in 'package:url_launcher/url_launcher.dart'.
+2026-10-29T07:22:55.6361710Z lib/features/billing/services/invoice_pdf_service.dart:630:10: Error: Expected a class member, but got ','.
+2026-10-29T07:22:55.6510180Z         },
+2026-10-29T07:22:55.6824600Z          ^
+2026-10-29T07:22:55.6954550Z lib/features/billing/services/invoice_pdf_service.dart:631:7: Error: Expected a class member, but got ')'.
+2026-10-29T07:22:55.7100160Z       ),
+2026-10-29T07:22:55.7202240Z       ^
+2026-10-29T07:22:55.7304790Z lib/features/billing/services/invoice_pdf_service.dart:631:8: Error: Expected a class member, but got ','.
+2026-10-29T07:22:55.7413310Z       ),
+2026-10-29T07:22:55.7510560Z        ^
+2026-10-29T07:22:55.7616270Z lib/features/billing/services/invoice_pdf_service.dart:632:5: Error: Expected a class member, but got ')'.
+2026-10-29T07:22:55.7717310Z     );
+2026-10-29T07:22:55.7818860Z     ^
+2026-10-29T07:22:55.7919890Z lib/features/billing/services/invoice_pdf_service.dart:632:6: Error: Expected a class member, but got ';'.
+2026-10-29T07:22:55.8025480Z     );
+2026-10-29T07:22:55.8154280Z      ^
+2026-10-29T07:22:55.8265990Z lib/features/billing/services/invoice_pdf_service.dart:634:5: Error: Expected a class member, but got 'return'.
+2026-10-29T07:22:55.8374380Z     return pdf.save();
+2026-10-29T07:22:55.8475180Z     ^^^^^^
+2026-10-29T07:22:55.8617810Z lib/features/billing/services/invoice_pdf_service.dart:634:12: Error: The name of a constructor must match the name of the enclosing class.
+2026-10-29T07:22:55.8730840Z     return pdf.save();
+2026-10-29T07:22:55.8849430Z            ^^^
+2026-10-29T07:22:55.8954350Z lib/features/billing/services/invoice_pdf_service.dart:638:3: Error: Can't have modifier 'static' here.
+2026-10-29T07:22:55.9057510Z Try removing 'static'.
+2026-10-29T07:22:55.9167590Z   static Future<Uint8List> generateEstimatePdf({
+2026-10-29T07:22:55.9270370Z   ^^^^^^
+2026-10-29T07:22:55.9317420Z lib/features/billing/services/invoice_pdf_service.dart:968:3: Error: Can't have modifier 'static' here.
+2026-10-29T07:22:55.9423240Z Try removing 'static'.
+2026-10-29T07:22:55.9539520Z   static pw.Widget _buildHeaderCell(String text, {pw.TextAlign align = pw.TextAlign.left}) {
+2026-10-29T07:22:55.9678210Z   ^^^^^^
+2026-10-29T07:22:55.9939630Z lib/features/billing/services/invoice_pdf_service.dart:983:3: Error: Can't have modifier 'static' here.
+2026-10-29T07:22:55.9982620Z Try removing 'static'.
+2026-10-29T07:22:56.0084000Z   static pw.Widget _buildCell(
+2026-10-29T07:22:56.0209540Z   ^^^^^^
+2026-10-29T07:22:56.0321170Z lib/features/billing/services/invoice_pdf_service.dart:1002:3: Error: Can't have modifier 'static' here.
+2026-10-29T07:22:56.0434720Z Try removing 'static'.
+2026-10-29T07:22:56.0536970Z   static pw.Widget _buildSummaryLine(
+2026-10-29T07:22:56.0640320Z   ^^^^^^
+2026-10-29T07:22:56.0846270Z lib/features/billing/services/invoice_pdf_service.dart:1032:1: Error: Expected a declaration, but got '}'.
+2026-10-29T07:22:56.0948870Z }
+2026-10-29T07:22:56.1050300Z ^
+2026-10-29T07:22:56.1153200Z lib/features/settings/presentation/directory_settings_tab.dart:5:8: Error: Error when reading 'lib/features/core/database/database_provider.dart': No such file or directory
+2026-10-29T07:22:56.1255000Z import '../../core/database/database_provider.dart';
+2026-10-29T07:22:56.1362030Z        ^
+2026-10-29T07:22:56.1465880Z lib/features/settings/presentation/directory_settings_tab.dart:6:8: Error: Error when reading 'lib/features/core/utils/backup_service.dart': No such file or directory
+2026-10-29T07:22:56.1568410Z import '../../core/utils/backup_service.dart';
+2026-10-29T07:22:56.1675170Z        ^
+2026-10-29T07:22:56.1777540Z lib/features/billing/presentation/widgets/payment_reminder_modal.dart:2:8: Error: Not found: 'package:url_launcher/url_launcher.dart'
+2026-10-29T07:22:56.1880750Z import 'package:url_launcher/url_launcher.dart';
+2026-10-29T07:22:56.1983180Z        ^
+2026-10-29T07:22:56.2072020Z lib/features/billing/presentation/widgets/payment_reminder_modal.dart:3:8: Error: Error when reading 'lib/features/invoices/models/invoice.dart': No such file or directory
+2026-10-29T07:22:56.2176750Z import '../../../invoices/models/invoice.dart';
+2026-10-29T07:22:56.2279280Z        ^
+2026-10-29T07:22:56.2380610Z lib/features/billing/presentation/widgets/payment_reminder_modal.dart:6:9: Error: Type 'Invoice' not found.
+2026-10-29T07:22:56.2483010Z   final Invoice invoice;
+2026-10-29T07:22:56.2585620Z         ^^^^^^^
+2026-10-29T07:22:56.2692360Z lib/features/billing/presentation/billing_dashboard_screen.dart:79:22: Error: No named parameter with the name 'initialSubTab'.
+2026-10-29T07:22:56.2789040Z       const SalesTab(initialSubTab: 0), // Invoices
+2026-10-29T07:22:56.2891260Z                      ^^^^^^^^^^^^^
+2026-10-29T07:22:56.2994760Z lib/features/billing/presentation/sales_tab.dart:14:9: Context: Found this candidate, but the arguments don't match.
+2026-10-29T07:22:56.3097030Z   const SalesTab({super.key});
+2026-10-29T07:22:56.3196870Z         ^^^^^^^^
+2026-10-29T07:22:56.3300510Z lib/features/billing/presentation/billing_dashboard_screen.dart:80:22: Error: No named parameter with the name 'initialSubTab'.
+2026-10-29T07:22:56.3401220Z       const SalesTab(initialSubTab: 1), // Estimates / Quotes
+2026-10-29T07:22:56.3503420Z                      ^^^^^^^^^^^^^
+2026-10-29T07:22:56.3606390Z lib/features/billing/presentation/sales_tab.dart:14:9: Context: Found this candidate, but the arguments don't match.
+2026-10-29T07:22:56.3706580Z   const SalesTab({super.key});
+2026-10-29T07:22:56.3808810Z         ^^^^^^^^
+2026-10-29T07:22:56.3913940Z lib/features/clients/presentation/clients_tab.dart:18:31: Error: The getter 'clientsProvider' isn't defined for the type '_ClientsTabState'.
+2026-10-29T07:22:56.4019480Z  - '_ClientsTabState' is from 'package:billing_app/features/clients/presentation/clients_tab.dart' ('lib/features/clients/presentation/clients_tab.dart').
+2026-10-29T07:22:56.4120720Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'clientsProvider'.
+2026-10-29T07:22:56.4220880Z     final clients = ref.watch(clientsProvider);
+2026-10-29T07:22:56.4322160Z                               ^^^^^^^^^^^^^^^
+2026-10-29T07:22:56.4423750Z lib/features/clients/presentation/clients_tab.dart:48:29: Error: The getter 'clientsProvider' isn't defined for the type '_ClientsTabState'.
+2026-10-29T07:22:56.4524670Z  - '_ClientsTabState' is from 'package:billing_app/features/clients/presentation/clients_tab.dart' ('lib/features/clients/presentation/clients_tab.dart').
+2026-10-29T07:22:56.4626700Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'clientsProvider'.
+2026-10-29T07:22:56.4729530Z     final client = ref.read(clientsProvider).firstWhere((c) => c.id == id);
+2026-10-29T07:22:56.4830310Z                             ^^^^^^^^^^^^^^^
+2026-10-29T07:22:56.4933230Z lib/features/estimates/presentation/offline_estimates_list.dart:193:73: Error: Member not found: 'InvoicePdfService.generateEstimatePdf'.
+2026-10-29T07:22:56.5034790Z                                       buildPdf: () => InvoicePdfService.generateEstimatePdf(
+2026-10-29T07:22:56.5140680Z                                                                         ^^^^^^^^^^^^^^^^^^^
+2026-10-29T07:22:56.5269550Z lib/features/settings/presentation/directory_settings_tab.dart:110:26: Error: The getter 'databaseProvider' isn't defined for the type '_BackupRecoveryCard'.
+2026-10-29T07:22:56.5375680Z  - '_BackupRecoveryCard' is from 'package:billing_app/features/settings/presentation/directory_settings_tab.dart' ('lib/features/settings/presentation/directory_settings_tab.dart').
+2026-10-29T07:22:56.5480440Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'databaseProvider'.
+2026-10-29T07:22:56.5749430Z     final db = ref.watch(databaseProvider);
+2026-10-29T07:22:56.5893970Z                          ^^^^^^^^^^^^^^^^
+2026-10-29T07:22:56.5996950Z lib/features/settings/presentation/directory_settings_tab.dart:115:25: Error: The getter 'BackupService' isn't defined for the type '_BackupRecoveryCard'.
+2026-10-29T07:22:56.6103740Z  - '_BackupRecoveryCard' is from 'package:billing_app/features/settings/presentation/directory_settings_tab.dart' ('lib/features/settings/presentation/directory_settings_tab.dart').
+2026-10-29T07:22:56.6207250Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'BackupService'.
+2026-10-29T07:22:56.6309750Z         final jsonStr = BackupService.exportToJsonString(db);
+2026-10-29T07:22:56.6412440Z                         ^^^^^^^^^^^^^
+2026-10-29T07:22:56.6422770Z lib/features/settings/presentation/directory_settings_tab.dart:188:19: Error: The getter 'BackupService' isn't defined for the type '_BackupRecoveryCard'.
+2026-10-29T07:22:56.6525920Z  - '_BackupRecoveryCard' is from 'package:billing_app/features/settings/presentation/directory_settings_tab.dart' ('lib/features/settings/presentation/directory_settings_tab.dart').
+2026-10-29T07:22:56.6639410Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'BackupService'.
+2026-10-29T07:22:56.6717690Z                   BackupService.importFromJsonString(db, importController.text.trim());
+2026-10-29T07:22:56.6818130Z                   ^^^^^^^^^^^^^
+2026-10-29T07:22:56.6920190Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart:27:31: Error: The getter 'taxCollectedOnPaymentsCents' isn't defined for the type 'CashFlowMetricsBar'.
+2026-10-29T07:22:56.7022260Z  - 'CashFlowMetricsBar' is from 'package:billing_app/features/billing/presentation/widgets/cash_flow_metrics_bar.dart' ('lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart').
+2026-10-29T07:22:56.7122270Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'taxCollectedOnPaymentsCents'.
+2026-10-29T07:22:56.7224870Z     final taxLiabilityCents = taxCollectedOnPaymentsCents - totalExpenseTaxCents;
+2026-10-29T07:22:56.7325480Z                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-29T07:22:56.7427950Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart:27:61: Error: The getter 'totalExpenseTaxCents' isn't defined for the type 'CashFlowMetricsBar'.
+2026-10-29T07:22:56.7539760Z  - 'CashFlowMetricsBar' is from 'package:billing_app/features/billing/presentation/widgets/cash_flow_metrics_bar.dart' ('lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart').
+2026-10-29T07:22:56.7641400Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'totalExpenseTaxCents'.
+2026-10-29T07:22:56.7744650Z     final taxLiabilityCents = taxCollectedOnPaymentsCents - totalExpenseTaxCents;
+2026-10-29T07:22:56.7871850Z                                                             ^^^^^^^^^^^^^^^^^^^^
+2026-10-29T07:22:56.7954300Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart:28:36: Error: The getter 'totalCollectedGrossCents' isn't defined for the type 'CashFlowMetricsBar'.
+2026-10-29T07:22:56.8057080Z  - 'CashFlowMetricsBar' is from 'package:billing_app/features/billing/presentation/widgets/cash_flow_metrics_bar.dart' ('lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart').
+2026-10-29T07:22:56.8161200Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'totalCollectedGrossCents'.
+2026-10-29T07:22:56.8264790Z     final netRevenueExclTaxCents = totalCollectedGrossCents - taxCollectedOnPaymentsCents;
+2026-10-29T07:22:56.8367660Z                                    ^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-29T07:22:56.8470050Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart:28:63: Error: The getter 'taxCollectedOnPaymentsCents' isn't defined for the type 'CashFlowMetricsBar'.
+2026-10-29T07:22:56.8573630Z  - 'CashFlowMetricsBar' is from 'package:billing_app/features/billing/presentation/widgets/cash_flow_metrics_bar.dart' ('lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart').
+2026-10-29T07:22:56.8677490Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'taxCollectedOnPaymentsCents'.
+2026-10-29T07:22:56.8780340Z     final netRevenueExclTaxCents = totalCollectedGrossCents - taxCollectedOnPaymentsCents;
+2026-10-29T07:22:56.8881860Z                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-29T07:22:56.8983960Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart:29:57: Error: The getter 'totalExpensesExclTaxCents' isn't defined for the type 'CashFlowMetricsBar'.
+2026-10-29T07:22:56.9084700Z  - 'CashFlowMetricsBar' is from 'package:billing_app/features/billing/presentation/widgets/cash_flow_metrics_bar.dart' ('lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart').
+2026-10-29T07:22:56.9185760Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'totalExpensesExclTaxCents'.
+2026-10-29T07:22:56.9287560Z     final realNetProfitCents = netRevenueExclTaxCents - totalExpensesExclTaxCents;
+2026-10-29T07:22:56.9601080Z                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-29T07:22:56.9974100Z lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart:55:37: Error: The getter 'totalCollectedGrossCents' isn't defined for the type 'CashFlowMetricsBar'.
+2026-10-29T07:22:57.0087760Z  - 'CashFlowMetricsBar' is from 'package:billing_app/features/billing/presentation/widgets/cash_flow_metrics_bar.dart' ('lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart').
+2026-10-29T07:22:57.0248310Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'totalCollectedGrossCents'.
+2026-10-29T07:22:57.0369300Z               value: formatCurrency(totalCollectedGrossCents),
+2026-10-29T07:22:57.0518130Z                                     ^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-29T07:22:57.0627850Z lib/features/billing/presentation/widgets/payment_reminder_modal.dart:6:9: Error: 'Invoice' isn't a type.
+2026-10-29T07:22:57.0731800Z   final Invoice invoice;
+2026-10-29T07:22:57.0832810Z         ^^^^^^^
+2026-10-29T07:22:57.0953330Z lib/features/billing/presentation/widgets/payment_reminder_modal.dart:34:25: Error: The method 'canLaunchUrl' isn't defined for the type 'PaymentReminderModal'.
+2026-10-29T07:22:57.1060520Z  - 'PaymentReminderModal' is from 'package:billing_app/features/billing/presentation/widgets/payment_reminder_modal.dart' ('lib/features/billing/presentation/widgets/payment_reminder_modal.dart').
+2026-10-29T07:22:57.1161720Z Try correcting the name to the name of an existing method, or defining a method named 'canLaunchUrl'.
+2026-10-29T07:22:57.1263420Z               if (await canLaunchUrl(url)) await launchUrl(url);
+2026-10-29T07:22:57.1793320Z                         ^^^^^^^^^^^^
+2026-10-29T07:22:57.2134900Z lib/features/billing/presentation/widgets/payment_reminder_modal.dart:34:50: Error: The method 'launchUrl' isn't defined for the type 'PaymentReminderModal'.
+2026-10-29T07:22:57.2266510Z  - 'PaymentReminderModal' is from 'package:billing_app/features/billing/presentation/widgets/payment_reminder_modal.dart' ('lib/features/billing/presentation/widgets/payment_reminder_modal.dart').
+2026-10-29T07:22:57.2376690Z Try correcting the name to the name of an existing method, or defining a method named 'launchUrl'.
+2026-10-29T07:22:57.2485610Z               if (await canLaunchUrl(url)) await launchUrl(url);
+2026-10-29T07:22:57.2586700Z                                                  ^^^^^^^^^
+2026-10-29T07:22:57.2691370Z lib/features/billing/presentation/widgets/payment_reminder_modal.dart:43:25: Error: The method 'canLaunchUrl' isn't defined for the type 'PaymentReminderModal'.
+2026-10-29T07:22:57.2793550Z  - 'PaymentReminderModal' is from 'package:billing_app/features/billing/presentation/widgets/payment_reminder_modal.dart' ('lib/features/billing/presentation/widgets/payment_reminder_modal.dart').
+2026-10-29T07:22:57.2895840Z Try correcting the name to the name of an existing method, or defining a method named 'canLaunchUrl'.
+2026-10-29T07:22:57.2998300Z               if (await canLaunchUrl(url)) await launchUrl(url);
+2026-10-29T07:22:57.3099980Z                         ^^^^^^^^^^^^
+2026-10-29T07:22:57.3202610Z lib/features/billing/presentation/widgets/payment_reminder_modal.dart:43:50: Error: The method 'launchUrl' isn't defined for the type 'PaymentReminderModal'.
+2026-10-29T07:22:57.3307950Z  - 'PaymentReminderModal' is from 'package:billing_app/features/billing/presentation/widgets/payment_reminder_modal.dart' ('lib/features/billing/presentation/widgets/payment_reminder_modal.dart').
+2026-10-29T07:22:57.3411610Z Try correcting the name to the name of an existing method, or defining a method named 'launchUrl'.
+2026-10-29T07:22:57.3516990Z               if (await canLaunchUrl(url)) await launchUrl(url);
+2026-10-29T07:22:57.3619470Z                                                  ^^^^^^^^^
+2026-10-29T07:22:57.3722150Z lib/features/billing/services/invoice_pdf_service.dart:397:50: Error: Undefined name 'p'.
+2026-10-29T07:22:57.3824050Z                           _buildCell(formatCents(p.amountCents, symbol: sym), align: pw.TextAlign.right, isBold: true),
+2026-10-29T07:22:57.3959770Z                                                  ^
+2026-10-29T07:22:57.4065020Z lib/features/billing/services/invoice_pdf_service.dart:401:19: Error: Expected an identifier, but got ']'.
+2026-10-29T07:22:57.4175510Z Try inserting an identifier before ']'.
+2026-10-29T07:22:57.4276180Z                   ],
+2026-10-29T07:22:57.4376460Z                   ^
+2026-10-29T07:22:57.4478170Z lib/features/billing/services/invoice_pdf_service.dart:401:19: Error: Expected ')' before this.
+2026-10-29T07:22:57.4580590Z                   ],
+2026-10-29T07:22:57.4682460Z                   ^
+2026-10-29T07:22:57.4782630Z lib/features/billing/services/invoice_pdf_service.dart:402:17: Error: Expected ';' after this.
+2026-10-29T07:22:57.4883180Z                 ),
+2026-10-29T07:22:57.4984570Z                 ^
+2026-10-29T07:22:57.5085510Z lib/features/billing/services/invoice_pdf_service.dart:402:18: Error: Expected an identifier, but got ','.
+2026-10-29T07:22:57.5187620Z Try inserting an identifier before ','.
+2026-10-29T07:22:57.5287700Z                 ),
+2026-10-29T07:22:57.5388970Z                  ^
+2026-10-29T07:22:57.5489110Z lib/features/billing/services/invoice_pdf_service.dart:402:18: Error: Unexpected token ';'.
+2026-10-29T07:22:57.5589700Z                 ),
+2026-10-29T07:22:57.5713470Z                  ^
+2026-10-29T07:22:57.5813670Z lib/features/billing/services/invoice_pdf_service.dart:403:15: Error: Expected an identifier, but got ']'.
+2026-10-29T07:22:57.5914100Z Try inserting an identifier before ']'.
+2026-10-29T07:22:57.6015400Z               ],
+2026-10-29T07:22:57.6115850Z               ^
+2026-10-29T07:22:57.6216890Z lib/features/billing/services/invoice_pdf_service.dart:402:18: Error: Expected ';' after this.
+2026-10-29T07:22:57.6317490Z                 ),
+2026-10-29T07:22:57.6428200Z                  ^
+2026-10-29T07:22:57.6529750Z lib/features/billing/services/invoice_pdf_service.dart:403:15: Error: Unexpected token ';'.
+2026-10-29T07:22:57.6630460Z               ],
+2026-10-29T07:22:57.6730890Z               ^
+2026-10-29T07:22:57.6831290Z lib/features/billing/services/invoice_pdf_service.dart:403:16: Error: Expected an identifier, but got ','.
+2026-10-29T07:22:57.6932590Z Try inserting an identifier before ','.
+2026-10-29T07:22:57.7035160Z               ],
+2026-10-29T07:22:57.7137110Z                ^
+2026-10-29T07:22:57.7238920Z lib/features/billing/services/invoice_pdf_service.dart:403:15: Error: Expected ';' after this.
+2026-10-29T07:22:57.7340070Z               ],
+2026-10-29T07:22:57.7442550Z               ^
+2026-10-29T07:22:57.7543670Z lib/features/billing/services/invoice_pdf_service.dart:403:16: Error: Unexpected token ';'.
+2026-10-29T07:22:57.7644990Z               ],
+2026-10-29T07:22:57.7746060Z                ^
+2026-10-29T07:22:57.7846550Z lib/features/billing/services/invoice_pdf_service.dart:405:37: Error: Expected ';' after this.
+2026-10-29T07:22:57.7946520Z               pw.SizedBox(height: 12),
+2026-10-29T07:22:57.8047570Z                                     ^
+2026-10-29T07:22:57.8150500Z lib/features/billing/services/invoice_pdf_service.dart:405:38: Error: Expected an identifier, but got ','.
+2026-10-29T07:22:57.8251760Z Try inserting an identifier before ','.
+2026-10-29T07:22:57.8354720Z               pw.SizedBox(height: 12),
+2026-10-29T07:22:57.8456460Z                                      ^
+2026-10-29T07:22:57.8558090Z lib/features/billing/services/invoice_pdf_service.dart:405:38: Error: Unexpected token ';'.
+2026-10-29T07:22:57.8659400Z               pw.SizedBox(height: 12),
+2026-10-29T07:22:57.8761270Z                                      ^
+2026-10-29T07:22:57.8866200Z lib/features/billing/services/invoice_pdf_service.dart:473:15: Error: Expected ';' after this.
+2026-10-29T07:22:57.8967290Z               ),
+2026-10-29T07:22:57.9067980Z               ^
+2026-10-29T07:22:57.9171620Z lib/features/billing/services/invoice_pdf_service.dart:473:16: Error: Expected an identifier, but got ','.
+2026-10-29T07:22:57.9273160Z Try inserting an identifier before ','.
+2026-10-29T07:22:57.9374140Z               ),
+2026-10-29T07:22:57.9474150Z                ^
+2026-10-29T07:22:57.9576380Z lib/features/billing/services/invoice_pdf_service.dart:473:16: Error: Unexpected token ';'.
+2026-10-29T07:22:57.9697220Z               ),
+2026-10-29T07:22:57.9806690Z                ^
+2026-10-29T07:22:57.9908320Z lib/features/billing/services/invoice_pdf_service.dart:475:25: Error: Expected ';' after this.
+2026-10-29T07:22:58.0009630Z               pw.Spacer(),
+2026-10-29T07:22:58.0111380Z                         ^
+2026-10-29T07:22:58.0217320Z lib/features/billing/services/invoice_pdf_service.dart:475:26: Error: Expected an identifier, but got ','.
+2026-10-29T07:22:58.0316370Z Try inserting an identifier before ','.
+2026-10-29T07:22:58.0421840Z               pw.Spacer(),
+2026-10-29T07:22:58.0529850Z                          ^
+2026-10-29T07:22:58.0631120Z lib/features/billing/services/invoice_pdf_service.dart:475:26: Error: Unexpected token ';'.
+2026-10-29T07:22:58.0732340Z               pw.Spacer(),
+2026-10-29T07:22:58.0834090Z                          ^
+2026-10-29T07:22:58.0937750Z lib/features/billing/services/invoice_pdf_service.dart:477:75: Error: Expected an identifier, but got '...'.
+2026-10-29T07:22:58.1036480Z Try inserting an identifier before '...'.
+2026-10-29T07:22:58.1137100Z               if (effectiveTerms.isNotEmpty || effectiveNotes.isNotEmpty) ...[
+2026-10-29T07:22:58.1238230Z                                                                           ^^^
+2026-10-29T07:22:58.1339530Z lib/features/billing/services/invoice_pdf_service.dart:503:18: Error: Expected ']' before this.
+2026-10-29T07:22:58.1440560Z                 ),
+2026-10-29T07:22:58.1585290Z                  ^
+2026-10-29T07:22:58.1834070Z lib/features/billing/services/invoice_pdf_service.dart:505:15: Error: Expected ';' after this.
+2026-10-29T07:22:58.1956080Z               ],
+2026-10-29T07:22:58.2360740Z               ^
+2026-10-29T07:22:58.2462640Z lib/features/billing/services/invoice_pdf_service.dart:505:16: Error: Expected an identifier, but got ','.
+2026-10-29T07:22:58.2463170Z Try inserting an identifier before ','.
+2026-10-29T07:22:58.2564520Z               ],
+2026-10-29T07:22:58.2665400Z                ^
+2026-10-29T07:22:58.2766400Z lib/features/billing/services/invoice_pdf_service.dart:505:16: Error: Unexpected token ';'.
+2026-10-29T07:22:58.2868040Z               ],
+2026-10-29T07:22:58.2969030Z                ^
+2026-10-29T07:22:58.3070860Z lib/features/billing/services/invoice_pdf_service.dart:507:88: Error: Expected an identifier, but got '...'.
+2026-10-29T07:22:58.3171760Z Try inserting an identifier before '...'.
+2026-10-29T07:22:58.3272690Z               if (signatureBytes != null || businessProfile.signatureLabel.isNotEmpty) ...[
+2026-10-29T07:22:58.3374780Z                                                                                        ^^^
+2026-10-29T07:22:58.3477020Z lib/features/billing/services/invoice_pdf_service.dart:532:18: Error: Expected ']' before this.
+2026-10-29T07:22:58.3576780Z                 ),
+2026-10-29T07:22:58.3677100Z                  ^
+2026-10-29T07:22:58.3778610Z lib/features/billing/services/invoice_pdf_service.dart:534:15: Error: Expected ';' after this.
+2026-10-29T07:22:58.3881460Z               ],
+2026-10-29T07:22:58.3983770Z               ^
+2026-10-29T07:22:58.4092530Z lib/features/billing/services/invoice_pdf_service.dart:534:16: Error: Expected an identifier, but got ','.
+2026-10-29T07:22:58.4197090Z Try inserting an identifier before ','.
+2026-10-29T07:22:58.4297580Z               ],
+2026-10-29T07:22:58.4399390Z                ^
+2026-10-29T07:22:58.4500370Z lib/features/billing/services/invoice_pdf_service.dart:534:16: Error: Unexpected token ';'.
+2026-10-29T07:22:58.4600860Z               ],
+2026-10-29T07:22:58.4702550Z                ^
+2026-10-29T07:22:58.4804890Z lib/features/billing/services/invoice_pdf_service.dart:536:27: Error: Expected an identifier, but got '...'.
+2026-10-29T07:22:58.4904380Z Try inserting an identifier before '...'.
+2026-10-29T07:22:58.5005770Z               if (isPaid) ...[
+2026-10-29T07:22:58.5106620Z                           ^^^
+2026-10-29T07:22:58.5208870Z lib/features/billing/services/invoice_pdf_service.dart:559:18: Error: Expected ']' before this.
+2026-10-29T07:22:58.5309270Z                 ),
+2026-10-29T07:22:58.5410390Z                  ^
+2026-10-29T07:22:58.5511090Z lib/features/billing/services/invoice_pdf_service.dart:560:15: Error: Expected ';' after this.
+2026-10-29T07:22:58.5612560Z               ] else if (paymentInstructions.isNotEmpty || businessProfile.paymentQrPayload.trim().isNotEmpty) ...[
+2026-10-29T07:22:58.5712880Z               ^
+2026-10-29T07:22:58.5815700Z lib/features/billing/services/invoice_pdf_service.dart:560:112: Error: Expected an identifier, but got '...'.
+2026-10-29T07:22:58.5915630Z Try inserting an identifier before '...'.
+2026-10-29T07:22:58.6017010Z               ] else if (paymentInstructions.isNotEmpty || businessProfile.paymentQrPayload.trim().isNotEmpty) ...[
+2026-10-29T07:22:58.6117130Z                                                                                           ^^^
+2026-10-29T07:22:58.6220100Z lib/features/billing/services/invoice_pdf_service.dart:626:18: Error: Expected ']' before this.
+2026-10-29T07:22:58.6320490Z                 ),
+2026-10-29T07:22:58.6422100Z                  ^
+2026-10-29T07:22:58.6523820Z lib/features/billing/services/invoice_pdf_service.dart:627:15: Error: Expected ';' after this.
+2026-10-29T07:22:58.6624750Z               ],
+2026-10-29T07:22:58.6728660Z               ^
+2026-10-29T07:22:58.6828590Z lib/features/billing/services/invoice_pdf_service.dart:627:16: Error: Expected an identifier, but got ','.
+2026-10-29T07:22:58.6930580Z Try inserting an identifier before ','.
+2026-10-29T07:22:58.7032520Z               ],
+2026-10-29T07:22:58.7133710Z                ^
+2026-10-29T07:22:58.7235060Z lib/features/billing/services/invoice_pdf_service.dart:627:16: Error: Unexpected token ';'.
+2026-10-29T07:22:58.7336160Z               ],
+2026-10-29T07:22:58.7438280Z                ^
+2026-10-29T07:22:58.7540450Z lib/features/billing/services/invoice_pdf_service.dart:628:13: Error: Expected an identifier, but got ']'.
+2026-10-29T07:22:58.7640280Z Try inserting an identifier before ']'.
+2026-10-29T07:22:58.7741130Z             ],
+2026-10-29T07:22:58.7841840Z             ^
+2026-10-29T07:22:58.7943170Z lib/features/billing/services/invoice_pdf_service.dart:627:16: Error: Expected ';' after this.
+2026-10-29T07:22:58.8043910Z               ],
+2026-10-29T07:22:58.8144710Z                ^
+2026-10-29T07:22:58.8246540Z lib/features/billing/services/invoice_pdf_service.dart:628:13: Error: Unexpected token ';'.
+2026-10-29T07:22:58.8346790Z             ],
+2026-10-29T07:22:58.8448440Z             ^
+2026-10-29T07:22:58.8551200Z lib/features/billing/services/invoice_pdf_service.dart:628:14: Error: Expected an identifier, but got ','.
+2026-10-29T07:22:58.8651280Z Try inserting an identifier before ','.
+2026-10-29T07:22:58.8752450Z             ],
+2026-10-29T07:22:58.8854420Z              ^
+2026-10-29T07:22:58.8956240Z lib/features/billing/services/invoice_pdf_service.dart:628:13: Error: Expected ';' after this.
+2026-10-29T07:22:58.9058680Z             ],
+2026-10-29T07:22:58.9160380Z             ^
+2026-10-29T07:22:58.9261700Z lib/features/billing/services/invoice_pdf_service.dart:628:14: Error: Unexpected token ';'.
+2026-10-29T07:22:58.9362380Z             ],
+2026-10-29T07:22:58.9463840Z              ^
+2026-10-29T07:22:58.9569120Z lib/features/billing/services/invoice_pdf_service.dart:629:11: Error: Expected an identifier, but got ')'.
+2026-10-29T07:22:58.9666490Z Try inserting an identifier before ')'.
+2026-10-29T07:22:58.9768960Z           );
+2026-10-29T07:22:58.9871000Z           ^
+2026-10-29T07:22:58.9975760Z lib/features/billing/services/invoice_pdf_service.dart:628:14: Error: Expected ';' after this.
+2026-10-29T07:22:59.0076520Z             ],
+2026-10-29T07:22:59.0178520Z              ^
+2026-10-29T07:22:59.0279750Z lib/features/billing/services/invoice_pdf_service.dart:629:11: Error: Unexpected token ';'.
+2026-10-29T07:22:59.0381100Z           );
+2026-10-29T07:22:59.0488690Z           ^
+2026-10-29T07:22:59.0592160Z lib/features/billing/services/invoice_pdf_service.dart:100:16: Error: Too many positional arguments: 1 allowed, but 2 found.
+2026-10-29T07:22:59.0724740Z Try removing the extra positional arguments.
+2026-10-29T07:22:59.0832540Z     pdf.addPage(
+2026-10-29T07:22:59.0933670Z                ^
+2026-10-29T07:22:59.1036350Z lib/features/billing/services/invoice_pdf_service.dart:34:28: Error: A non-null value must be returned since the return type 'Uint8List' doesn't allow null.
+2026-10-29T07:22:59.1136560Z  - 'Uint8List' is from 'dart:typed_data'.
+2026-10-29T07:22:59.1247930Z   static Future<Uint8List> generateInvoicePdf({
+2026-10-29T07:22:59.1350490Z                            ^
+2026-10-29T07:22:59.1450260Z lib/features/billing/services/invoice_pdf_service.dart:655:28: Error: Method not found: '_cleanText'.
+2026-10-29T07:22:59.1558810Z     final effectiveTerms = _cleanText(
+2026-10-29T07:22:59.1658410Z                            ^^^^^^^^^^
+2026-10-29T07:22:59.1759290Z lib/features/billing/services/invoice_pdf_service.dart:658:28: Error: Method not found: '_cleanText'.
+2026-10-29T07:22:59.1860230Z     final effectiveNotes = _cleanText(
+2026-10-29T07:22:59.1929010Z                            ^^^^^^^^^^
+2026-10-29T07:22:59.2031560Z lib/features/billing/services/invoice_pdf_service.dart:662:23: Error: Method not found: '_safeDecodeBase64'.
+2026-10-29T07:22:59.2134220Z     final logoBytes = _safeDecodeBase64(businessProfile.logoBase64);
+2026-10-29T07:22:59.2237290Z                       ^^^^^^^^^^^^^^^^^
+2026-10-29T07:22:59.2340990Z lib/features/billing/services/invoice_pdf_service.dart:663:28: Error: Method not found: '_safeDecodeBase64'.
+2026-10-29T07:22:59.2444070Z     final signatureBytes = _safeDecodeBase64(businessProfile.signatureBase64);
+2026-10-29T07:22:59.2545890Z                            ^^^^^^^^^^^^^^^^^
+2026-10-29T07:22:59.2649570Z lib/features/billing/services/invoice_pdf_service.dart:841:36: Error: Method not found: '_cleanText'.
+2026-10-29T07:22:59.2751750Z                         _buildCell(_cleanText(item.description), align: pw.TextAlign.left),
+2026-10-29T07:22:59.2854460Z                                    ^^^^^^^^^^
+2026-10-29T07:22:59.2955940Z Unhandled exception:
+2026-10-29T07:22:59.3063390Z FileSystemException(uri=org-dartlang-untranslatable-uri:package%3Aurl_launcher%2Furl_launcher.dart; message=StandardFileSystem only supports file:* and data:* URIs)
+2026-10-29T07:22:59.3167060Z #0      StandardFileSystem.entityForUri (package:front_end/src/api_prototype/standard_file_system.dart:42)
+2026-10-29T07:22:59.3268480Z #1      asFileUri (package:vm/kernel_front_end.dart:1059)
+2026-10-29T07:22:59.3372770Z #2      writeDepfile (package:vm/kernel_front_end.dart:1220)
+2026-10-29T07:22:59.3475520Z <asynchronous suspension>
+2026-10-29T07:22:59.3578200Z #3      FrontendCompiler.compile (package:frontend_server/frontend_server.dart:932)
+2026-10-29T07:22:59.3680270Z <asynchronous suspension>
+2026-10-29T07:22:59.3781310Z #4      starter (package:frontend_server/starter.dart:108)
+2026-10-29T07:22:59.3883100Z <asynchronous suspension>
+2026-10-29T07:22:59.3984720Z #5      main (file:///Volumes/Work/s/w/ir/x/w/sdk/pkg/frontend_server/bin/frontend_server_starter.dart:13)
+2026-10-29T07:22:59.4085780Z <asynchronous suspension>
+2026-10-29T07:22:59.4186330Z 
+2026-10-29T07:22:59.4287840Z Target kernel_snapshot_program failed: Exception
+2026-10-29T07:22:59.4388880Z Failed to package /Users/runner/work/ROK/ROK.
+2026-10-29T07:22:59.4490980Z Command PhaseScriptExecution failed with a nonzero exit code
+2026-10-29T07:22:59.4594690Z warning: Run script build phase 'Run Script' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'Flutter Assemble' from project 'Runner')
+2026-10-29T07:22:59.4693920Z ** BUILD FAILED **
+2026-10-29T07:22:59.4795660Z 
+2026-10-29T07:22:59.4896060Z Build process failed
+2026-10-29T07:22:59.5032550Z ##[error]Process completed with exit code 1.

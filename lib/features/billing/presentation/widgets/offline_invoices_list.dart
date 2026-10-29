@@ -9,6 +9,7 @@ import '../../../invoices/models/invoice_record.dart';
 import '../../../invoices/providers/invoices_provider.dart';
 import '../../../payments/presentation/record_payment_dialog.dart';
 import '../../services/invoice_pdf_service.dart';
+import 'payment_reminder_modal.dart';
 import 'pdf_preview_dialog.dart';
 
 class OfflineInvoicesList extends ConsumerWidget {
@@ -385,20 +386,53 @@ class OfflineInvoicesList extends ConsumerWidget {
                         ),
                         onPressed: () => _handlePrint(context, ref, inv),
                       ),
-                      if (inv.status != 'VOID' && inv.balanceDueCents > 0) ...[
+                      if (inv.status != 'VOID') ...[
                         const SizedBox(width: 4),
                         PopupMenuButton<String>(
                           icon: const Icon(Icons.more_vert, size: 18),
                           tooltip: 'More actions',
                           onSelected: (val) {
-                            if (val == 'void') {
-                              ref.read(invoicesProvider.notifier).voidInvoice(inv.id);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Invoice ${inv.invoiceNumber} marked as VOID.')),
+                            if (val == 'reminder') {
+                              showDialog(
+                                context: context,
+                                builder: (_) => PaymentReminderModal(invoice: inv),
+                              );
+                            } else if (val == 'void') {
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Void Invoice'),
+                                  content: Text('Are you sure you want to void invoice ${inv.invoiceNumber}? This action cannot be undone.'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                                    FilledButton(
+                                      style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                      onPressed: () {
+                                        ref.read(invoicesProvider.notifier).voidInvoice(inv.id);
+                                        Navigator.pop(ctx);
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Invoice ${inv.invoiceNumber} marked as VOID.')),
+                                        );
+                                      },
+                                      child: const Text('Void Invoice'),
+                                    ),
+                                  ],
+                                ),
                               );
                             }
                           },
                           itemBuilder: (_) => [
+                            if (inv.balanceDueCents > 0)
+                              const PopupMenuItem(
+                                value: 'reminder',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.send_outlined, size: 16, color: Colors.amber),
+                                    SizedBox(width: 8),
+                                    Text('Send Reminder', style: TextStyle(fontSize: 13)),
+                                  ],
+                                ),
+                              ),
                             const PopupMenuItem(
                               value: 'void',
                               child: Row(

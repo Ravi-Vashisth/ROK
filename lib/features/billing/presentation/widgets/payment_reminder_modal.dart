@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../invoices/models/invoice.dart';
+import '../../../invoices/models/invoice_record.dart';
 
 class PaymentReminderModal extends StatelessWidget {
-  final Invoice invoice;
+  final InvoiceRecord invoice;
 
   const PaymentReminderModal({super.key, required this.invoice});
 
@@ -22,8 +23,11 @@ class PaymentReminderModal extends StatelessWidget {
             leading: const Icon(Icons.copy),
             title: const Text('Copy Reminder Message'),
             onTap: () {
-              // TODO: Implement clipboard copy
+              Clipboard.setData(ClipboardData(text: message));
               Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Payment reminder copied to clipboard!')),
+              );
             },
           ),
           ListTile(

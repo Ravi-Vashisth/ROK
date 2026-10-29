@@ -6,16 +6,13 @@ import '../../../core/theme/theme_provider.dart';
 import '../../../core/utils/csv_export_service.dart';
 import '../../business_profile/presentation/business_profile_dialog.dart';
 import '../../business_profile/providers/business_profile_provider.dart';
-import '../../clients/presentation/clients_tab.dart';
-import '../../clients/providers/clients_provider.dart';
 import '../../dashboard/presentation/dashboard_tab.dart';
-import '../../estimates/presentation/offline_estimates_list.dart';
 import '../../expenses/presentation/expenses_tab.dart';
 import '../../expenses/providers/expenses_provider.dart';
-import '../../items/presentation/items_catalog_tab.dart';
-import '../../settings/presentation/directory_settings_tab.dart';
 import '../../invoices/providers/invoices_provider.dart';
 import 'sales_tab.dart';
+import '../../hub/presentation/hub_settings_tab.dart';
+
 
 class BillingDashboardScreen extends ConsumerStatefulWidget {
   const BillingDashboardScreen({super.key});
@@ -73,15 +70,16 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
     final tabs = [
       DashboardTab(
         onNavigateToInvoices: () => setState(() => _selectedTab = 1),
-        onNavigateToEstimates: () => setState(() => _selectedTab = 2),
-        onNavigateToExpenses: () => setState(() => _selectedTab = 4),
+        onNavigateToEstimates: () => setState(() => _selectedTab = 1),
+        onNavigateToExpenses: () => setState(() => _selectedTab = 2),
       ),
-      const SalesTab(initialSubTab: 0), // Invoices
-      const SalesTab(initialSubTab: 1), // Estimates / Quotes
-      const ClientsTab(),
+      const SalesTab(initialSubTab: 0), // Sales (Invoices/Quotes)
       const ExpensesTab(),
-      const ItemsCatalogTab(),
-      const DirectorySettingsTab(),
+      // Hub & Settings (Clients, Catalog, Settings)
+      // I'll create a new HubSettingsTab or similar. For now, let's just combine the logic here.
+      // Wait, the specification says "Hub & Settings" (Clients, Catalog, Business Profile, Backup/Restore).
+      // I need to implement a HubSettingsTab or something similar.
+      const HubSettingsTab(),
     ];
 
     return LayoutBuilder(
@@ -89,7 +87,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
         final isWide = constraints.maxWidth >= 900;
 
         if (isWide) {
-          // Desktop / Split Window view with vertical NavigationRail (7 items)
+          // Desktop / Split Window view with vertical NavigationRail (4 items)
           return Scaffold(
             body: Row(
               children: [
@@ -127,17 +125,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                     NavigationRailDestination(
                       icon: Icon(Icons.receipt_long_outlined),
                       selectedIcon: Icon(Icons.receipt_long),
-                      label: Text('Invoices'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.request_quote_outlined),
-                      selectedIcon: Icon(Icons.request_quote),
-                      label: Text('Quotes'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.people_alt_outlined),
-                      selectedIcon: Icon(Icons.people_alt),
-                      label: Text('Clients'),
+                      label: Text('Sales'),
                     ),
                     NavigationRailDestination(
                       icon: Icon(Icons.account_balance_wallet_outlined),
@@ -145,14 +133,9 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                       label: Text('Expenses'),
                     ),
                     NavigationRailDestination(
-                      icon: Icon(Icons.inventory_2_outlined),
-                      selectedIcon: Icon(Icons.inventory_2),
-                      label: Text('Catalog'),
-                    ),
-                    NavigationRailDestination(
                       icon: Icon(Icons.settings_outlined),
                       selectedIcon: Icon(Icons.settings),
-                      label: Text('Settings'),
+                      label: Text('Hub'),
                     ),
                   ],
                 ),
@@ -229,7 +212,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
             ),
           );
         } else {
-          // Mobile / Half-screen compact view with BottomNavigationBar + More menu
+          // Mobile / Half-screen compact view with BottomNavigationBar (4 items)
           return Scaffold(
             appBar: AppBar(
               title: const SizedBox.shrink(),
@@ -262,18 +245,13 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
               child: tabs[_selectedTab],
             ),
             bottomNavigationBar: NavigationBar(
-              selectedIndex: _selectedTab > 3 ? 3 : _selectedTab,
-              onDestinationSelected: (index) {
-                if (index == 0) setState(() => _selectedTab = 0);
-                else if (index == 1) setState(() => _selectedTab = 1);
-                else if (index == 2) setState(() => _selectedTab = 4);
-                else if (index == 3) _showMobileMoreMenu(context);
-              },
+              selectedIndex: _selectedTab,
+              onDestinationSelected: (index) => setState(() => _selectedTab = index),
               destinations: const [
                 NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
                 NavigationDestination(icon: Icon(Icons.work_outline), label: 'Sales'),
                 NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), label: 'Expenses'),
-                NavigationDestination(icon: Icon(Icons.menu), label: 'More'),
+                NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Hub'),
               ],
             ),
           );
@@ -282,49 +260,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
     );
   }
 
-  void _showMobileMoreMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.people_alt_outlined),
-              title: const Text('Clients Directory'),
-              onTap: () {
-                Navigator.pop(context);
-                setState(() => _selectedTab = 3);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.account_balance_wallet_outlined),
-              title: const Text('Expenses Hub'),
-              onTap: () {
-                Navigator.pop(context);
-                setState(() => _selectedTab = 4);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.inventory_2_outlined),
-              title: const Text('Items Catalog'),
-              onTap: () {
-                Navigator.pop(context);
-                setState(() => _selectedTab = 5);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings_outlined),
-              title: const Text('Settings & Backup'),
-              onTap: () {
-                Navigator.pop(context);
-                setState(() => _selectedTab = 6);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   String _getColorName(Color color) {
     if (color == const Color(0xFF4F46E5)) return 'Indigo';

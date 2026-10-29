@@ -394,15 +394,8 @@ class InvoicePdfService {
                   ],
                 ),
               ],
-                          _buildCell(formatCents(p.amountCents, symbol: sym), align: pw.TextAlign.right, isBold: true),
-                        ],
-                      );
-                    }),
-                  ],
                 ),
               ],
-
-              pw.SizedBox(height: 12),
 
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.end,

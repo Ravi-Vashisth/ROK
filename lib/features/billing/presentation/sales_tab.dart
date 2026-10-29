@@ -5,20 +5,22 @@ import '../../clients/providers/clients_provider.dart';
 import '../../estimates/presentation/estimate_inputs_card.dart';
 import '../../estimates/presentation/offline_estimates_list.dart';
 import '../../estimates/providers/estimates_provider.dart';
+import '../../invoices/presentation/invoice_editor_screen.dart';
 import '../../invoices/providers/invoices_provider.dart';
 import 'widgets/client_autocomplete_picker.dart';
 import 'widgets/invoice_inputs_card.dart';
 import 'widgets/offline_invoices_list.dart';
 
 class SalesTab extends ConsumerStatefulWidget {
-  const SalesTab({super.key});
+  final int initialSubTab;
+  const SalesTab({super.key, this.initialSubTab = 0});
 
   @override
   ConsumerState<SalesTab> createState() => _SalesTabState();
 }
 
 class _SalesTabState extends ConsumerState<SalesTab> {
-  int _subTab = 0; // 0 = Invoices, 1 = Estimates
+  late int _subTab = widget.initialSubTab; // 0 = Invoices, 1 = Estimates
   String? _selectedClientId;
 
   // Filter & Search state
@@ -112,41 +114,76 @@ class _SalesTabState extends ConsumerState<SalesTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 12,
           children: [
             Text(
               'Sales & Proposals Hub',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
-            ToggleButtons(
-              isSelected: [_subTab == 0, _subTab == 1],
-              onPressed: (index) {
-                setState(() => _subTab = index);
-              },
-              borderRadius: BorderRadius.circular(8),
-              constraints: const BoxConstraints(minHeight: 36, minWidth: 100),
-              children: const [
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Row(
-                    children: [
-                      Icon(Icons.receipt_outlined, size: 16),
-                      SizedBox(width: 6),
-                      Text('Invoices', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ],
-                  ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ToggleButtons(
+                  isSelected: [_subTab == 0, _subTab == 1],
+                  onPressed: (index) {
+                    setState(() => _subTab = index);
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  constraints: const BoxConstraints(minHeight: 36, minWidth: 100),
+                  children: const [
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        children: [
+                          Icon(Icons.receipt_outlined, size: 16),
+                          SizedBox(width: 6),
+                          Text('Invoices', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        children: [
+                          Icon(Icons.request_quote_outlined, size: 16),
+                          SizedBox(width: 6),
+                          Text('Estimates', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Row(
-                    children: [
-                      Icon(Icons.request_quote_outlined, size: 16),
-                      SizedBox(width: 6),
-                      Text('Estimates', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ],
+                const SizedBox(width: 12),
+                if (_subTab == 0)
+                  FilledButton.icon(
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Create Invoice'),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const InvoiceEditorScreen(isQuote: false),
+                        ),
+                      );
+                    },
+                  )
+                else
+                  FilledButton.icon(
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('New Quote'),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const InvoiceEditorScreen(isQuote: true),
+                        ),
+                      );
+                    },
                   ),
-                ),
               ],
             ),
           ],
@@ -182,6 +219,12 @@ class _SalesTabState extends ConsumerState<SalesTab> {
             searchQuery: _searchController.text,
             statusFilter: _statusFilter,
             dateFilter: _dateFilter,
+            onViewInvoice: (invNum) {
+              setState(() {
+                _subTab = 0;
+                _searchController.text = invNum;
+              });
+            },
           ),
         ],
       ],

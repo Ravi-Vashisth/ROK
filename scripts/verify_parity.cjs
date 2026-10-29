@@ -7,7 +7,7 @@ const srcFile = path.join(__dirname, '../src/App.tsx');
 function verifyTabs() {
     console.log('Verifying Tab Parity...');
     const flutterTabs = ['dashboard', 'billing', 'expenses', 'settings']; // based on directory structure
-    const reactTabs = ['Dashboard', 'Sales', 'Expenses', 'Directory']; // check names in App.tsx
+    const reactTabs = ['Dashboard', 'Sales', 'Expenses', 'Hub']; // check names in App.tsx
 
     flutterTabs.forEach(tab => {
         if (!fs.existsSync(path.join(libDir, tab))) {

@@ -15,12 +15,14 @@ class OfflineEstimatesList extends ConsumerWidget {
   final String searchQuery;
   final String statusFilter;
   final String dateFilter;
+  final Function(String invoiceNumber)? onViewInvoice;
 
   const OfflineEstimatesList({
     super.key,
     this.searchQuery = '',
     this.statusFilter = 'All',
     this.dateFilter = 'All Time',
+    this.onViewInvoice,
   });
 
   @override
@@ -145,16 +147,35 @@ class OfflineEstimatesList extends ConsumerWidget {
                       const SizedBox(height: 8),
                       Text('Issue: ${est.issueDate} • Valid Until: ${est.expiryDate}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
                       if (isConverted && convertedInvoice != null) ...[
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Icon(Icons.arrow_forward, size: 14, color: Colors.green.shade700),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Converted to Invoice: ${convertedInvoice.invoiceNumber}',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                        const SizedBox(height: 8),
+                        InkWell(
+                          onTap: () {
+                            if (onViewInvoice != null) {
+                              onViewInvoice!(convertedInvoice.invoiceNumber);
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.green.shade300),
                             ),
-                          ],
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.receipt_outlined, size: 14, color: Colors.green.shade800),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'View Invoice: ${convertedInvoice.invoiceNumber}',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(Icons.arrow_forward, size: 13, color: Colors.green.shade800),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                       const SizedBox(height: 12),
