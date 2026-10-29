@@ -18,31 +18,19 @@ class DashboardTab extends ConsumerWidget {
     required this.onNavigateToExpenses,
   });
 
-  void _handleExportCsv(BuildContext context, WidgetRef ref) async {
+  void _handleExportCsv(BuildContext context, WidgetRef ref) {
     final invoices = ref.read(invoicesProvider);
     final expenses = ref.read(expensesProvider);
     final clients = ref.read(clientsProvider);
     final profile = ref.read(businessProfileProvider);
 
-    try {
-      await CsvExportService.downloadCsvFile(
-        invoices: invoices,
-        expenses: expenses,
-        clients: clients,
-        currencySymbol: profile.currencySymbol,
-      );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comprehensive P&L Report CSV downloaded successfully!')),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export Error: $e')),
-        );
-      }
-    }
+    CsvExportService.showExportModal(
+      context: context,
+      invoices: invoices,
+      expenses: expenses,
+      clients: clients,
+      currencySymbol: profile.currencySymbol,
+    );
   }
 
   @override

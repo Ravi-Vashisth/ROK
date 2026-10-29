@@ -1,0 +1,15 @@
+﻿2026-10-29T05:39:15.7121425Z ##[group]Run flutter build windows --release
+2026-10-29T05:39:15.7121997Z [36;1mflutter build windows --release[0m
+2026-10-29T05:39:15.7194765Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-29T05:39:15.7195127Z env:
+2026-10-29T05:39:15.7195402Z   FLUTTER_ROOT: C:\hostedtoolcache\windows\flutter\stable-3.47.8-x64
+2026-10-29T05:39:15.7195840Z   PUB_CACHE: C:\Users\runneradmin\AppData\Local\Pub\Cache
+2026-10-29T05:39:15.7196210Z ##[endgroup]
+2026-10-29T05:39:49.0751061Z Building Windows application...                                 
+2026-10-29T05:39:49.0761438Z lib/features/dashboard/presentation/dashboard_tab.dart(28,30): error G75B77105: Member not found: 'CsvExportService.downloadCsvFile'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T05:39:49.0764152Z lib/features/expenses/presentation/expenses_tab.dart(162,21): error GC6690633: No named parameter with the name 'maxHeight'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T05:39:49.0769165Z lib/features/expenses/presentation/expenses_tab.dart(170,35): error G75B77105: Member not found: 'slate'. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T05:39:57.2250312Z C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(254,5): error MSB8066: Custom build for 'D:\a\ROK\ROK\build\windows\x64\CMakeFiles\19627551d09c41d4165d7d6420f9c6ec\flutter_windows.dll.rule;D:\a\ROK\ROK\build\windows\x64\CMakeFiles\d6ed33900a02492419d4f80071b9737c\flutter_assemble.rule;D:\a\ROK\ROK\windows\flutter\CMakeLists.txt' exited with code 1. [D:\a\ROK\ROK\build\windows\x64\flutter\flutter_assemble.vcxproj]
+2026-10-29T05:40:22.9211221Z Building Windows application...                                    65.4s
+2026-10-29T05:40:22.9241215Z Build process failed.
+2026-10-29T05:40:23.0395835Z ##[error]Process completed with exit code 1.

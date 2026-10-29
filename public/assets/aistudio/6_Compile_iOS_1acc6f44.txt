@@ -1,0 +1,59 @@
+﻿2026-10-29T05:37:27.2671920Z ##[group]Run if [ -n "$IOS_DEV_TEAM" ]; then
+2026-10-29T05:37:27.2672270Z [36;1mif [ -n "$IOS_DEV_TEAM" ]; then[0m
+2026-10-29T05:37:27.2672590Z [36;1m  echo "Building iOS Release for device with Development Team..."[0m
+2026-10-29T05:37:27.2673040Z [36;1m  flutter build ios --release --no-codesign[0m
+2026-10-29T05:37:27.2673540Z [36;1m  ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app billing_app_ios_unsigned.zip[0m
+2026-10-29T05:37:27.2673970Z [36;1melse[0m
+2026-10-29T05:37:27.2674370Z [36;1m  echo "No Development Team secret found; compiling iOS Simulator build (no codesigning required)..."[0m
+2026-10-29T05:37:27.2674800Z [36;1m  flutter build ios --simulator[0m
+2026-10-29T05:37:27.2675280Z [36;1m  ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app billing_app_ios_unsigned.zip[0m
+2026-10-29T05:37:27.2675710Z [36;1mfi[0m
+2026-10-29T05:37:27.2710160Z shell: /bin/bash -e {0}
+2026-10-29T05:37:27.2710400Z env:
+2026-10-29T05:37:27.2710680Z   FLUTTER_ROOT: /Users/runner/hostedtoolcache/flutter/stable-3.47.8-arm64
+2026-10-29T05:37:27.2711150Z   PUB_CACHE: /Users/runner/.pub-cache
+2026-10-29T05:37:27.2711390Z   IOS_DEV_TEAM: 
+2026-10-29T05:37:27.2711590Z ##[endgroup]
+2026-10-29T05:37:27.3293430Z No Development Team secret found; compiling iOS Simulator build (no codesigning required)...
+2026-10-29T05:37:51.3545350Z Xcode is fetching Swift Package Manager dependencies. This may take several minutes...
+2026-10-29T05:37:53.8309830Z   Fetching from https://github.com/zhangao0086/DKImagePickerController...     
+2026-10-29T05:37:56.7507050Z   Fetching from https://github.com/simolus3/CSQLite.git...      
+2026-10-29T05:37:58.0343400Z   Fetching from https://github.com/zhangao0086/DKCamera...      
+2026-10-29T05:37:59.8262440Z   Fetching from https://github.com/zhangao0086/DKPhotoGallery...     
+2026-10-29T05:38:04.6122460Z   Fetching from https://github.com/kirualex/SwiftyGif.git...     
+2026-10-29T05:38:04.6175150Z   Fetching from https://github.com/SDWebImage/SDWebImage...     
+2026-10-29T05:38:10.8923170Z   Fetching from https://github.com/TimOliver/TOCropViewController...     
+2026-10-29T05:38:18.2486090Z Building com.example.billingApp for simulator (ios)...
+2026-10-29T05:40:00.9722340Z Running Xcode build...                                          
+2026-10-29T05:40:00.9812370Z Xcode build done.                                           99.5s
+2026-10-29T05:40:02.6124630Z Failed to build iOS app
+2026-10-29T05:40:02.6221920Z Error output from Xcode build:
+2026-10-29T05:40:02.6233240Z ↳
+2026-10-29T05:40:02.6234890Z     ** BUILD FAILED **
+2026-10-29T05:40:02.6237100Z 
+2026-10-29T05:40:02.6237130Z 
+2026-10-29T05:40:02.6237430Z Xcode's output:
+2026-10-29T05:40:02.6238030Z ↳
+2026-10-29T05:40:02.6238770Z     Writing result bundle at path:
+2026-10-29T05:40:02.6239740Z     	/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/flutter_tools.jp2dMd/flutter_ios_build_temp_dir9AlXZD/temporary_xcresult_bundle
+2026-10-29T05:40:02.6240560Z 
+2026-10-29T05:40:02.6242300Z     lib/features/dashboard/presentation/dashboard_tab.dart:28:30: Error: Member not found: 'CsvExportService.downloadCsvFile'.
+2026-10-29T05:40:02.6244990Z           await CsvExportService.downloadCsvFile(
+2026-10-29T05:40:02.6247010Z                                  ^^^^^^^^^^^^^^^
+2026-10-29T05:40:02.6247830Z     lib/features/expenses/presentation/expenses_tab.dart:162:21: Error: No named parameter with the name 'maxHeight'.
+2026-10-29T05:40:02.6250890Z                         maxHeight: 320,
+2026-10-29T05:40:02.6252610Z                         ^^^^^^^^^
+2026-10-29T05:40:02.6253530Z     ../../../hostedtoolcache/flutter/stable-3.47.8-arm64/packages/flutter/lib/src/widgets/image.dart:741:3: Context: Found this candidate, but the arguments don't match.
+2026-10-29T05:40:02.6255120Z       Image.memory(
+2026-10-29T05:40:02.6255420Z       ^^^^^^^^^^^^
+2026-10-29T05:40:02.6256060Z     lib/features/expenses/presentation/expenses_tab.dart:170:35: Error: Member not found: 'slate'.
+2026-10-29T05:40:02.6258960Z                         color: Colors.slate.shade100,
+2026-10-29T05:40:02.6282130Z                                       ^^^^^
+2026-10-29T05:40:02.6282860Z     Target kernel_snapshot_program failed: Exception
+2026-10-29T05:40:02.6283530Z     Failed to package /Users/runner/work/ROK/ROK.
+2026-10-29T05:40:02.6284120Z     Command PhaseScriptExecution failed with a nonzero exit code
+2026-10-29T05:40:02.6285330Z     note: Run script build phase 'Run Script' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+2026-10-29T05:40:02.6287480Z     note: Run script build phase 'Thin Binary' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+2026-10-29T05:40:02.6288330Z 
+2026-10-29T05:40:02.6308450Z Encountered error while building for simulator.
+2026-10-29T05:40:02.6540010Z ##[error]Process completed with exit code 1.

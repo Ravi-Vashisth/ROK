@@ -1,0 +1,30 @@
+﻿2026-10-29T05:37:57.8626920Z ##[group]Run flutter build macos --release
+2026-10-29T05:37:57.8627510Z [36;1mflutter build macos --release[0m
+2026-10-29T05:37:57.8667650Z shell: /bin/bash -e {0}
+2026-10-29T05:37:57.8668090Z env:
+2026-10-29T05:37:57.8668490Z   FLUTTER_ROOT: /Users/runner/hostedtoolcache/flutter/stable-3.47.8-arm64
+2026-10-29T05:37:57.8668980Z   PUB_CACHE: /Users/runner/.pub-cache
+2026-10-29T05:37:57.8669400Z ##[endgroup]
+2026-10-29T05:38:26.5212000Z Xcode is fetching Swift Package Manager dependencies. This may take several minutes...
+2026-10-29T05:38:30.5112430Z   Fetching from https://github.com/simolus3/CSQLite.git...      
+2026-10-29T05:39:55.0955160Z Building macOS application...                                   
+2026-10-29T05:39:55.1034460Z lib/features/dashboard/presentation/dashboard_tab.dart:28:30: Error: Member not found: 'CsvExportService.downloadCsvFile'.
+2026-10-29T05:39:55.1134920Z       await CsvExportService.downloadCsvFile(
+2026-10-29T05:39:55.1237230Z                              ^^^^^^^^^^^^^^^
+2026-10-29T05:39:55.1340180Z lib/features/expenses/presentation/expenses_tab.dart:162:21: Error: No named parameter with the name 'maxHeight'.
+2026-10-29T05:39:55.1442270Z                     maxHeight: 320,
+2026-10-29T05:39:55.1544410Z                     ^^^^^^^^^
+2026-10-29T05:39:55.1646880Z ../../../hostedtoolcache/flutter/stable-3.47.8-arm64/packages/flutter/lib/src/widgets/image.dart:741:3: Context: Found this candidate, but the arguments don't match.
+2026-10-29T05:39:55.1774800Z   Image.memory(
+2026-10-29T05:39:55.1903110Z   ^^^^^^^^^^^^
+2026-10-29T05:39:55.2077490Z lib/features/expenses/presentation/expenses_tab.dart:170:35: Error: Member not found: 'slate'.
+2026-10-29T05:39:55.2190660Z                     color: Colors.slate.shade100,
+2026-10-29T05:39:55.2294140Z                                   ^^^^^
+2026-10-29T05:39:55.2423460Z Target kernel_snapshot_program failed: Exception
+2026-10-29T05:39:55.2526120Z Failed to package /Users/runner/work/ROK/ROK.
+2026-10-29T05:39:55.2627920Z Command PhaseScriptExecution failed with a nonzero exit code
+2026-10-29T05:39:55.2731020Z warning: Run script build phase 'Run Script' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'Flutter Assemble' from project 'Runner')
+2026-10-29T05:39:55.2835060Z ** BUILD FAILED **
+2026-10-29T05:39:55.2936510Z 
+2026-10-29T05:39:55.4158300Z Build process failed
+2026-10-29T05:39:55.4235220Z ##[error]Process completed with exit code 1.

@@ -159,7 +159,7 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                   borderRadius: BorderRadius.circular(8),
                   child: Image.memory(
                     base64Decode(item.receiptBase64.split(',').last),
-                    maxHeight: 320,
+                    height: 280,
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -167,7 +167,7 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.slate.shade100,
+                    color: const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Column(
