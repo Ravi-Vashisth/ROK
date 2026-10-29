@@ -32,6 +32,7 @@ class EstimateInputsCard extends ConsumerStatefulWidget {
 
 class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
   final _descriptionController = TextEditingController();
+  final _sacHsnController = TextEditingController();
   final _unitPriceController = TextEditingController();
   final _quantityController = TextEditingController(text: '1');
   final _taxPercentageController = TextEditingController(text: '10');
@@ -63,14 +64,15 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
     _notesController = TextEditingController(text: profile.defaultNotes);
 
     _cartItems.addAll(const [
-      DraftItem(description: 'System Architecture Proposal', unitPriceCents: 12000, quantity: 1, totalCents: 12000),
-      DraftItem(description: 'UI/UX Design Mockups', unitPriceCents: 8000, quantity: 1, totalCents: 8000),
+      DraftItem(description: 'System Architecture Proposal', sacHsn: '998311', unitPriceCents: 12000, quantity: 1, totalCents: 12000),
+      DraftItem(description: 'UI/UX Design Mockups', sacHsn: '998314', unitPriceCents: 8000, quantity: 1, totalCents: 8000),
     ]);
   }
 
   @override
   void dispose() {
     _descriptionController.dispose();
+    _sacHsnController.dispose();
     _unitPriceController.dispose();
     _quantityController.dispose();
     _taxPercentageController.dispose();
@@ -87,6 +89,7 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
       _selectedSavedItem = item;
       if (item != null) {
         _descriptionController.text = item.title;
+        _sacHsnController.text = item.sacHsn;
         _unitPriceController.text = (item.defaultPriceCents / 100.0).toStringAsFixed(2);
       }
     });
@@ -94,6 +97,7 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
 
   void _addCartItem() {
     final desc = _descriptionController.text.trim();
+    final sacHsn = _sacHsnController.text.trim();
     if (desc.isEmpty) return;
 
     final unitPriceCents = parsePriceToCents(_unitPriceController.text);
@@ -103,6 +107,7 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
     if (_saveAsPreset) {
       ref.read(savedItemsProvider.notifier).addItem(
             title: desc,
+            sacHsn: sacHsn,
             defaultPriceCents: unitPriceCents,
             description: '',
           );
@@ -115,12 +120,14 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
       _cartItems.add(
         DraftItem(
           description: desc,
+          sacHsn: sacHsn,
           unitPriceCents: unitPriceCents,
           quantity: quantity,
           totalCents: unitPriceCents * quantity,
         ),
       );
       _descriptionController.clear();
+      _sacHsnController.clear();
       _unitPriceController.clear();
       _quantityController.text = '1';
       _saveAsPreset = false;
@@ -245,7 +252,18 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _sacHsnController,
+                    decoration: const InputDecoration(
+                      labelText: 'SAC / HSN',
+                      hintText: '998311',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   flex: 2,
                   child: TextField(
@@ -257,7 +275,7 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   flex: 1,
                   child: TextField(
@@ -266,7 +284,7 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
                     decoration: const InputDecoration(labelText: 'Qty'),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 IconButton.filledTonal(
                   onPressed: _addCartItem,
                   icon: const Icon(Icons.add_shopping_cart),
@@ -307,7 +325,7 @@ class _EstimateInputsCardState extends ConsumerState<EstimateInputsCard> {
                     return ListTile(
                       dense: true,
                       title: Text(item.description, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text('${item.quantity} × ${formatCents(item.unitPriceCents, symbol: sym)}'),
+                      subtitle: Text('${item.sacHsn.isNotEmpty ? "SAC/HSN: ${item.sacHsn} • " : ""}${item.quantity} × ${formatCents(item.unitPriceCents, symbol: sym)}'),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [

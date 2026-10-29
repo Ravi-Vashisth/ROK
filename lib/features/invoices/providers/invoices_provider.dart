@@ -11,12 +11,14 @@ import '../models/invoice_record.dart';
 /// Lightweight representation of an in-memory draft line item before committing to SQLite.
 class DraftItem {
   final String description;
+  final String sacHsn;
   final int unitPriceCents;
   final int quantity;
   final int totalCents;
 
   const DraftItem({
     required this.description,
+    this.sacHsn = '',
     required this.unitPriceCents,
     required this.quantity,
     required this.totalCents,
@@ -50,7 +52,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
         i.discount_value,
         i.discount_cents,
         i.created_at,
-        COALESCE(SUM(p.amount_cents), 0) AS paid_cents
+        COALESCE(SUM(CASE WHEN p.amount_received_cents > 0 OR p.tds_cents > 0 THEN p.amount_received_cents + p.tds_cents ELSE p.amount_cents END), 0) AS paid_cents
       FROM invoices i
       LEFT JOIN clients c ON i.client_id = c.id
       LEFT JOIN payments p ON i.id = p.invoice_id
@@ -192,8 +194,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
 
       final itemStmt = _db.prepare('''
         INSERT INTO invoice_items (
-          id, invoice_id, description, quantity, unit_price_cents, total_cents, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          id, invoice_id, description, sac_hsn, quantity, unit_price_cents, total_cents, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         for (final item in items) {
@@ -202,6 +204,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
             itemId,
             invoiceId,
             item.description,
+            item.sacHsn,
             item.quantity,
             item.unitPriceCents,
             item.totalCents,
@@ -296,8 +299,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
 
       final itemStmt = _db.prepare('''
         INSERT INTO invoice_items (
-          id, invoice_id, description, quantity, unit_price_cents, total_cents, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          id, invoice_id, description, sac_hsn, quantity, unit_price_cents, total_cents, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         for (final item in sourceItems) {
@@ -306,6 +309,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
             newItemId,
             newInvoiceId,
             item.description,
+            item.sacHsn,
             item.quantity,
             item.unitPriceCents,
             item.totalCents,
@@ -330,12 +334,18 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
   void recordPayment({
     required String invoiceId,
     required int amountCents,
+    int amountReceivedCents = 0,
+    int tdsCents = 0,
+    String referenceNumber = '',
     required String paymentMethod,
     required DateTime paymentDate,
     String notes = '',
   }) {
-    if (amountCents <= 0) {
-      throw ArgumentError('Payment amount must be greater than zero.');
+    final effectiveReceived = (amountReceivedCents == 0 && tdsCents == 0) ? amountCents : amountReceivedCents;
+    final totalCreditCents = effectiveReceived + tdsCents;
+
+    if (totalCreditCents <= 0) {
+      throw ArgumentError('Total payment credit must be greater than zero.');
     }
 
     final paymentId = generateUniqueId();
@@ -347,14 +357,17 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     try {
       final stmt = _db.prepare('''
         INSERT INTO payments (
-          id, invoice_id, amount_cents, payment_method, payment_date, notes, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          id, invoice_id, amount_cents, amount_received_cents, tds_cents, reference_number, payment_method, payment_date, notes, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         stmt.execute([
           paymentId,
           invoiceId,
-          amountCents,
+          totalCreditCents,
+          effectiveReceived,
+          tdsCents,
+          referenceNumber,
           paymentMethod,
           paymentDateStr,
           notes,
@@ -365,23 +378,26 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
       }
 
       final paidRes = _db.select(
-        'SELECT COALESCE(SUM(amount_cents), 0) AS total_paid FROM payments WHERE invoice_id = ?',
+        'SELECT COALESCE(SUM(CASE WHEN amount_received_cents > 0 OR tds_cents > 0 THEN amount_received_cents + tds_cents ELSE amount_cents END), 0) AS total_paid FROM payments WHERE invoice_id = ?',
         [invoiceId],
       );
       final totalPaid = (paidRes.first['total_paid'] as int?) ?? 0;
 
       final invRes = _db.select(
-        'SELECT total_cents FROM invoices WHERE id = ?',
+        'SELECT total_cents, status FROM invoices WHERE id = ?',
         [invoiceId],
       );
       if (invRes.isNotEmpty) {
         final totalCents = invRes.first['total_cents'] as int;
-        final newStatus = totalPaid >= totalCents ? 'PAID' : (totalPaid > 0 ? 'PARTIALLY_PAID' : 'PENDING');
-        final updateStmt = _db.prepare('UPDATE invoices SET status = ? WHERE id = ?');
-        try {
-          updateStmt.execute([newStatus, invoiceId]);
-        } finally {
-          updateStmt.dispose();
+        final currentStatus = (invRes.first['status'] as String?) ?? 'PENDING';
+        if (currentStatus != 'VOID') {
+          final newStatus = totalPaid >= totalCents ? 'PAID' : (totalPaid > 0 ? 'PARTIALLY_PAID' : 'PENDING');
+          final updateStmt = _db.prepare('UPDATE invoices SET status = ? WHERE id = ?');
+          try {
+            updateStmt.execute([newStatus, invoiceId]);
+          } finally {
+            updateStmt.dispose();
+          }
         }
       }
 

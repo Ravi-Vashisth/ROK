@@ -18,7 +18,9 @@ class RecordPaymentDialog extends ConsumerStatefulWidget {
 }
 
 class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
-  final _amountController = TextEditingController();
+  final _amountReceivedController = TextEditingController();
+  final _tdsController = TextEditingController(text: '0.00');
+  final _refNumberController = TextEditingController();
   final _notesController = TextEditingController();
   String _selectedMethod = 'Bank Wire';
   late DateTime _selectedDate;
@@ -38,19 +40,22 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
     _selectedDate = DateTime.now();
     // Default to the remaining balance due
     final initialDollars = (widget.invoice.balanceDueCents / 100.0).toStringAsFixed(2);
-    _amountController.text = initialDollars;
+    _amountReceivedController.text = initialDollars;
   }
 
   @override
   void dispose() {
-    _amountController.dispose();
+    _amountReceivedController.dispose();
+    _tdsController.dispose();
+    _refNumberController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
   void _applyPresetAmount(int cents) {
     setState(() {
-      _amountController.text = (cents / 100.0).toStringAsFixed(2);
+      _amountReceivedController.text = (cents / 100.0).toStringAsFixed(2);
+      _tdsController.text = '0.00';
       _errorMessage = null;
     });
   }
@@ -70,18 +75,21 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
   }
 
   void _submitPayment() {
-    final cents = parsePriceToCents(_amountController.text);
-    if (cents <= 0) {
+    final amountReceivedCents = parsePriceToCents(_amountReceivedController.text);
+    final tdsCents = parsePriceToCents(_tdsController.text);
+    final totalCreditCents = amountReceivedCents + tdsCents;
+
+    if (totalCreditCents <= 0) {
       setState(() {
-        _errorMessage = 'Payment amount must be greater than zero.';
+        _errorMessage = 'Total payment credit (Amount Received + TDS) must be greater than zero.';
       });
       return;
     }
 
-    if (cents > widget.invoice.balanceDueCents) {
+    if (totalCreditCents > widget.invoice.balanceDueCents) {
       setState(() {
         _errorMessage =
-            'Amount cannot exceed remaining balance due (${formatCents(widget.invoice.balanceDueCents)}).';
+            'Total credit (${formatCents(totalCreditCents)}) cannot exceed remaining balance due (${formatCents(widget.invoice.balanceDueCents)}).';
       });
       return;
     }
@@ -89,7 +97,10 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
     try {
       ref.read(invoicesProvider.notifier).recordPayment(
             invoiceId: widget.invoice.id,
-            amountCents: cents,
+            amountCents: totalCreditCents,
+            amountReceivedCents: amountReceivedCents,
+            tdsCents: tdsCents,
+            referenceNumber: _refNumberController.text.trim(),
             paymentMethod: _selectedMethod,
             paymentDate: _selectedDate,
             notes: _notesController.text.trim(),
@@ -99,7 +110,9 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Payment of ${formatCents(cents)} recorded successfully.'),
+          content: Text(
+            'Recorded ${formatCents(amountReceivedCents)} received${tdsCents > 0 ? " (+${formatCents(tdsCents)} TDS)" : ""}. Total credit: ${formatCents(totalCreditCents)}.',
+          ),
           backgroundColor: Colors.green.shade800,
         ),
       );
@@ -120,7 +133,7 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 500),
+        constraints: const BoxConstraints(maxWidth: 520),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -135,7 +148,7 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Record Payment',
+                        'Record Payment & TDS',
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -173,7 +186,7 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
                       color: theme.colorScheme.onSurface,
                     ),
                     _SummaryColumn(
-                      label: 'Paid to Date',
+                      label: 'Credited to Date',
                       value: formatCents(inv.paidCents),
                       color: Colors.green.shade700,
                     ),
@@ -217,38 +230,83 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
                 const SizedBox(height: 16),
               ],
 
-              // Amount Field
-              TextFormField(
-                controller: _amountController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: 'Payment Amount (\$ USD) *',
-                  prefixText: '\$ ',
-                  hintText: '0.00',
-                  border: const OutlineInputBorder(),
-                  errorText: _errorMessage,
-                ),
+              // Amount Received & TDS Fields Row
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: TextFormField(
+                      controller: _amountReceivedController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(
+                        labelText: 'Amount Received in Bank *',
+                        hintText: '0.00',
+                        border: const OutlineInputBorder(),
+                        errorText: _errorMessage != null ? '' : null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      controller: _tdsController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'TDS / Tax Withheld',
+                        hintText: '0.00',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
               ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+              ],
               const SizedBox(height: 16),
 
-              // Payment Method Dropdown
-              DropdownButtonFormField<String>(
-                value: _selectedMethod,
-                decoration: const InputDecoration(
-                  labelText: 'Payment Method *',
-                  border: OutlineInputBorder(),
-                ),
-                items: _methods.map((method) {
-                  return DropdownMenuItem(
-                    value: method,
-                    child: Text(method),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _selectedMethod = val);
-                  }
-                },
+              // Payment Method & Reference Number
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedMethod,
+                      decoration: const InputDecoration(
+                        labelText: 'Payment Method *',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _methods.map((method) {
+                        return DropdownMenuItem(
+                          value: method,
+                          child: Text(method),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => _selectedMethod = val);
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: TextFormField(
+                      controller: _refNumberController,
+                      decoration: const InputDecoration(
+                        labelText: 'Bank Ref / UTR No.',
+                        hintText: 'e.g. UTR982310',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
 
@@ -274,8 +332,8 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
               TextFormField(
                 controller: _notesController,
                 decoration: const InputDecoration(
-                  labelText: 'Notes / Reference (Optional)',
-                  hintText: 'e.g., Wire ref #TX-9021, PayPal ID, Check #104',
+                  labelText: 'Notes / Payment Remarks (Optional)',
+                  hintText: 'e.g., Client deducted 10% TDS under Sec 194J',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -292,7 +350,7 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
                   const SizedBox(width: 12),
                   FilledButton.icon(
                     icon: const Icon(Icons.payment),
-                    label: const Text('Record Payment'),
+                    label: const Text('Record Payment & Credit Ledger'),
                     onPressed: _submitPayment,
                   ),
                 ],

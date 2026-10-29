@@ -33,6 +33,7 @@ class InvoiceInputsCard extends ConsumerStatefulWidget {
 
 class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
   final _descriptionController = TextEditingController();
+  final _sacHsnController = TextEditingController();
   final _priceController = TextEditingController();
   final _quantityController = TextEditingController(text: '1');
   final _taxPercentageController = TextEditingController(text: '10');
@@ -70,6 +71,7 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
   @override
   void dispose() {
     _descriptionController.dispose();
+    _sacHsnController.dispose();
     _priceController.dispose();
     _quantityController.dispose();
     _taxPercentageController.dispose();
@@ -103,6 +105,7 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
       _selectedSavedItem = item;
       if (item != null) {
         _descriptionController.text = item.title;
+        _sacHsnController.text = item.sacHsn;
         _priceController.text = (item.defaultPriceCents / 100.0).toStringAsFixed(2);
       }
     });
@@ -110,6 +113,7 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
 
   void _handleAddLineItem() {
     final description = _descriptionController.text.trim();
+    final sacHsn = _sacHsnController.text.trim();
     if (description.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter an item description.')),
@@ -138,6 +142,7 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
     if (_saveAsPreset) {
       ref.read(savedItemsProvider.notifier).addItem(
             title: description,
+            sacHsn: sacHsn,
             defaultPriceCents: unitPriceCents,
             description: '',
           );
@@ -149,11 +154,13 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
     setState(() {
       _draftItems.add(DraftItem(
         description: description,
+        sacHsn: sacHsn,
         unitPriceCents: unitPriceCents,
         quantity: quantity,
         totalCents: totalCents,
       ));
       _descriptionController.clear();
+      _sacHsnController.clear();
       _priceController.clear();
       _quantityController.text = '1';
       _saveAsPreset = false;
@@ -392,7 +399,7 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
             Row(
               children: [
                 Expanded(
-                  flex: 5,
+                  flex: 4,
                   child: TextField(
                     controller: _descriptionController,
                     decoration: const InputDecoration(
@@ -401,7 +408,18 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _sacHsnController,
+                    decoration: const InputDecoration(
+                      labelText: 'SAC / HSN',
+                      hintText: '998311',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   flex: 2,
                   child: TextField(
@@ -414,9 +432,9 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
-                  flex: 2,
+                  flex: 1,
                   child: TextField(
                     controller: _quantityController,
                     keyboardType: TextInputType.number,
@@ -426,7 +444,7 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 FilledButton.tonalIcon(
                   onPressed: _handleAddLineItem,
                   icon: const Icon(Icons.add_shopping_cart, size: 18),
@@ -480,8 +498,9 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
                       color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                       child: const Row(
                         children: [
-                          Expanded(flex: 5, child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                          Expanded(flex: 2, child: Text('Qty', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                          Expanded(flex: 4, child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                          Expanded(flex: 2, child: Text('SAC / HSN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                          Expanded(flex: 1, child: Text('Qty', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                           Expanded(flex: 2, child: Text('Unit Price', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                           Expanded(flex: 2, child: Text('Total', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                           SizedBox(width: 48),
@@ -499,8 +518,9 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           child: Row(
                             children: [
-                              Expanded(flex: 5, child: Text(item.description, style: const TextStyle(fontWeight: FontWeight.w500))),
-                              Expanded(flex: 2, child: Text('${item.quantity}', textAlign: TextAlign.center)),
+                              Expanded(flex: 4, child: Text(item.description, style: const TextStyle(fontWeight: FontWeight.w500))),
+                              Expanded(flex: 2, child: Text(item.sacHsn.isNotEmpty ? item.sacHsn : '-', style: const TextStyle(fontSize: 12, color: Colors.grey))),
+                              Expanded(flex: 1, child: Text('${item.quantity}', textAlign: TextAlign.center)),
                               Expanded(flex: 2, child: Text(formatCents(item.unitPriceCents, symbol: sym), textAlign: TextAlign.right)),
                               Expanded(
                                 flex: 2,

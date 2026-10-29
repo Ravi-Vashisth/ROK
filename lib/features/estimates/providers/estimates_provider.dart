@@ -147,8 +147,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
 
       final itemStmt = _db.prepare('''
         INSERT INTO estimate_items (
-          id, estimate_id, description, quantity, unit_price_cents, total_cents, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          id, estimate_id, description, sac_hsn, quantity, unit_price_cents, total_cents, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         for (final item in items) {
@@ -157,6 +157,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
             itemId,
             estimateId,
             item.description,
+            item.sacHsn,
             item.quantity,
             item.unitPriceCents,
             item.totalCents,
@@ -201,6 +202,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     final draftItems = items
         .map((it) => DraftItem(
               description: it.description,
+              sacHsn: it.sacHsn,
               unitPriceCents: it.unitPriceCents,
               quantity: it.quantity,
               totalCents: it.totalCents,

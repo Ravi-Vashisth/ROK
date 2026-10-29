@@ -57,7 +57,9 @@ class InvoiceRecord {
 
     final totalCents = row['total_cents'] as int;
     final paidCents = (row['paid_cents'] as int?) ?? 0;
-    final balanceDueCents = (totalCents - paidCents) > 0 ? (totalCents - paidCents) : 0;
+    final status = (row['status'] as String?) ?? 'PENDING';
+    final isVoid = status.toUpperCase() == 'VOID';
+    final balanceDueCents = isVoid ? 0 : ((totalCents - paidCents) > 0 ? (totalCents - paidCents) : 0);
 
     return InvoiceRecord(
       id: row['id'] as String,
@@ -69,7 +71,7 @@ class InvoiceRecord {
       totalCents: totalCents,
       paidCents: paidCents,
       balanceDueCents: balanceDueCents,
-      status: row['status'] as String,
+      status: status,
       issueDate: effectiveIssueDate,
       dueDate: effectiveDueDate,
       paymentTerms: rawTerms,
@@ -85,15 +87,18 @@ class InvoiceRecord {
   /// Net subtotal after applying discount.
   int get netSubtotalCents => (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
 
+  /// Whether the invoice is voided.
+  bool get isVoid => status.toUpperCase() == 'VOID';
+
   /// Whether the invoice is fully settled.
-  bool get isFullyPaid => paidCents >= totalCents || status.toUpperCase() == 'PAID';
+  bool get isFullyPaid => !isVoid && (paidCents >= totalCents || status.toUpperCase() == 'PAID');
 
   /// Whether some payment has been received but remaining balance is still due.
-  bool get isPartiallyPaid => paidCents > 0 && paidCents < totalCents && status.toUpperCase() != 'PAID';
+  bool get isPartiallyPaid => !isVoid && paidCents > 0 && paidCents < totalCents && status.toUpperCase() != 'PAID';
 
   /// Returns true if the invoice is not paid and the due date is strictly in the past.
   bool get isOverdue {
-    if (isFullyPaid) return false;
+    if (isVoid || isFullyPaid) return false;
     if (dueDate.isEmpty) return false;
     try {
       final due = DateTime.parse(dueDate);
@@ -108,6 +113,7 @@ class InvoiceRecord {
 
   /// Resolves the real-time dynamic status of the invoice based on payments and due date.
   String get computedStatus {
+    if (isVoid) return 'VOID';
     if (isFullyPaid) return 'PAID';
     if (isPartiallyPaid) return 'PARTIALLY_PAID';
     if (isOverdue) return 'OVERDUE';

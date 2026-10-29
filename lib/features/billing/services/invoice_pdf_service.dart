@@ -125,7 +125,7 @@ class InvoicePdfService {
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
                           pw.Text(
-                            'INVOICE',
+                            'TAX INVOICE',
                             style: pw.TextStyle(
                               fontSize: 26,
                               fontWeight: pw.FontWeight.bold,
@@ -224,7 +224,7 @@ class InvoicePdfService {
                         if (businessProfile.taxId.isNotEmpty) ...[
                           pw.SizedBox(height: 3),
                           pw.Text(
-                            'Tax ID / EIN: ${businessProfile.taxId}',
+                            'GSTIN / Tax ID: ${businessProfile.taxId}',
                             style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#475569')),
                           ),
                         ],
@@ -265,7 +265,7 @@ class InvoicePdfService {
                         if (client.taxId.isNotEmpty) ...[
                           pw.SizedBox(height: 3),
                           pw.Text(
-                            'Client VAT / Tax ID: ${client.taxId}',
+                            'Client GSTIN / Tax ID: ${client.taxId}',
                             style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#475569')),
                           ),
                         ],
@@ -289,10 +289,11 @@ class InvoicePdfService {
               pw.SizedBox(height: 6),
               pw.Table(
                 columnWidths: {
-                  0: const pw.FlexColumnWidth(4.5),
+                  0: const pw.FlexColumnWidth(3.8),
                   1: const pw.FlexColumnWidth(1.2),
-                  2: const pw.FlexColumnWidth(2.0),
-                  3: const pw.FlexColumnWidth(2.3),
+                  2: const pw.FlexColumnWidth(0.8),
+                  3: const pw.FlexColumnWidth(2.0),
+                  4: const pw.FlexColumnWidth(2.2),
                 },
                 children: [
                   pw.TableRow(
@@ -305,6 +306,7 @@ class InvoicePdfService {
                     ),
                     children: [
                       _buildHeaderCell('Description', align: pw.TextAlign.left),
+                      _buildHeaderCell('SAC / HSN', align: pw.TextAlign.left),
                       _buildHeaderCell('Qty', align: pw.TextAlign.center),
                       _buildHeaderCell('Unit Price', align: pw.TextAlign.right),
                       _buildHeaderCell('Total', align: pw.TextAlign.right),
@@ -323,6 +325,7 @@ class InvoicePdfService {
                       ),
                       children: [
                         _buildCell(_cleanText(item.description), align: pw.TextAlign.left),
+                        _buildCell(item.sacHsn.isNotEmpty ? item.sacHsn : '-', align: pw.TextAlign.left),
                         _buildCell('${item.quantity}', align: pw.TextAlign.center),
                         _buildCell(formatCents(item.unitPriceCents, symbol: sym), align: pw.TextAlign.right),
                         _buildCell(formatCents(item.totalCents, symbol: sym), align: pw.TextAlign.right, isBold: true),
@@ -335,7 +338,7 @@ class InvoicePdfService {
               if (payments.isNotEmpty) ...[
                 pw.SizedBox(height: 14),
                 pw.Text(
-                  'PAYMENTS RECEIVED',
+                  'PAYMENTS & CREDIT RECEIVED',
                   style: pw.TextStyle(
                     fontSize: 9,
                     fontWeight: pw.FontWeight.bold,
@@ -346,9 +349,9 @@ class InvoicePdfService {
                 pw.SizedBox(height: 4),
                 pw.Table(
                   columnWidths: {
-                    0: const pw.FlexColumnWidth(2.2),
-                    1: const pw.FlexColumnWidth(2.5),
-                    2: const pw.FlexColumnWidth(3.0),
+                    0: const pw.FlexColumnWidth(2.0),
+                    1: const pw.FlexColumnWidth(2.2),
+                    2: const pw.FlexColumnWidth(3.5),
                     3: const pw.FlexColumnWidth(2.3),
                   },
                   children: [
@@ -363,11 +366,17 @@ class InvoicePdfService {
                       children: [
                         _buildHeaderCell('Date', align: pw.TextAlign.left),
                         _buildHeaderCell('Method', align: pw.TextAlign.left),
-                        _buildHeaderCell('Notes / Reference', align: pw.TextAlign.left),
-                        _buildHeaderCell('Amount Paid', align: pw.TextAlign.right),
+                        _buildHeaderCell('Remarks / Ref / TDS', align: pw.TextAlign.left),
+                        _buildHeaderCell('Total Credited', align: pw.TextAlign.right),
                       ],
                     ),
                     ...payments.map((p) {
+                      final details = [
+                        if (p.notes.isNotEmpty) _cleanText(p.notes),
+                        if (p.referenceNumber.isNotEmpty) 'Ref: ${p.referenceNumber}',
+                        if (p.tdsCents > 0) 'TDS: ${formatCents(p.tdsCents, symbol: sym)}',
+                      ].join(' • ');
+
                       return pw.TableRow(
                         decoration: pw.BoxDecoration(
                           border: pw.Border(
@@ -377,7 +386,14 @@ class InvoicePdfService {
                         children: [
                           _buildCell(p.paymentDate, align: pw.TextAlign.left),
                           _buildCell(p.paymentMethod, align: pw.TextAlign.left),
-                          _buildCell(p.notes.isNotEmpty ? _cleanText(p.notes) : '-', align: pw.TextAlign.left),
+                          _buildCell(details.isNotEmpty ? details : '-', align: pw.TextAlign.left),
+                          _buildCell(formatCents(p.totalCreditCents, symbol: sym), align: pw.TextAlign.right, isBold: true),
+                        ],
+                      );
+                    }),
+                  ],
+                ),
+              ],
                           _buildCell(formatCents(p.amountCents, symbol: sym), align: pw.TextAlign.right, isBold: true),
                         ],
                       );
@@ -541,7 +557,7 @@ class InvoicePdfService {
                     ],
                   ),
                 ),
-              ] else if (paymentInstructions.isNotEmpty) ...[
+              ] else if (paymentInstructions.isNotEmpty || businessProfile.paymentQrPayload.trim().isNotEmpty) ...[
                 pw.Container(
                   width: double.infinity,
                   padding: const pw.EdgeInsets.all(10),
@@ -550,35 +566,61 @@ class InvoicePdfService {
                     borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
                     border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0'), width: 1),
                   ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  child: pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
-                      pw.Text(
-                        'PAYMENT INSTRUCTIONS',
-                        style: pw.TextStyle(
-                          fontSize: 8.5,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColor.fromHex('#64748B'),
-                          letterSpacing: 0.5,
+                      pw.Expanded(
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'PAYMENT INSTRUCTIONS',
+                              style: pw.TextStyle(
+                                fontSize: 8.5,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColor.fromHex('#64748B'),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            pw.SizedBox(height: 4),
+                            if (paymentInstructions.isNotEmpty)
+                              pw.Text(
+                                paymentInstructions,
+                                style: pw.TextStyle(
+                                  fontSize: 9,
+                                  color: PdfColor.fromHex('#334155'),
+                                ),
+                              ),
+                            pw.SizedBox(height: 4),
+                            pw.Text(
+                              'Please remit payment within ${invoice.paymentTerms} (Due: $formattedDueDate).',
+                              style: pw.TextStyle(
+                                fontSize: 8.5,
+                                fontWeight: pw.FontWeight.bold,
+                                color: isOverdue ? PdfColor.fromHex('#BE123C') : PdfColor.fromHex('#475569'),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      pw.SizedBox(height: 4),
-                      pw.Text(
-                        paymentInstructions,
-                        style: pw.TextStyle(
-                          fontSize: 9,
-                          color: PdfColor.fromHex('#334155'),
+                      if (businessProfile.paymentQrPayload.trim().isNotEmpty) ...[
+                        pw.SizedBox(width: 12),
+                        pw.Column(
+                          children: [
+                            pw.BarcodeWidget(
+                              barcode: pw.Barcode.qrCode(),
+                              data: businessProfile.paymentQrPayload.trim(),
+                              width: 58,
+                              height: 58,
+                            ),
+                            pw.SizedBox(height: 2),
+                            pw.Text(
+                              'Scan to Pay',
+                              style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#64748B')),
+                            ),
+                          ],
                         ),
-                      ),
-                      pw.SizedBox(height: 4),
-                      pw.Text(
-                        'Please remit payment within ${invoice.paymentTerms} (Due: $formattedDueDate).',
-                        style: pw.TextStyle(
-                          fontSize: 8.5,
-                          fontWeight: pw.FontWeight.bold,
-                          color: isOverdue ? PdfColor.fromHex('#BE123C') : PdfColor.fromHex('#475569'),
-                        ),
-                      ),
+                      ],
                     ],
                   ),
                 ),

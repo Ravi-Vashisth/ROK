@@ -2,80 +2,68 @@ import 'dart:convert';
 import 'package:sqlite3/sqlite3.dart';
 
 class BackupService {
-  /// Exports all database tables to a clean JSON string with version and timestamp.
-  static String exportDatabaseToJson(Database db) {
-    final tables = [
+  static Map<String, dynamic> exportDatabaseToJson(Database db) {
+    final Map<String, dynamic> backup = {};
+
+    const tables = [
+      'business_profile',
       'clients',
       'invoices',
       'invoice_items',
-      'payments',
       'estimates',
       'estimate_items',
-      'saved_items',
-      'business_profile',
+      'expenses',
+      'payments',
+      'saved_items'
     ];
 
-    final Map<String, List<Map<String, dynamic>>> data = {};
     for (final table in tables) {
       try {
         final ResultSet result = db.select('SELECT * FROM $table');
-        data[table] = result.map((row) => Map<String, dynamic>.from(row)).toList();
+        backup[table] = result.map((row) => Map<String, dynamic>.from(row)).toList();
       } catch (_) {
-        data[table] = [];
+        backup[table] = [];
       }
     }
 
-    final backupPayload = {
-      'version': 1,
-      'timestamp': DateTime.now().toUtc().toIso8601String(),
-      'tables': data,
-    };
-
-    return jsonEncode(backupPayload);
+    backup['version'] = 1;
+    backup['exported_at'] = DateTime.now().toIso8601String();
+    return backup;
   }
 
-  /// Imports database state from JSON string, wrapping in an atomic SQLite transaction.
-  static void importDatabaseFromJson(Database db, String jsonContent) {
-    final Map<String, dynamic> parsed = jsonDecode(jsonContent);
-    final tablesData = parsed['tables'] as Map<String, dynamic>?;
-    if (tablesData == null) {
-      throw FormatException('Invalid backup JSON format: missing "tables" key.');
-    }
-
+  static void importDatabaseFromJson(Database db, Map<String, dynamic> backup) {
     db.execute('BEGIN TRANSACTION;');
     try {
-      db.execute('PRAGMA foreign_keys = OFF;');
-
-      final deleteOrder = [
-        'estimate_items',
-        'estimates',
-        'invoice_items',
+      // Clear existing tables in correct FK order
+      const tables = [
         'payments',
+        'invoice_items',
+        'estimate_items',
         'invoices',
-        'clients',
+        'estimates',
+        'expenses',
         'saved_items',
-        'business_profile',
+        'clients',
+        'business_profile'
       ];
 
-      for (final table in deleteOrder) {
+      for (final table in tables) {
         try {
           db.execute('DELETE FROM $table;');
         } catch (_) {}
       }
 
-      for (final entry in tablesData.entries) {
-        final table = entry.key;
-        final rows = entry.value as List<dynamic>?;
+      // Insert backup tables
+      for (final table in tables) {
+        final rows = backup[table] as List<dynamic>?;
         if (rows == null || rows.isEmpty) continue;
 
-        for (final rowObj in rows) {
-          final row = Map<String, dynamic>.from(rowObj as Map);
-          if (row.isEmpty) continue;
-
-          final keys = row.keys.toList();
+        for (final row in rows) {
+          final map = Map<String, dynamic>.from(row as Map);
+          final keys = map.keys.toList();
           final placeholders = List.filled(keys.length, '?').join(', ');
           final columns = keys.join(', ');
-          final values = keys.map((k) => row[k]).toList();
+          final values = keys.map((k) => map[k]).toList();
 
           final stmt = db.prepare('INSERT OR REPLACE INTO $table ($columns) VALUES ($placeholders)');
           try {
@@ -86,12 +74,20 @@ class BackupService {
         }
       }
 
-      db.execute('PRAGMA foreign_keys = ON;');
       db.execute('COMMIT;');
     } catch (e) {
-      db.execute('PRAGMA foreign_keys = ON;');
       db.execute('ROLLBACK;');
       rethrow;
     }
+  }
+
+  static String exportToJsonString(Database db) {
+    final map = exportDatabaseToJson(db);
+    return const JsonEncoder.withIndent('  ').convert(map);
+  }
+
+  static void importFromJsonString(Database db, String jsonString) {
+    final map = jsonDecode(jsonString) as Map<String, dynamic>;
+    importDatabaseFromJson(db, map);
   }
 }

@@ -5,6 +5,7 @@ class EstimateItem {
   final String id;
   final String estimateId;
   final String description;
+  final String sacHsn;
   final int quantity;
   final int unitPriceCents;
   final int taxRatePercentage;
@@ -16,6 +17,7 @@ class EstimateItem {
     required this.id,
     required this.estimateId,
     required this.description,
+    this.sacHsn = '',
     required this.quantity,
     required this.unitPriceCents,
     this.taxRatePercentage = 0,
@@ -29,6 +31,7 @@ class EstimateItem {
       id: row['id'] as String,
       estimateId: row['estimate_id'] as String,
       description: row['description'] as String,
+      sacHsn: (row['sac_hsn'] as String?) ?? '',
       quantity: row['quantity'] as int,
       unitPriceCents: row['unit_price_cents'] as int,
       taxRatePercentage: (row['tax_rate_percentage'] as int?) ?? 0,

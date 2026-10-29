@@ -62,6 +62,7 @@ class SavedItemsNotifier extends StateNotifier<List<SavedItem>> {
 
   void addItem({
     required String title,
+    String sacHsn = '',
     required int defaultPriceCents,
     String description = '',
   }) {
@@ -71,11 +72,11 @@ class SavedItemsNotifier extends StateNotifier<List<SavedItem>> {
     final createdAt = DateTime.now().toUtc().toIso8601String();
 
     final stmt = _db.prepare('''
-      INSERT INTO saved_items (id, title, default_price_cents, description, created_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO saved_items (id, title, sac_hsn, default_price_cents, description, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
     ''');
     try {
-      stmt.execute([id, title.trim(), defaultPriceCents, description.trim(), createdAt]);
+      stmt.execute([id, title.trim(), sacHsn.trim(), defaultPriceCents, description.trim(), createdAt]);
     } finally {
       stmt.dispose();
     }
@@ -86,6 +87,7 @@ class SavedItemsNotifier extends StateNotifier<List<SavedItem>> {
   void updateItem({
     required String id,
     required String title,
+    String sacHsn = '',
     required int defaultPriceCents,
     String description = '',
   }) {
@@ -93,11 +95,11 @@ class SavedItemsNotifier extends StateNotifier<List<SavedItem>> {
 
     final stmt = _db.prepare('''
       UPDATE saved_items 
-      SET title = ?, default_price_cents = ?, description = ?
+      SET title = ?, sac_hsn = ?, default_price_cents = ?, description = ?
       WHERE id = ?
     ''');
     try {
-      stmt.execute([title.trim(), defaultPriceCents, description.trim(), id]);
+      stmt.execute([title.trim(), sacHsn.trim(), defaultPriceCents, description.trim(), id]);
     } finally {
       stmt.dispose();
     }

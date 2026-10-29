@@ -15,12 +15,14 @@ class ItemsCatalogTab extends ConsumerStatefulWidget {
 
 class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
   final _titleController = TextEditingController();
+  final _sacHsnController = TextEditingController();
   final _priceController = TextEditingController();
   final _descriptionController = TextEditingController();
 
   @override
   void dispose() {
     _titleController.dispose();
+    _sacHsnController.dispose();
     _priceController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -45,11 +47,13 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
 
     ref.read(savedItemsProvider.notifier).addItem(
           title: title,
+          sacHsn: _sacHsnController.text.trim(),
           defaultPriceCents: priceCents,
           description: _descriptionController.text.trim(),
         );
 
     _titleController.clear();
+    _sacHsnController.clear();
     _priceController.clear();
     _descriptionController.clear();
 
@@ -60,6 +64,7 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
 
   void _showEditItemDialog(BuildContext context, SavedItem item) {
     final titleCtrl = TextEditingController(text: item.title);
+    final sacHsnCtrl = TextEditingController(text: item.sacHsn);
     final priceCtrl = TextEditingController(text: (item.defaultPriceCents / 100).toStringAsFixed(2));
     final descCtrl = TextEditingController(text: item.description);
     final formKey = GlobalKey<FormState>();
@@ -85,6 +90,11 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                   controller: titleCtrl,
                   decoration: const InputDecoration(labelText: 'Item / Service Title *'),
                   validator: (val) => val == null || val.trim().isEmpty ? 'Please enter a title' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: sacHsnCtrl,
+                  decoration: const InputDecoration(labelText: 'SAC / HSN Code (e.g. 998311)'),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -120,6 +130,7 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
               ref.read(savedItemsProvider.notifier).updateItem(
                     id: item.id,
                     title: titleCtrl.text.trim(),
+                    sacHsn: sacHsnCtrl.text.trim(),
                     defaultPriceCents: parsePriceToCents(priceCtrl.text),
                     description: descCtrl.text.trim(),
                   );
@@ -193,11 +204,22 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                         controller: _titleController,
                         decoration: const InputDecoration(
                           labelText: 'Item / Service Title',
-                          hintText: 'e.g. Logo Design, API Integration',
+                          hintText: 'e.g. Logo Design',
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: _sacHsnController,
+                        decoration: const InputDecoration(
+                          labelText: 'SAC / HSN',
+                          hintText: 'e.g. 998311',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       flex: 2,
                       child: TextField(
@@ -209,9 +231,9 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Expanded(
-                      flex: 4,
+                      flex: 3,
                       child: TextField(
                         controller: _descriptionController,
                         decoration: const InputDecoration(

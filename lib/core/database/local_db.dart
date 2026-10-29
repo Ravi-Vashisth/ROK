@@ -80,6 +80,7 @@ Future<Database> openLocalDatabase() async {
       id TEXT PRIMARY KEY,
       invoice_id TEXT NOT NULL,
       description TEXT NOT NULL,
+      sac_hsn TEXT DEFAULT '',
       quantity INTEGER NOT NULL DEFAULT 1,
       unit_price_cents INTEGER NOT NULL,
       tax_rate_percentage INTEGER NOT NULL DEFAULT 0,
@@ -91,6 +92,7 @@ Future<Database> openLocalDatabase() async {
   ''');
 
   for (final col in [
+    "sac_hsn TEXT DEFAULT ''",
     "tax_rate_percentage INTEGER NOT NULL DEFAULT 0",
     "tax_cents INTEGER NOT NULL DEFAULT 0",
   ]) {
@@ -170,6 +172,9 @@ Future<Database> openLocalDatabase() async {
       id TEXT PRIMARY KEY,
       invoice_id TEXT NOT NULL,
       amount_cents INTEGER NOT NULL,
+      amount_received_cents INTEGER NOT NULL DEFAULT 0,
+      tds_cents INTEGER NOT NULL DEFAULT 0,
+      reference_number TEXT DEFAULT '',
       payment_method TEXT NOT NULL,
       payment_date TEXT NOT NULL,
       notes TEXT DEFAULT '',
@@ -178,6 +183,25 @@ Future<Database> openLocalDatabase() async {
     );
   ''');
 
+  for (final col in [
+    "amount_received_cents INTEGER NOT NULL DEFAULT 0",
+    "tds_cents INTEGER NOT NULL DEFAULT 0",
+    "reference_number TEXT DEFAULT ''",
+  ]) {
+    try {
+      db.execute('ALTER TABLE payments ADD COLUMN $col;');
+    } catch (_) {}
+  }
+
+  // Migration repair: Backfill amount_received_cents for existing payments where amount_received_cents is 0
+  try {
+    db.execute('''
+      UPDATE payments 
+      SET amount_received_cents = amount_cents 
+      WHERE (amount_received_cents = 0 OR amount_received_cents IS NULL) AND amount_cents > 0;
+    ''');
+  } catch (_) {}
+
   db.execute('''
     CREATE INDEX IF NOT EXISTS idx_payments_invoice_id ON payments (invoice_id);
   ''');
@@ -185,11 +209,14 @@ Future<Database> openLocalDatabase() async {
   // Auto-sync repair: Ensure any invoice marked 'PAID' has a matching payment in the ledger
   try {
     db.execute('''
-      INSERT OR IGNORE INTO payments (id, invoice_id, amount_cents, payment_method, payment_date, notes, created_at)
+      INSERT OR IGNORE INTO payments (id, invoice_id, amount_cents, amount_received_cents, tds_cents, reference_number, payment_method, payment_date, notes, created_at)
       SELECT 
         'sync_pay_' || i.id,
         i.id,
         i.total_cents,
+        i.total_cents,
+        0,
+        'AUTO-SETTLE',
         'Settled Ledger',
         COALESCE(NULLIF(i.issue_date, ''), strftime('%Y-%m-%d', 'now')),
         'Initial Settlement Payment',
@@ -241,6 +268,7 @@ Future<Database> openLocalDatabase() async {
       id TEXT PRIMARY KEY,
       estimate_id TEXT NOT NULL,
       description TEXT NOT NULL,
+      sac_hsn TEXT DEFAULT '',
       quantity INTEGER NOT NULL DEFAULT 1,
       unit_price_cents INTEGER NOT NULL,
       tax_rate_percentage INTEGER NOT NULL DEFAULT 0,
@@ -252,6 +280,7 @@ Future<Database> openLocalDatabase() async {
   ''');
 
   for (final col in [
+    "sac_hsn TEXT DEFAULT ''",
     "tax_rate_percentage INTEGER NOT NULL DEFAULT 0",
     "tax_cents INTEGER NOT NULL DEFAULT 0",
   ]) {
@@ -269,11 +298,20 @@ Future<Database> openLocalDatabase() async {
     CREATE TABLE IF NOT EXISTS saved_items (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
+      sac_hsn TEXT DEFAULT '',
       default_price_cents INTEGER NOT NULL,
       description TEXT DEFAULT '',
       created_at TEXT NOT NULL
     );
   ''');
+
+  for (final col in [
+    "sac_hsn TEXT DEFAULT ''",
+  ]) {
+    try {
+      db.execute('ALTER TABLE saved_items ADD COLUMN $col;');
+    } catch (_) {}
+  }
 
   // 9. Expenses Table
   db.execute('''

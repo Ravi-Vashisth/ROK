@@ -12,7 +12,16 @@ import '../../services/invoice_pdf_service.dart';
 import 'pdf_preview_dialog.dart';
 
 class OfflineInvoicesList extends ConsumerWidget {
-  const OfflineInvoicesList({super.key});
+  final String searchQuery;
+  final String statusFilter;
+  final String dateFilter;
+
+  const OfflineInvoicesList({
+    super.key,
+    this.searchQuery = '',
+    this.statusFilter = 'All',
+    this.dateFilter = 'All Time',
+  });
 
   void _handlePrint(BuildContext context, WidgetRef ref, InvoiceRecord inv) async {
     final items = ref.read(invoicesProvider.notifier).getInvoiceItems(inv.id);
@@ -73,6 +82,25 @@ class OfflineInvoicesList extends ConsumerWidget {
     final profile = ref.watch(businessProfileProvider);
     final sym = profile.currencySymbol;
 
+    // Filter invoices
+    final filtered = invoices.where((inv) {
+      if (searchQuery.isNotEmpty) {
+        final q = searchQuery.toLowerCase();
+        final matchName = inv.clientName.toLowerCase().contains(q);
+        final matchNum = inv.invoiceNumber.toLowerCase().contains(q);
+        if (!matchName && !matchNum) return false;
+      }
+
+      if (statusFilter != 'All') {
+        if (statusFilter == 'Paid' && !inv.isFullyPaid) return false;
+        if (statusFilter == 'Partially Paid' && !inv.isPartiallyPaid) return false;
+        if (statusFilter == 'Overdue' && !inv.isOverdue) return false;
+        if (statusFilter == 'Pending' && (inv.isFullyPaid || inv.isPartiallyPaid || inv.isOverdue || inv.status == 'VOID')) return false;
+        if (statusFilter == 'Void' && inv.status != 'VOID') return false;
+      }
+      return true;
+    }).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -80,7 +108,7 @@ class OfflineInvoicesList extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Offline Invoices (${invoices.length})',
+              'Offline Invoices (${filtered.length} of ${invoices.length})',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -137,7 +165,7 @@ class OfflineInvoicesList extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 12),
-        if (invoices.isEmpty)
+        if (filtered.isEmpty)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(32),
@@ -147,7 +175,7 @@ class OfflineInvoicesList extends ConsumerWidget {
             ),
             child: const Center(
               child: Text(
-                'No invoices saved in local SQLite yet.\nCreate your first client and invoice above.',
+                'No invoices match your current search and filter criteria.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey),
               ),
@@ -163,10 +191,10 @@ class OfflineInvoicesList extends ConsumerWidget {
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: invoices.length,
+              itemCount: filtered.length,
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, index) {
-                final inv = invoices[index];
+                final inv = filtered[index];
                 final isPaid = inv.isFullyPaid;
                 final isPartial = inv.isPartiallyPaid;
                 final isOverdue = inv.isOverdue;

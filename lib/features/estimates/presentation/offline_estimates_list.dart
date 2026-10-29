@@ -7,18 +7,45 @@ import '../../billing/services/invoice_pdf_service.dart';
 import '../../business_profile/providers/business_profile_provider.dart';
 import '../../clients/models/client.dart';
 import '../../clients/providers/clients_provider.dart';
+import '../../invoices/providers/invoices_provider.dart';
 import '../models/estimate_record.dart';
 import '../providers/estimates_provider.dart';
 
 class OfflineEstimatesList extends ConsumerWidget {
-  const OfflineEstimatesList({super.key});
+  final String searchQuery;
+  final String statusFilter;
+  final String dateFilter;
+
+  const OfflineEstimatesList({
+    super.key,
+    this.searchQuery = '',
+    this.statusFilter = 'All',
+    this.dateFilter = 'All Time',
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final estimates = ref.watch(estimatesProvider);
     final clients = ref.watch(clientsProvider);
     final businessProfile = ref.watch(businessProfileProvider);
+    final invoices = ref.watch(invoicesProvider);
     final sym = businessProfile.currencySymbol;
+
+    // Filter estimates
+    final filtered = estimates.where((est) {
+      if (searchQuery.isNotEmpty) {
+        final q = searchQuery.toLowerCase();
+        final matchName = est.clientName.toLowerCase().contains(q);
+        final matchNum = est.estimateNumber.toLowerCase().contains(q);
+        if (!matchName && !matchNum) return false;
+      }
+
+      if (statusFilter != 'All') {
+        if (statusFilter.toUpperCase() == 'CONVERTED' && !est.isConverted) return false;
+        if (statusFilter.toUpperCase() == 'PENDING' && est.isConverted) return false;
+      }
+      return true;
+    }).toList();
 
     if (estimates.isEmpty) {
       return Card(
@@ -44,113 +71,145 @@ class OfflineEstimatesList extends ConsumerWidget {
           children: [
             const Icon(Icons.list_alt_outlined, size: 20),
             const SizedBox(width: 8),
-            Text('Saved Estimates (${estimates.length})', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text('Saved Estimates (${filtered.length} of ${estimates.length})', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ],
         ),
         const SizedBox(height: 12),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: estimates.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (context, index) {
-            final est = estimates[index];
-            final isConverted = est.isConverted;
+        if (filtered.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              border: Border.all(color: Theme.of(context).dividerColor),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(
+              child: Text('No estimates match your current search and filter criteria.', style: TextStyle(color: Colors.grey)),
+            ),
+          )
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: filtered.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final est = filtered[index];
+              final isConverted = est.isConverted;
+              final convertedInvoice = isConverted && est.convertedInvoiceId.isNotEmpty
+                  ? invoices.cast<dynamic?>().firstWhere(
+                      (i) => i?.id == est.convertedInvoiceId,
+                      orElse: () => null,
+                    )
+                  : null;
 
-            return Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.indigo.shade50,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.indigo.shade200),
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.indigo.shade50,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.indigo.shade200),
+                            ),
+                            child: Text(est.estimateNumber, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.indigo)),
                           ),
-                          child: Text(est.estimateNumber, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.indigo)),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(est.clientName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isConverted ? Colors.green.shade50 : Colors.amber.shade50,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: isConverted ? Colors.green.shade300 : Colors.amber.shade300),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(est.clientName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                           ),
-                          child: Text(
-                            est.status,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: isConverted ? Colors.green.shade800 : Colors.amber.shade900,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isConverted ? Colors.green.shade50 : Colors.amber.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: isConverted ? Colors.green.shade300 : Colors.amber.shade300),
+                            ),
+                            child: Text(
+                              est.status,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: isConverted ? Colors.green.shade800 : Colors.amber.shade900,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text('Issue: ${est.issueDate} • Valid Until: ${est.expiryDate}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Total: ${formatCents(est.totalCents, symbol: sym)}', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.indigo.shade800)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Issue: ${est.issueDate} • Valid Until: ${est.expiryDate}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      if (isConverted && convertedInvoice != null) ...[
+                        const SizedBox(height: 6),
                         Row(
                           children: [
-                            if (!isConverted)
-                              FilledButton.icon(
-                                style: FilledButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                                icon: const Icon(Icons.receipt_long, size: 16),
-                                label: const Text('Convert to Invoice', style: TextStyle(fontSize: 12)),
-                                onPressed: () {
-                                  ref.read(estimatesProvider.notifier).convertEstimateToInvoice(est.id);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Estimate ${est.estimateNumber} converted into live invoice!')),
-                                  );
-                                },
-                              ),
-                            const SizedBox(width: 8),
-                            OutlinedButton.icon(
-                              icon: const Icon(Icons.picture_as_pdf, size: 16),
-                              label: const Text('PDF / Print', style: TextStyle(fontSize: 12)),
-                              onPressed: () {
-                                final client = clients.firstWhere(
-                                  (c) => c.id == est.clientId,
-                                  orElse: () => Client(id: est.clientId, name: est.clientName, email: '', phone: '', address: '', taxId: '', createdAt: ''),
-                                );
-                                final items = ref.read(estimatesProvider.notifier).getEstimateItems(est.id);
-                                showDialog(
-                                  context: context,
-                                  builder: (_) => PdfPreviewDialog(
-                                    title: 'Estimate ${est.estimateNumber}',
-                                    buildPdf: () => InvoicePdfService.generateEstimatePdf(
-                                      estimate: est,
-                                      items: items,
-                                      client: client,
-                                      businessProfile: businessProfile,
-                                    ),
-                                  ),
-                                );
-                              },
+                            Icon(Icons.arrow_forward, size: 14, color: Colors.green.shade700),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Converted to Invoice: ${convertedInvoice.invoiceNumber}',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade800),
                             ),
                           ],
                         ),
                       ],
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Total: ${formatCents(est.totalCents, symbol: sym)}', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.indigo.shade800)),
+                          Row(
+                            children: [
+                              if (!isConverted)
+                                FilledButton.icon(
+                                  style: FilledButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                                  icon: const Icon(Icons.receipt_long, size: 16),
+                                  label: const Text('Convert to Invoice', style: TextStyle(fontSize: 12)),
+                                  onPressed: () {
+                                    ref.read(estimatesProvider.notifier).convertEstimateToInvoice(est.id);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Estimate ${est.estimateNumber} converted into live invoice!')),
+                                    );
+                                  },
+                                ),
+                              const SizedBox(width: 8),
+                              OutlinedButton.icon(
+                                icon: const Icon(Icons.picture_as_pdf, size: 16),
+                                label: const Text('PDF / Print', style: TextStyle(fontSize: 12)),
+                                onPressed: () {
+                                  final client = clients.firstWhere(
+                                    (c) => c.id == est.clientId,
+                                    orElse: () => Client(id: est.clientId, name: est.clientName, email: '', phone: '', address: '', taxId: '', createdAt: ''),
+                                  );
+                                  final items = ref.read(estimatesProvider.notifier).getEstimateItems(est.id);
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => PdfPreviewDialog(
+                                      title: 'Estimate ${est.estimateNumber}',
+                                      buildPdf: () => InvoicePdfService.generateEstimatePdf(
+                                        estimate: est,
+                                        items: items,
+                                        client: client,
+                                        businessProfile: businessProfile,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
+              );
+            },
+          ),
       ],
     );
   }

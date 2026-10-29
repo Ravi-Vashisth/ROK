@@ -6,7 +6,7 @@ import '../../estimates/presentation/estimate_inputs_card.dart';
 import '../../estimates/presentation/offline_estimates_list.dart';
 import '../../estimates/providers/estimates_provider.dart';
 import '../../invoices/providers/invoices_provider.dart';
-import 'widgets/client_selection_card.dart';
+import 'widgets/client_autocomplete_picker.dart';
 import 'widgets/invoice_inputs_card.dart';
 import 'widgets/offline_invoices_list.dart';
 
@@ -19,54 +19,17 @@ class SalesTab extends ConsumerStatefulWidget {
 
 class _SalesTabState extends ConsumerState<SalesTab> {
   int _subTab = 0; // 0 = Invoices, 1 = Estimates
-
-  final _newClientController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _taxIdController = TextEditingController();
-
   String? _selectedClientId;
+
+  // Filter & Search state
+  final TextEditingController _searchController = TextEditingController();
+  String _statusFilter = 'All'; // 'All', 'Pending', 'Partially Paid', 'Paid', 'Overdue', 'Void'
+  String _dateFilter = 'All Time'; // 'All Time', 'This Month', 'This Quarter'
 
   @override
   void dispose() {
-    _newClientController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    _addressController.dispose();
-    _taxIdController.dispose();
+    _searchController.dispose();
     super.dispose();
-  }
-
-  void _handleAddClient() {
-    final name = _newClientController.text.trim();
-    if (name.isEmpty) return;
-
-    ref.read(clientsProvider.notifier).addClient(
-          name: name,
-          email: _emailController.text,
-          phone: _phoneController.text,
-          address: _addressController.text,
-          taxId: _taxIdController.text,
-        );
-
-    _newClientController.clear();
-    _emailController.clear();
-    _phoneController.clear();
-    _addressController.clear();
-    _taxIdController.clear();
-
-    final clients = ref.read(clientsProvider);
-    final found = clients.where((c) => c.name == name);
-    if (found.isNotEmpty) {
-      setState(() {
-        _selectedClientId = found.first.id;
-      });
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Client "$name" saved locally to SQLite.')),
-    );
   }
 
   void _handleSaveInvoice({
@@ -189,15 +152,9 @@ class _SalesTabState extends ConsumerState<SalesTab> {
           ],
         ),
         const SizedBox(height: 20),
-        ClientSelectionCard(
-          newClientController: _newClientController,
-          emailController: _emailController,
-          phoneController: _phoneController,
-          addressController: _addressController,
-          taxIdController: _taxIdController,
+        ClientAutocompletePicker(
           selectedClientId: _selectedClientId,
           onClientSelected: (val) => setState(() => _selectedClientId = val),
-          onAddClient: _handleAddClient,
         ),
         const SizedBox(height: 24),
         if (_subTab == 0) ...[
@@ -206,16 +163,93 @@ class _SalesTabState extends ConsumerState<SalesTab> {
             onSaveInvoice: _handleSaveInvoice,
           ),
           const SizedBox(height: 24),
-          const OfflineInvoicesList(),
+          _buildFilterHeader(),
+          const SizedBox(height: 12),
+          OfflineInvoicesList(
+            searchQuery: _searchController.text,
+            statusFilter: _statusFilter,
+            dateFilter: _dateFilter,
+          ),
         ] else ...[
           EstimateInputsCard(
             nextEstimateNumber: nextEstimateNumber,
             onSaveEstimate: _handleSaveEstimate,
           ),
           const SizedBox(height: 24),
-          const OfflineEstimatesList(),
+          _buildFilterHeader(),
+          const SizedBox(height: 12),
+          OfflineEstimatesList(
+            searchQuery: _searchController.text,
+            statusFilter: _statusFilter,
+            dateFilter: _dateFilter,
+          ),
         ],
       ],
+    );
+  }
+
+  Widget _buildFilterHeader() {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      labelText: 'Search Invoices / Estimates by Client or #',
+                      hintText: 'e.g. INV-0001 or Acme',
+                      prefixIcon: Icon(Icons.search, size: 18),
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                DropdownButton<String>(
+                  value: _dateFilter,
+                  underline: const SizedBox(),
+                  items: const [
+                    DropdownMenuItem(value: 'All Time', child: Text('All Time', style: TextStyle(fontSize: 13))),
+                    DropdownMenuItem(value: 'This Month', child: Text('This Month', style: TextStyle(fontSize: 13))),
+                    DropdownMenuItem(value: 'This Quarter', child: Text('This Quarter', style: TextStyle(fontSize: 13))),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setState(() => _dateFilter = val);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: ['All', 'Pending', 'Partially Paid', 'Paid', 'Overdue', 'Void'].map((status) {
+                  final isSelected = _statusFilter == status;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: ChoiceChip(
+                      label: Text(status, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                      selected: isSelected,
+                      onSelected: (_) => setState(() => _statusFilter = status),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

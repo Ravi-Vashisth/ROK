@@ -5,6 +5,7 @@ class InvoiceItem {
   final String id;
   final String invoiceId;
   final String description;
+  final String sacHsn;
   final int quantity;
   final int unitPriceCents;
   final int taxRatePercentage;
@@ -16,6 +17,7 @@ class InvoiceItem {
     required this.id,
     required this.invoiceId,
     required this.description,
+    this.sacHsn = '',
     required this.quantity,
     required this.unitPriceCents,
     this.taxRatePercentage = 0,
@@ -29,6 +31,7 @@ class InvoiceItem {
       id: row['id'] as String,
       invoiceId: row['invoice_id'] as String,
       description: row['description'] as String,
+      sacHsn: (row['sac_hsn'] as String?) ?? '',
       quantity: row['quantity'] as int,
       unitPriceCents: row['unit_price_cents'] as int,
       taxRatePercentage: (row['tax_rate_percentage'] as int?) ?? 0,

@@ -14,66 +14,70 @@ class CashFlowMetricsBar extends ConsumerWidget {
     final expenses = ref.watch(expensesProvider);
     final formatCurrency = ref.watch(currencyFormatterProvider);
 
-    int totalInvoicedCents = 0;
-    int totalCollectedCents = 0;
-    int totalExpensesCents = 0;
-
+    int totalUnpaidReceivablesCents = 0;
+    int totalOverdueReceivablesCents = 0;
     for (final inv in invoices) {
-      totalInvoicedCents += inv.totalCents;
-      totalCollectedCents += inv.paidCents;
+      if (inv.isVoid || inv.isFullyPaid) continue;
+      totalUnpaidReceivablesCents += inv.balanceDueCents;
+      if (inv.isOverdue) {
+        totalOverdueReceivablesCents += inv.balanceDueCents;
+      }
     }
 
-    for (final exp in expenses) {
-      totalExpensesCents += exp.totalCents;
-    }
-
-    final netProfitCents = totalCollectedCents - totalExpensesCents;
+    final taxLiabilityCents = taxCollectedOnPaymentsCents - totalExpenseTaxCents;
+    final netRevenueExclTaxCents = totalCollectedGrossCents - taxCollectedOnPaymentsCents;
+    final realNetProfitCents = netRevenueExclTaxCents - totalExpensesExclTaxCents;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 650;
+        final isCompact = constraints.maxWidth < 750;
 
         return GridView.count(
-          crossAxisCount: isCompact ? 2 : 4,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
+          crossAxisCount: isCompact ? 2 : 5,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
           shrinkWrap: true,
-          childAspectRatio: isCompact ? 2.2 : 2.5,
+          childAspectRatio: isCompact ? 2.1 : 2.2,
           physics: const NeverScrollableScrollPhysics(),
           children: [
             _MetricTile(
-              title: 'Total Invoiced',
-              value: formatCurrency(totalInvoicedCents),
-              icon: Icons.receipt_long_outlined,
-              iconColor: Colors.indigo,
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+              title: 'Unpaid Receivables',
+              value: formatCurrency(totalUnpaidReceivablesCents),
+              icon: Icons.warning_amber_outlined,
+              iconColor: Colors.red.shade700,
+              backgroundColor: Colors.red.shade50.withValues(alpha: 0.5),
+              borderColor: Colors.red.shade200,
+              textColor: Colors.red.shade900,
+              subtitle: 'Overdue: ${formatCurrency(totalOverdueReceivablesCents)}',
             ),
             _MetricTile(
-              title: 'Total Collected',
-              value: formatCurrency(totalCollectedCents),
+              title: 'Gross Collected',
+              value: formatCurrency(totalCollectedGrossCents),
               icon: Icons.check_circle_outline,
-              iconColor: Colors.green,
+              iconColor: Colors.green.shade700,
               backgroundColor: Colors.green.shade50.withValues(alpha: 0.5),
               borderColor: Colors.green.shade200,
               textColor: Colors.green.shade900,
             ),
             _MetricTile(
-              title: 'Total Expenses',
-              value: formatCurrency(totalExpensesCents),
-              icon: Icons.trending_down_outlined,
-              iconColor: Colors.orange,
-              backgroundColor: Colors.orange.shade50.withValues(alpha: 0.5),
-              borderColor: Colors.orange.shade200,
-              textColor: Colors.orange.shade900,
+              title: 'Tax Liability / GST',
+              value: formatCurrency(taxLiabilityCents),
+              icon: Icons.account_balance_wallet_outlined,
+              iconColor: taxLiabilityCents >= 0 ? Colors.purple.shade700 : Colors.teal.shade700,
+              backgroundColor: Colors.purple.shade50.withValues(alpha: 0.5),
+              borderColor: Colors.purple.shade200,
+              textColor: Colors.purple.shade900,
             ),
             _MetricTile(
-              title: 'Net Profit (Coll. - Exp.)',
-              value: formatCurrency(netProfitCents),
-              icon: Icons.account_balance_wallet_outlined,
-              iconColor: netProfitCents >= 0 ? Colors.blue : Colors.red,
-              backgroundColor: netProfitCents >= 0 ? Colors.blue.shade50.withValues(alpha: 0.5) : Colors.red.shade50.withValues(alpha: 0.5),
-              borderColor: netProfitCents >= 0 ? Colors.blue.shade200 : Colors.red.shade200,
-              textColor: netProfitCents >= 0 ? Colors.blue.shade900 : Colors.red.shade900,
+              title: 'Real Net Profit',
+              value: formatCurrency(realNetProfitCents),
+              icon: Icons.pie_chart_outline,
+              iconColor: realNetProfitCents >= 0 ? Colors.blue.shade700 : Colors.red.shade700,
+              backgroundColor: realNetProfitCents >= 0
+                  ? Colors.blue.shade50.withValues(alpha: 0.5)
+                  : Colors.red.shade50.withValues(alpha: 0.5),
+              borderColor: realNetProfitCents >= 0 ? Colors.blue.shade200 : Colors.red.shade200,
+              textColor: realNetProfitCents >= 0 ? Colors.blue.shade900 : Colors.red.shade900,
             ),
           ],
         );
@@ -85,6 +89,7 @@ class CashFlowMetricsBar extends ConsumerWidget {
 class _MetricTile extends StatelessWidget {
   final String title;
   final String value;
+  final String? subtitle;
   final IconData icon;
   final Color iconColor;
   final Color backgroundColor;
@@ -94,6 +99,7 @@ class _MetricTile extends StatelessWidget {
   const _MetricTile({
     required this.title,
     required this.value,
+    this.subtitle,
     required this.icon,
     required this.iconColor,
     required this.backgroundColor,
@@ -133,19 +139,20 @@ class _MetricTile extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: textColor ?? Theme.of(context).colorScheme.onSurface,
-              ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textColor ?? Theme.of(context).colorScheme.onSurface,
             ),
           ),
+          if (subtitle != null)
+            Text(
+              subtitle!,
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.red.shade800),
+            ),
         ],
       ),
     );
