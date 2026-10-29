@@ -526,16 +526,16 @@ export default function App() {
     return `${prefix}${String(maxNum + 1).padStart(4, '0')}`;
   }, [estimates, businessProfile.estimate_prefix]);
 
-  // Live Editor Subtotals
   const editorSubtotalCents = editorItems.reduce((sum, i) => sum + (i.unitPriceCents * i.quantity), 0);
+  const rawFlat = parsePriceToCents(editorDiscountValue);
   const editorDiscountCents = editorDiscountType === 'percent'
     ? Math.round((editorSubtotalCents * (parseFloat(editorDiscountValue) || 0)) / 100)
-    : editorDiscountType === 'flat' ? parsePriceToCents(editorDiscountValue) : 0;
+    : editorDiscountType === 'flat' ? Math.min(rawFlat, editorSubtotalCents) : 0;
   const editorNetSub = Math.max(0, editorSubtotalCents - editorDiscountCents);
   const editorTaxCents = editorItems.reduce((sum, i) => {
     const lineTotal = i.unitPriceCents * i.quantity;
     const lineNet = editorDiscountCents > 0 ? lineTotal - Math.round((lineTotal * editorDiscountCents) / (editorSubtotalCents || 1)) : lineTotal;
-    return sum + Math.round((lineNet * i.taxSlab) / 100);
+    return sum + Math.round((Math.max(0, lineNet) * i.taxSlab) / 100);
   }, 0);
   const editorTotalCents = editorNetSub + editorTaxCents;
 
@@ -2410,6 +2410,11 @@ export default function App() {
                   const tds = parsePriceToCents(paymentTds);
                   if (amt + tds <= 0) {
                     alert('Please enter a valid received amount.');
+                    return;
+                  }
+                  const bal = getInvoiceBalanceDueCents(recordPaymentInvoice);
+                  if (amt + tds > bal) {
+                    alert(`Total payment credit (${formatMoney(amt + tds)}) cannot exceed remaining balance due (${formatMoney(bal)}).`);
                     return;
                   }
                   const newPay: StoredPayment = {

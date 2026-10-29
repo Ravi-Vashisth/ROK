@@ -50,9 +50,10 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     if (profileRes.isNotEmpty) {
       prefix = (profileRes.first['estimate_prefix'] as String?) ?? 'EST-';
     }
-    final result = _db.select('SELECT COUNT(*) AS total FROM estimates');
-    final count = (result.first['total'] as int?) ?? 0;
-    final nextNumber = count + 1;
+    final result = _db.select('''
+      SELECT COALESCE(MAX(CAST(SUBSTR(estimate_number, 5) AS INTEGER)), 0) + 1 AS next_num FROM estimates;
+    ''');
+    final nextNumber = (result.first['next_num'] as int?) ?? 1;
     return '$prefix${nextNumber.toString().padLeft(4, '0')}';
   }
 
@@ -110,7 +111,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     final subtotalCents = items.fold<int>(0, (sum, item) => sum + item.totalCents);
     final discountCents = calculateDiscountCents(subtotalCents, discountType, discountValue);
     final netSubtotalCents = (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
-    final taxCents = calculateTaxCents(netSubtotalCents, taxPercentage);
+    final itemsTaxSum = items.fold<int>(0, (sum, item) => sum + item.taxCents);
+    final taxCents = itemsTaxSum > 0 ? itemsTaxSum : calculateTaxCents(netSubtotalCents, taxPercentage);
     final totalCents = netSubtotalCents + taxCents;
 
     _db.execute('BEGIN TRANSACTION;');
@@ -147,8 +149,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
 
       final itemStmt = _db.prepare('''
         INSERT INTO estimate_items (
-          id, estimate_id, description, sac_hsn, quantity, unit_price_cents, total_cents, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          id, estimate_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         for (final item in items) {
@@ -160,6 +162,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
             item.sacHsn,
             item.quantity,
             item.unitPriceCents,
+            item.taxRatePercentage,
+            item.taxCents,
             item.totalCents,
             createdAt,
           ]);
@@ -192,12 +196,6 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     final discountValue = (estRow['discount_value'] as int?) ?? 0;
     final discountCents = (estRow['discount_cents'] as int?) ?? 0;
 
-    final netSubtotalCents = (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
-    int taxPercentage = 0;
-    if (netSubtotalCents > 0) {
-      taxPercentage = ((taxCents * 100) / netSubtotalCents).round();
-    }
-
     final items = getEstimateItems(estimateId);
     final draftItems = items
         .map((it) => DraftItem(
@@ -205,26 +203,92 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
               sacHsn: it.sacHsn,
               unitPriceCents: it.unitPriceCents,
               quantity: it.quantity,
+              taxRatePercentage: it.taxRatePercentage,
+              taxCents: it.taxCents,
               totalCents: it.totalCents,
             ))
         .toList();
 
-    final invoicesNotifier = _ref.read(invoicesProvider.notifier);
-    final invoiceId = invoicesNotifier.saveInvoice(
-      clientId: clientId,
-      items: draftItems,
-      taxPercentage: taxPercentage,
-      terms: terms,
-      notes: notes,
-      discountType: discountType,
-      discountValue: discountValue,
-    );
+    _db.execute('BEGIN TRANSACTION;');
+    try {
+      final invoiceId = generateUniqueId();
+      final invoiceNumber = _ref.read(invoicesProvider.notifier).getNextInvoiceNumber();
+      final createdAt = DateTime.now().toUtc().toIso8601String();
 
-    _db.execute(
-      "UPDATE estimates SET status = 'CONVERTED', converted_invoice_id = ? WHERE id = ?",
-      [invoiceId, estimateId],
-    );
+      final netSubtotalCents = (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
+      final totalCents = netSubtotalCents + taxCents;
+      final now = DateTime.now();
+      final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
+      final invoiceStmt = _db.prepare('''
+        INSERT INTO invoices (
+          id, client_id, invoice_number, subtotal_cents, tax_cents, total_cents,
+          status, issue_date, due_date, payment_terms, terms, notes,
+          discount_type, discount_value, discount_cents, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''');
+      try {
+        invoiceStmt.execute([
+          invoiceId,
+          clientId,
+          invoiceNumber,
+          subtotalCents,
+          taxCents,
+          totalCents,
+          'PENDING',
+          todayStr,
+          todayStr,
+          'Due on Receipt',
+          terms,
+          notes,
+          discountType,
+          discountValue,
+          discountCents,
+          createdAt,
+        ]);
+      } finally {
+        invoiceStmt.dispose();
+      }
+
+      final itemStmt = _db.prepare('''
+        INSERT INTO invoice_items (
+          id, invoice_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ''');
+      try {
+        for (final item in draftItems) {
+          final itemId = generateUniqueId();
+          itemStmt.execute([
+            itemId,
+            invoiceId,
+            item.description,
+            item.sacHsn,
+            item.quantity,
+            item.unitPriceCents,
+            item.taxRatePercentage,
+            item.taxCents,
+            item.totalCents,
+            createdAt,
+          ]);
+        }
+      } finally {
+        itemStmt.dispose();
+      }
+
+      _db.execute("UPDATE business_profile SET next_invoice_number = next_invoice_number + 1 WHERE id = 'default'");
+
+      _db.execute(
+        "UPDATE estimates SET status = 'CONVERTED', converted_invoice_id = ? WHERE id = ?",
+        [invoiceId, estimateId],
+      );
+
+      _db.execute('COMMIT;');
+    } catch (e) {
+      _db.execute('ROLLBACK;');
+      rethrow;
+    }
+
+    _ref.read(invoicesProvider.notifier).loadInvoices();
     loadEstimates();
   }
 

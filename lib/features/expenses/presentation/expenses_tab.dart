@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/currency_formatter_provider.dart';
+import '../../../core/utils/money_utils.dart';
 import '../models/expense_record.dart';
 import '../providers/expenses_provider.dart';
 
@@ -90,17 +91,15 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
       return;
     }
 
-    final amountDouble = double.tryParse(_amountController.text.trim()) ?? 0;
-    if (amountDouble <= 0) {
+    final amountCents = parsePriceToCents(_amountController.text.trim());
+    if (amountCents <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid expense amount.')),
       );
       return;
     }
 
-    final amountCents = (amountDouble * 100).round();
-    final taxDouble = double.tryParse(_taxController.text.trim()) ?? 0;
-    final taxCents = (taxDouble * 100).round();
+    final taxCents = parsePriceToCents(_taxController.text.trim());
 
     ref.read(expensesProvider.notifier).addExpense(
           category: _selectedCategory,

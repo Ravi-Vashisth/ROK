@@ -151,15 +151,26 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
       return;
     }
 
+    final subAfterDisc = (_subtotalCents - _discountCents).clamp(0, _subtotalCents);
+
     final draftItems = _items
         .where((i) => i.description.trim().isNotEmpty)
-        .map((i) => DraftItem(
-              description: i.description.trim(),
-              sacHsn: i.sacHsn.trim(),
-              quantity: i.quantity,
-              unitPriceCents: i.unitPriceCents,
-              totalCents: i.totalCents,
-            ))
+        .map((i) {
+          final lineTotal = i.totalCents;
+          final lineNet = _subtotalCents > 0
+              ? (lineTotal * subAfterDisc) ~/ _subtotalCents
+              : lineTotal;
+          final itemTaxCents = (lineNet * i.taxSlab) ~/ 100;
+          return DraftItem(
+            description: i.description.trim(),
+            sacHsn: i.sacHsn.trim(),
+            quantity: i.quantity,
+            unitPriceCents: i.unitPriceCents,
+            taxRatePercentage: i.taxSlab,
+            taxCents: itemTaxCents,
+            totalCents: i.totalCents,
+          );
+        })
         .toList();
 
     final issueDate = _issueDateController.text.trim();
@@ -169,11 +180,13 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
         ? (double.tryParse(_discountController.text.trim()) ?? 0).toInt()
         : parsePriceToCents(_discountController.text.trim());
 
+    final avgTaxPct = _items.isNotEmpty ? _items.first.taxSlab : 10;
+
     if (widget.isQuote) {
       ref.read(estimatesProvider.notifier).saveEstimate(
             clientId: _selectedClientId!,
             items: draftItems,
-            taxPercentage: _items.isNotEmpty ? _items.first.taxSlab : 10,
+            taxPercentage: avgTaxPct,
             issueDate: issueDate,
             expiryDate: dueDate,
             terms: _termsController.text.trim(),
@@ -188,7 +201,7 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
       ref.read(invoicesProvider.notifier).saveInvoice(
             clientId: _selectedClientId!,
             items: draftItems,
-            taxPercentage: _items.isNotEmpty ? _items.first.taxSlab : 10,
+            taxPercentage: avgTaxPct,
             paymentTerms: _paymentTerms,
             issueDate: issueDate,
             dueDate: dueDate,

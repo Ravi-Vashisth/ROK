@@ -34,8 +34,8 @@ class BackupService {
   static void importDatabaseFromJson(Database db, Map<String, dynamic> backup) {
     db.execute('BEGIN TRANSACTION;');
     try {
-      // Clear existing tables in correct FK order
-      const tables = [
+      // Clear existing tables in correct child-first FK order
+      const clearTables = [
         'payments',
         'invoice_items',
         'estimate_items',
@@ -47,14 +47,26 @@ class BackupService {
         'business_profile'
       ];
 
-      for (final table in tables) {
+      for (final table in clearTables) {
         try {
           db.execute('DELETE FROM $table;');
         } catch (_) {}
       }
 
-      // Insert backup tables
-      for (final table in tables) {
+      // Insert backup tables in PARENT-FIRST dependency order
+      const insertTables = [
+        'business_profile',
+        'clients',
+        'invoices',
+        'estimates',
+        'expenses',
+        'saved_items',
+        'invoice_items',
+        'estimate_items',
+        'payments'
+      ];
+
+      for (final table in insertTables) {
         final rows = backup[table] as List<dynamic>?;
         if (rows == null || rows.isEmpty) continue;
 

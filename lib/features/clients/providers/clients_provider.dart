@@ -34,16 +34,19 @@ class ClientsNotifier extends StateNotifier<List<Client>> {
       INSERT INTO clients (id, name, email, phone, address, tax_id, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     ''');
-    stmt.execute([
-      id,
-      trimmedName,
-      email.trim(),
-      phone.trim(),
-      address.trim(),
-      taxId.trim(),
-      createdAt,
-    ]);
-    stmt.dispose();
+    try {
+      stmt.execute([
+        id,
+        trimmedName,
+        email.trim(),
+        phone.trim(),
+        address.trim(),
+        taxId.trim(),
+        createdAt,
+      ]);
+    } finally {
+      stmt.dispose();
+    }
 
     loadClients();
   }
@@ -80,8 +83,11 @@ class ClientsNotifier extends StateNotifier<List<Client>> {
   }
 
   bool deleteClient(String id) {
-    final check = _db.select('SELECT COUNT(*) AS count FROM invoices WHERE client_id = ?', [id]);
-    final count = (check.first['count'] as int?) ?? 0;
+    final check = _db.select(
+      'SELECT (SELECT COUNT(*) FROM invoices WHERE client_id = ?) + (SELECT COUNT(*) FROM estimates WHERE client_id = ?) AS total_records',
+      [id, id],
+    );
+    final count = (check.first['total_records'] as int?) ?? 0;
     if (count > 0) {
       return false;
     }

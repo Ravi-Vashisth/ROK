@@ -20,6 +20,7 @@ class ClientStatementDialog extends ConsumerWidget {
     int totalInvoiced = 0;
     int totalPaid = 0;
     for (final inv in invoices) {
+      if (inv.isVoid || inv.status == 'VOID') continue;
       totalInvoiced += inv.totalCents;
       totalPaid += inv.paidCents;
     }

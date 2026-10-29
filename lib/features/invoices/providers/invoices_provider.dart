@@ -14,6 +14,8 @@ class DraftItem {
   final String sacHsn;
   final int unitPriceCents;
   final int quantity;
+  final int taxRatePercentage;
+  final int taxCents;
   final int totalCents;
 
   const DraftItem({
@@ -21,6 +23,8 @@ class DraftItem {
     this.sacHsn = '',
     required this.unitPriceCents,
     required this.quantity,
+    this.taxRatePercentage = 0,
+    this.taxCents = 0,
     required this.totalCents,
   });
 }
@@ -157,7 +161,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     final subtotalCents = items.fold<int>(0, (sum, item) => sum + item.totalCents);
     final discountCents = calculateDiscountCents(subtotalCents, discountType, discountValue);
     final netSubtotalCents = (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
-    final taxCents = calculateTaxCents(netSubtotalCents, taxPercentage);
+    final itemsTaxSum = items.fold<int>(0, (sum, item) => sum + item.taxCents);
+    final taxCents = itemsTaxSum > 0 ? itemsTaxSum : calculateTaxCents(netSubtotalCents, taxPercentage);
     final totalCents = netSubtotalCents + taxCents;
 
     _db.execute('BEGIN TRANSACTION;');
@@ -194,8 +199,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
 
       final itemStmt = _db.prepare('''
         INSERT INTO invoice_items (
-          id, invoice_id, description, sac_hsn, quantity, unit_price_cents, total_cents, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          id, invoice_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         for (final item in items) {
@@ -207,6 +212,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
             item.sacHsn,
             item.quantity,
             item.unitPriceCents,
+            item.taxRatePercentage,
+            item.taxCents,
             item.totalCents,
             createdAt,
           ]);
