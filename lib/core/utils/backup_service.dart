@@ -31,10 +31,17 @@ class BackupService {
     return backup;
   }
 
-  static void importDatabaseFromJson(Database db, Map<String, dynamic> backup) {
-    if (!backup.containsKey('business_profile') || !backup.containsKey('clients') || !backup.containsKey('invoices')) {
-      throw const FormatException('Invalid backup file: The selected file is not a valid Freelance Ledger database snapshot.');
+  static void validateBackupMap(Map<String, dynamic> backup) {
+    if (!backup.containsKey('business_profile') ||
+        !backup.containsKey('clients') ||
+        !backup.containsKey('invoices')) {
+      throw const FormatException(
+          'Invalid backup file: The selected file is not a valid Freelance Ledger database snapshot.');
     }
+  }
+
+  static void importDatabaseFromJson(Database db, Map<String, dynamic> backup) {
+    validateBackupMap(backup);
 
     db.execute('BEGIN TRANSACTION;');
     try {

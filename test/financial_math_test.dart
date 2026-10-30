@@ -124,7 +124,7 @@ void main() {
 
       // Ensure backup validation fails cleanly on missing root tables
       expect(
-        () => BackupService.importDatabaseFromJson(DummyDb(), invalidBackup),
+        () => BackupService.validateBackupMap(invalidBackup),
         throwsA(isA<FormatException>()),
       );
     });
@@ -161,12 +161,6 @@ void main() {
       expect(balanceDue, equals(15000));
     });
   });
-}
-
-// Dummy classes for lightweight unit testing without native SQLite dynamic libraries
-class DummyDb implements dynamic {
-  @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class DummyInvoice {
