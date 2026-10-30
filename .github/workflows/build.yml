@@ -26,6 +26,8 @@ jobs:
           flutter config --enable-windows-desktop
           flutter create --platforms=windows .
       - run: flutter pub get
+      - name: Run Flutter Tests
+        run: flutter test test/financial_math_test.dart
       - name: Compile Windows
         run: flutter build windows --release
       - name: Package Zip
@@ -57,6 +59,8 @@ jobs:
           flutter create --platforms=android .
           bash scripts/patch_android.sh
       - run: flutter pub get
+      - name: Run Flutter Tests
+        run: flutter test test/financial_math_test.dart
       - name: Compile Android APK
         run: flutter build apk --release --android-skip-build-dependency-validation
       - uses: actions/upload-artifact@v4.4.3
@@ -82,6 +86,8 @@ jobs:
           flutter config --enable-macos-desktop
           flutter create --platforms=macos .
       - run: flutter pub get
+      - name: Run Flutter Tests
+        run: flutter test test/financial_math_test.dart
       - name: Compile macOS Desktop
         run: flutter build macos --release
       - name: Package macOS Zip
@@ -107,6 +113,8 @@ jobs:
       - name: Generate iOS Scaffolding
         run: flutter create --platforms=ios .
       - run: flutter pub get
+      - name: Run Flutter Tests
+        run: flutter test test/financial_math_test.dart
       - name: Compile iOS
         env:
           IOS_DEV_TEAM: ${{ secrets.IOS_DEVELOPMENT_TEAM }}

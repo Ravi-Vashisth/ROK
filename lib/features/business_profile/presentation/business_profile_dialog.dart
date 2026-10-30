@@ -26,11 +26,25 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
   late final TextEditingController _defaultNotesController;
   late final TextEditingController _signatureLabelController;
   late String _selectedCurrencySymbol;
+  late String _selectedCurrencyCode;
+  late int _selectedCurrencyDecimals;
 
   String _logoBase64 = '';
   String _signatureBase64 = '';
 
-  static const List<String> _currencyPresets = ['\$', '€', '£', '₹', 'C\$', 'A\$', '¥'];
+  static const List<Map<String, dynamic>> _currencyPresets = [
+    {'code': 'USD', 'symbol': '\$', 'decimals': 2, 'label': 'USD (\$) - US Dollar'},
+    {'code': 'INR', 'symbol': '₹', 'decimals': 2, 'label': 'INR (₹) - Indian Rupee'},
+    {'code': 'EUR', 'symbol': '€', 'decimals': 2, 'label': 'EUR (€) - Euro'},
+    {'code': 'GBP', 'symbol': '£', 'decimals': 2, 'label': 'GBP (£) - British Pound'},
+    {'code': 'CAD', 'symbol': 'C\$', 'decimals': 2, 'label': 'CAD (C\$) - Canadian Dollar'},
+    {'code': 'AUD', 'symbol': 'A\$', 'decimals': 2, 'label': 'AUD (A\$) - Australian Dollar'},
+    {'code': 'AED', 'symbol': 'AED', 'decimals': 2, 'label': 'AED - UAE Dirham'},
+    {'code': 'SAR', 'symbol': 'SAR', 'decimals': 2, 'label': 'SAR - Saudi Riyal'},
+    {'code': 'JPY', 'symbol': '¥', 'decimals': 0, 'label': 'JPY (¥) - Japanese Yen'},
+    {'code': 'KRW', 'symbol': '₩', 'decimals': 0, 'label': 'KRW (₩) - S. Korean Won'},
+    {'code': 'VND', 'symbol': '₫', 'decimals': 0, 'label': 'VND (₫) - Vietnamese Dong'},
+  ];
 
   @override
   void initState() {
@@ -41,7 +55,6 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     _phoneController = TextEditingController(text: profile.phone);
     _addressController = TextEditingController(text: profile.address);
     _taxIdController = TextEditingController(text: profile.taxId);
-    // Unescape literal \n into real linebreaks for editing
     _paymentDetailsController = TextEditingController(
       text: profile.paymentDetails.replaceAll(r'\n', '\n'),
     );
@@ -52,9 +65,9 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     );
     _logoBase64 = profile.logoBase64;
     _signatureBase64 = profile.signatureBase64;
-    _selectedCurrencySymbol = _currencyPresets.contains(profile.currencySymbol)
-        ? profile.currencySymbol
-        : '\$';
+    _selectedCurrencySymbol = profile.currencySymbol;
+    _selectedCurrencyCode = profile.currencyCode;
+    _selectedCurrencyDecimals = profile.currencyDecimals;
   }
 
   @override
@@ -126,6 +139,8 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
           taxId: _taxIdController.text.trim(),
           paymentDetails: _paymentDetailsController.text.trim(),
           currencySymbol: _selectedCurrencySymbol,
+          currencyCode: _selectedCurrencyCode,
+          currencyDecimals: _selectedCurrencyDecimals,
           defaultTerms: _defaultTermsController.text.trim(),
           defaultNotes: _defaultNotesController.text.trim(),
           logoBase64: _logoBase64.trim(),
@@ -137,7 +152,7 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Business profile, logo, signature & defaults saved to local SQLite.'),
+        content: Text('Business profile, currency settings & defaults saved to local SQLite.'),
       ),
     );
   }
@@ -251,22 +266,33 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      flex: 2,
+                      flex: 3,
                       child: DropdownButtonFormField<String>(
-                        value: _selectedCurrencySymbol,
+                        value: _selectedCurrencyCode,
                         decoration: const InputDecoration(
-                          labelText: 'Currency Symbol',
+                          labelText: 'Currency Preset',
                           prefixIcon: Icon(Icons.attach_money, size: 20),
                         ),
-                        items: _currencyPresets.map((sym) {
-                          return DropdownMenuItem(
-                            value: sym,
-                            child: Text(sym, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        items: _currencyPresets.map((item) {
+                          return DropdownMenuItem<String>(
+                            value: item['code'] as String,
+                            child: Text(
+                              item['label'] as String,
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
                           );
                         }).toList(),
                         onChanged: (val) {
                           if (val != null) {
-                            setState(() => _selectedCurrencySymbol = val);
+                            final preset = _currencyPresets.firstWhere(
+                              (element) => element['code'] == val,
+                              orElse: () => _currencyPresets.first,
+                            );
+                            setState(() {
+                              _selectedCurrencyCode = preset['code'] as String;
+                              _selectedCurrencySymbol = preset['symbol'] as String;
+                              _selectedCurrencyDecimals = preset['decimals'] as int;
+                            });
                           }
                         },
                       ),

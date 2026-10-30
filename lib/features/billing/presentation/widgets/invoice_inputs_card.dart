@@ -101,12 +101,15 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
   }
 
   void _onSelectSavedItem(SavedItem? item) {
+    final profile = ref.read(businessProfileProvider);
     setState(() {
       _selectedSavedItem = item;
       if (item != null) {
         _descriptionController.text = item.title;
         _sacHsnController.text = item.sacHsn;
-        _priceController.text = (item.defaultPriceCents / 100.0).toStringAsFixed(2);
+        _priceController.text = profile.currencyDecimals == 0
+            ? item.defaultPriceCents.toString()
+            : (item.defaultPriceCents / 100.0).toStringAsFixed(2);
       }
     });
   }
@@ -121,7 +124,8 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
       return;
     }
 
-    final unitPriceCents = parsePriceToCents(_priceController.text);
+    final profile = ref.read(businessProfileProvider);
+    final unitPriceCents = parsePriceToUnits(_priceController.text, profile.currencyDecimals);
     if (unitPriceCents <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid unit price.')),
@@ -182,12 +186,13 @@ class _InvoiceInputsCardState extends ConsumerState<InvoiceInputsCard> {
       return;
     }
 
+    final profile = ref.read(businessProfileProvider);
     final taxPercentage = int.tryParse(_taxPercentageController.text.trim()) ?? 0;
     int discountVal = 0;
     if (_discountType == 'percent') {
       discountVal = int.tryParse(_discountValueController.text.trim()) ?? 0;
     } else if (_discountType == 'flat') {
-      discountVal = parsePriceToCents(_discountValueController.text);
+      discountVal = parsePriceToUnits(_discountValueController.text, profile.currencyDecimals);
     }
 
     final issueDate = _issueDateController.text.trim();

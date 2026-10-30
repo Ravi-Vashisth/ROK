@@ -28,7 +28,7 @@ import {
   CheckCircle2,
   Upload,
 } from 'lucide-react';
-import { parsePriceToCents, calculateDueDate, isInvoiceOverdue } from './billingRules';
+import { parsePriceToCents, parsePriceToUnits, getCurrencyDecimals, calculateDueDate, isInvoiceOverdue } from './billingRules';
 
 // --- Parity Models & Interfaces ---
 export interface Client {
@@ -142,6 +142,7 @@ export interface BusinessProfile {
   business_name: string;
   currency_symbol: string;
   currency_code: string;
+  currency_decimals?: number;
   email: string;
   phone: string;
   address: string;
@@ -161,6 +162,7 @@ const DEFAULT_PROFILE: BusinessProfile = {
   business_name: 'My Freelance Studio',
   currency_symbol: '₹',
   currency_code: 'INR',
+  currency_decimals: 2,
   email: 'billing@studio.com',
   phone: '+1 (555) 019-2834',
   address: '100 Tech Plaza, Suite 400, San Francisco, CA 94107',
@@ -454,10 +456,19 @@ export default function App() {
   // Invoice / Quote PDF Preview Modal
   const [previewInvoice, setPreviewInvoice] = useState<InvoiceRecord | null>(null);
 
-  // Formatters
+  // Formatters & Currency
+  const dec = businessProfile.currency_decimals ?? getCurrencyDecimals(businessProfile.currency_code || businessProfile.currency_symbol || 'USD');
   const sym = businessProfile.currency_symbol || '₹';
-  const formatMoney = (cents: number) => `${sym}${(cents / 100).toFixed(2)}`;
-  const formatDecimal = (cents: number) => (cents / 100).toFixed(2);
+  const formatMoney = (units: number) => {
+    if (dec === 0) {
+      return `${sym}${Math.round(units).toLocaleString('en-US')}`;
+    }
+    return `${sym}${(units / 100).toFixed(2)}`;
+  };
+  const formatDecimal = (units: number) => {
+    if (dec === 0) return Math.round(units).toString();
+    return (units / 100).toFixed(2);
+  };
   const quote = (text: string) => `"${(text || '').replace(/"/g, '""')}"`;
 
   // Calculations
@@ -1052,10 +1063,10 @@ export default function App() {
                               <span className="text-slate-500">Rate:</span>
                               <input
                                 type="number"
-                                step="0.01"
-                                value={(item.unitPriceCents / 100).toFixed(2)}
+                                step={dec === 0 ? "1" : "0.01"}
+                                value={formatDecimal(item.unitPriceCents)}
                                 onChange={(e) => {
-                                  const rate = parsePriceToCents(e.target.value);
+                                  const rate = parsePriceToUnits(e.target.value, dec);
                                   setEditorItems(prev => prev.map((it, i) => i === idx ? { ...it, unitPriceCents: rate, totalCents: rate * it.quantity } : it));
                                 }}
                                 className="w-24 px-2 py-1 rounded-lg border border-slate-200 bg-white text-right font-bold"
@@ -2769,13 +2780,46 @@ export default function App() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">Currency Code</label>
-                  <input
-                    type="text"
+                  <label className="block font-bold text-slate-600 mb-1">Currency Preset</label>
+                  <select
                     value={businessProfile.currency_code}
-                    onChange={(e) => setBusinessProfile(prev => ({ ...prev, currency_code: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50"
-                  />
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const presets: Record<string, { symbol: string; dec: number }> = {
+                        USD: { symbol: '$', dec: 2 },
+                        INR: { symbol: '₹', dec: 2 },
+                        EUR: { symbol: '€', dec: 2 },
+                        GBP: { symbol: '£', dec: 2 },
+                        CAD: { symbol: 'C$', dec: 2 },
+                        AUD: { symbol: 'A$', dec: 2 },
+                        AED: { symbol: 'AED', dec: 2 },
+                        SAR: { symbol: 'SAR', dec: 2 },
+                        JPY: { symbol: '¥', dec: 0 },
+                        KRW: { symbol: '₩', dec: 0 },
+                        VND: { symbol: '₫', dec: 0 },
+                      };
+                      const found = presets[val] || { symbol: '$', dec: 2 };
+                      setBusinessProfile(prev => ({
+                        ...prev,
+                        currency_code: val,
+                        currency_symbol: found.symbol,
+                        currency_decimals: found.dec,
+                      }));
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 font-bold text-xs"
+                  >
+                    <option value="USD">USD ($) - US Dollar</option>
+                    <option value="INR">INR (₹) - Indian Rupee</option>
+                    <option value="EUR">EUR (€) - Euro</option>
+                    <option value="GBP">GBP (£) - British Pound</option>
+                    <option value="CAD">CAD (C$) - Canadian Dollar</option>
+                    <option value="AUD">AUD (A$) - Australian Dollar</option>
+                    <option value="AED">AED - UAE Dirham</option>
+                    <option value="SAR">SAR - Saudi Riyal</option>
+                    <option value="JPY">JPY (¥) - Japanese Yen (0-Decimal)</option>
+                    <option value="KRW">KRW (₩) - S. Korean Won (0-Decimal)</option>
+                    <option value="VND">VND (₫) - Vietnamese Dong (0-Decimal)</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block font-bold text-slate-600 mb-1">Currency Symbol</label>
@@ -2783,7 +2827,7 @@ export default function App() {
                     type="text"
                     value={businessProfile.currency_symbol}
                     onChange={(e) => setBusinessProfile(prev => ({ ...prev, currency_symbol: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 font-bold"
                   />
                 </div>
               </div>
@@ -2879,6 +2923,33 @@ export default function App() {
                   <p className="text-slate-500">Terms: {previewInvoice.payment_terms} • Due: {previewInvoice.due_date}</p>
                 </div>
               </div>
+              {/* Statutory Compliance Notice Banner */}
+              {previewInvoice.tax_cents === 0 && (() => {
+                const targetClient = clients.find(c => c.id === previewInvoice.client_id);
+                const cTax = (targetClient?.tax_id || '').trim().toUpperCase();
+                const cAddr = (targetClient?.address || '').trim().toUpperCase();
+                const invNotes = (previewInvoice.notes || '').toUpperCase();
+                const invTerms = (previewInvoice.terms || '').toUpperCase();
+                const isExport = cAddr.includes('USA') || cAddr.includes('UNITED STATES') || cAddr.includes('EXPORT') || cAddr.includes('INTERNATIONAL') || cAddr.includes('UK') || cAddr.includes('LONDON') || cAddr.includes('DUBAI') || cAddr.includes('SINGAPORE') || cAddr.includes('LUT') || invNotes.includes('EXPORT') || invTerms.includes('EXPORT');
+                const isEuVat = cTax.startsWith('GB') || cTax.startsWith('DE') || cTax.startsWith('FR') || cTax.startsWith('NL') || cTax.startsWith('IE') || cTax.startsWith('IT') || cTax.startsWith('ES') || cTax.startsWith('BE') || cTax.startsWith('AT') || cTax.startsWith('SE') || cTax.startsWith('DK') || cTax.startsWith('FI') || cTax.startsWith('PL') || cTax.startsWith('CZ') || cTax.startsWith('PT') || cTax.startsWith('RO') || cTax.startsWith('HU') || cTax.startsWith('GR') || cTax.includes('VAT');
+
+                if (isExport) {
+                  return (
+                    <div className="p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-center text-[11px] font-bold text-indigo-900">
+                      SUPPLY MEANT FOR EXPORT UNDER BOND OR LETTER OF UNDERTAKING WITHOUT PAYMENT OF INTEGRATED TAX
+                    </div>
+                  );
+                }
+                if (isEuVat) {
+                  return (
+                    <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-[11px] font-bold text-emerald-900">
+                      Reverse charge: Customer to account for VAT under Article 196 of Council Directive 2006/112/EC.
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               <div className="border border-slate-200 rounded-xl overflow-hidden">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 font-bold border-b border-slate-200">
@@ -2902,9 +2973,28 @@ export default function App() {
                 </table>
               </div>
               <div className="flex justify-end pt-3 border-t border-slate-200">
-                <div className="w-52 space-y-1 text-right">
+                <div className="w-56 space-y-1 text-right">
                   <div className="flex justify-between"><span>Subtotal:</span><span>{formatMoney(previewInvoice.subtotal_cents)}</span></div>
-                  <div className="flex justify-between"><span>Tax:</span><span>{formatMoney(previewInvoice.tax_cents)}</span></div>
+                  {previewInvoice.discount_cents && previewInvoice.discount_cents > 0 ? (
+                    <div className="flex justify-between text-amber-700 font-semibold">
+                      <span>Discount:</span>
+                      <span>-{formatMoney(previewInvoice.discount_cents)}</span>
+                    </div>
+                  ) : null}
+                  {previewInvoice.tax_cents > 0 ? (
+                    (() => {
+                      const cgst = Math.floor(previewInvoice.tax_cents / 2);
+                      const sgst = previewInvoice.tax_cents - cgst;
+                      return (
+                        <>
+                          <div className="flex justify-between text-slate-600"><span>CGST (50%):</span><span>{formatMoney(cgst)}</span></div>
+                          <div className="flex justify-between text-slate-600"><span>SGST (50%):</span><span>{formatMoney(sgst)}</span></div>
+                        </>
+                      );
+                    })()
+                  ) : (
+                    <div className="flex justify-between text-slate-500"><span>Tax (0% / Exempt):</span><span>{formatMoney(0)}</span></div>
+                  )}
                   <div className="flex justify-between font-bold text-sm text-indigo-700 border-t pt-1">
                     <span>Total Amount:</span>
                     <span>{formatMoney(previewInvoice.total_cents)}</span>

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "node scripts/verify_parity.cjs && vite build",
+    "test": "tsx --test src/billingRules.test.ts",
+    "build": "node scripts/verify_parity.cjs && npm run test && vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"

@@ -49,6 +49,7 @@ class InvoicePdfService {
     );
 
     final sym = businessProfile.currencySymbol;
+    final dec = businessProfile.currencyDecimals;
 
     String formattedIssueDate = invoice.issueDate;
     if (formattedIssueDate.isEmpty) {
@@ -277,6 +278,89 @@ class InvoicePdfService {
 
               pw.SizedBox(height: 16),
 
+              // Statutory Compliance Banner (Rule 96A LUT Export / EU Reverse Charge)
+              if (invoice.taxCents == 0) ...[
+                () {
+                  final cTax = client.taxId.trim().toUpperCase();
+                  final cAddr = client.address.trim().toUpperCase();
+                  final invNotes = invoice.notes.toUpperCase();
+                  final invTerms = invoice.terms.toUpperCase();
+                  final isExport = cAddr.contains('USA') ||
+                      cAddr.contains('UNITED STATES') ||
+                      cAddr.contains('EXPORT') ||
+                      cAddr.contains('INTERNATIONAL') ||
+                      cAddr.contains('UK') ||
+                      cAddr.contains('LONDON') ||
+                      cAddr.contains('DUBAI') ||
+                      cAddr.contains('SINGAPORE') ||
+                      cAddr.contains('LUT') ||
+                      invNotes.contains('EXPORT') ||
+                      invTerms.contains('EXPORT');
+                  final isEuVat = cTax.startsWith('GB') ||
+                      cTax.startsWith('DE') ||
+                      cTax.startsWith('FR') ||
+                      cTax.startsWith('NL') ||
+                      cTax.startsWith('IE') ||
+                      cTax.startsWith('IT') ||
+                      cTax.startsWith('ES') ||
+                      cTax.startsWith('BE') ||
+                      cTax.startsWith('AT') ||
+                      cTax.startsWith('SE') ||
+                      cTax.startsWith('DK') ||
+                      cTax.startsWith('FI') ||
+                      cTax.startsWith('PL') ||
+                      cTax.startsWith('CZ') ||
+                      cTax.startsWith('PT') ||
+                      cTax.startsWith('RO') ||
+                      cTax.startsWith('HU') ||
+                      cTax.startsWith('GR') ||
+                      cTax.contains('VAT');
+
+                  if (isExport) {
+                    return pw.Container(
+                      width: double.infinity,
+                      margin: const pw.EdgeInsets.only(bottom: 12),
+                      padding: const pw.EdgeInsets.all(8),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#EEF2FF'),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                        border: pw.Border.all(color: PdfColor.fromHex('#6366F1'), width: 1),
+                      ),
+                      child: pw.Text(
+                        'SUPPLY MEANT FOR EXPORT UNDER BOND OR LETTER OF UNDERTAKING WITHOUT PAYMENT OF INTEGRATED TAX',
+                        style: pw.TextStyle(
+                          fontSize: 8.5,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColor.fromHex('#312E81'),
+                        ),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    );
+                  } else if (isEuVat) {
+                    return pw.Container(
+                      width: double.infinity,
+                      margin: const pw.EdgeInsets.only(bottom: 12),
+                      padding: const pw.EdgeInsets.all(8),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#F0FDF4'),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                        border: pw.Border.all(color: PdfColor.fromHex('#10B981'), width: 1),
+                      ),
+                      child: pw.Text(
+                        'Reverse charge: Customer to account for VAT under Article 196 of Council Directive 2006/112/EC.',
+                        style: pw.TextStyle(
+                          fontSize: 8.5,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColor.fromHex('#065F46'),
+                        ),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    );
+                  }
+                  return pw.SizedBox.shrink();
+                }(),
+              ],
+
               pw.Text(
                 'LINE ITEMS',
                 style: pw.TextStyle(
@@ -327,8 +411,8 @@ class InvoicePdfService {
                         _buildCell(_cleanText(item.description), align: pw.TextAlign.left),
                         _buildCell(item.sacHsn.isNotEmpty ? item.sacHsn : '-', align: pw.TextAlign.left),
                         _buildCell('${item.quantity}', align: pw.TextAlign.center),
-                        _buildCell(formatCents(item.unitPriceCents, symbol: sym), align: pw.TextAlign.right),
-                        _buildCell(formatCents(item.totalCents, symbol: sym), align: pw.TextAlign.right, isBold: true),
+                        _buildCell(formatCents(item.unitPriceCents, symbol: sym, decimals: dec), align: pw.TextAlign.right),
+                        _buildCell(formatCents(item.totalCents, symbol: sym, decimals: dec), align: pw.TextAlign.right, isBold: true),
                       ],
                     );
                   }),
@@ -374,7 +458,7 @@ class InvoicePdfService {
                       final details = [
                         if (p.notes.isNotEmpty) _cleanText(p.notes),
                         if (p.referenceNumber.isNotEmpty) 'Ref: ${p.referenceNumber}',
-                        if (p.tdsCents > 0) 'TDS: ${formatCents(p.tdsCents, symbol: sym)}',
+                        if (p.tdsCents > 0) 'TDS: ${formatCents(p.tdsCents, symbol: sym, decimals: dec)}',
                       ].join(' • ');
 
                       return pw.TableRow(
@@ -387,7 +471,7 @@ class InvoicePdfService {
                           _buildCell(p.paymentDate, align: pw.TextAlign.left),
                           _buildCell(p.paymentMethod, align: pw.TextAlign.left),
                           _buildCell(details.isNotEmpty ? details : '-', align: pw.TextAlign.left),
-                          _buildCell(formatCents(p.totalCreditCents, symbol: sym), align: pw.TextAlign.right, isBold: true),
+                          _buildCell(formatCents(p.totalCreditCents, symbol: sym, decimals: dec), align: pw.TextAlign.right, isBold: true),
                         ],
                       );
                     }),
@@ -402,24 +486,38 @@ class InvoicePdfService {
                     width: 250,
                     child: pw.Column(
                       children: [
-                        _buildSummaryLine('Subtotal', formatCents(invoice.subtotalCents, symbol: sym)),
+                        _buildSummaryLine('Subtotal', formatCents(invoice.subtotalCents, symbol: sym, decimals: dec)),
                         if (invoice.discountCents > 0) ...[
                           pw.SizedBox(height: 3),
                           _buildSummaryLine(
                             'Discount (${invoice.discountType == 'percent' ? '${invoice.discountValue}%' : 'Flat'})',
-                            '-${formatCents(invoice.discountCents, symbol: sym)}',
+                            '-${formatCents(invoice.discountCents, symbol: sym, decimals: dec)}',
                             color: PdfColor.fromHex('#D97706'),
                             isBold: true,
                           ),
                         ],
                         pw.SizedBox(height: 3),
-                        _buildSummaryLine('Tax', formatCents(invoice.taxCents, symbol: sym)),
+                        if (invoice.taxCents > 0) ...[
+                          () {
+                            final cgst = invoice.taxCents ~/ 2;
+                            final sgst = invoice.taxCents - cgst;
+                            return pw.Column(
+                              children: [
+                                _buildSummaryLine('CGST (50% Split)', formatCents(cgst, symbol: sym, decimals: dec)),
+                                pw.SizedBox(height: 3),
+                                _buildSummaryLine('SGST (50% Split)', formatCents(sgst, symbol: sym, decimals: dec)),
+                              ],
+                            );
+                          }(),
+                        ] else ...[
+                          _buildSummaryLine('Tax (0% / Exempt)', formatCents(0, symbol: sym, decimals: dec)),
+                        ],
                         pw.SizedBox(height: 3),
                         pw.Divider(color: PdfColor.fromHex('#E2E8F0'), thickness: 0.8),
                         pw.SizedBox(height: 3),
                         _buildSummaryLine(
                           'Total Invoice Amount',
-                          formatCents(invoice.totalCents, symbol: sym),
+                          formatCents(invoice.totalCents, symbol: sym, decimals: dec),
                           isBold: true,
                           fontSize: 11,
                         ),
@@ -427,7 +525,7 @@ class InvoicePdfService {
                           pw.SizedBox(height: 3),
                           _buildSummaryLine(
                             'Less Payments Received',
-                            '-${formatCents(invoice.paidCents, symbol: sym)}',
+                            '-${formatCents(invoice.paidCents, symbol: sym, decimals: dec)}',
                             color: PdfColor.fromHex('#059669'),
                             isBold: true,
                           ),
@@ -449,7 +547,7 @@ class InvoicePdfService {
                           ),
                           child: _buildSummaryLine(
                             'Balance Due',
-                            formatCents(invoice.balanceDueCents, symbol: sym),
+                            formatCents(invoice.balanceDueCents, symbol: sym, decimals: dec),
                             isBold: true,
                             fontSize: 12,
                             color: isPaid

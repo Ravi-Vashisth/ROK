@@ -112,6 +112,8 @@ Future<Database> openLocalDatabase() async {
       tax_id TEXT DEFAULT '',
       payment_details TEXT DEFAULT '',
       currency_symbol TEXT DEFAULT '$',
+      currency_code TEXT DEFAULT 'USD',
+      currency_decimals INTEGER DEFAULT 2,
       default_terms TEXT DEFAULT 'Payment due within agreed terms. Thank you for your business!',
       default_notes TEXT DEFAULT '',
       logo_base64 TEXT DEFAULT '',
@@ -126,6 +128,8 @@ Future<Database> openLocalDatabase() async {
 
   for (final col in [
     r"currency_symbol TEXT DEFAULT '$'",
+    r"currency_code TEXT DEFAULT 'USD'",
+    r"currency_decimals INTEGER DEFAULT 2",
     r"default_terms TEXT DEFAULT 'Payment due within agreed terms. Thank you for your business!'",
     r"default_notes TEXT DEFAULT ''",
     r"logo_base64 TEXT DEFAULT ''",
@@ -144,7 +148,7 @@ Future<Database> openLocalDatabase() async {
   // Seed default business profile record
   db.execute(r'''
     INSERT OR IGNORE INTO business_profile (
-      id, business_name, email, phone, address, tax_id, payment_details, currency_symbol, default_terms, default_notes, logo_base64, signature_base64, signature_label, invoice_prefix, estimate_prefix, next_invoice_number, payment_qr_payload
+      id, business_name, email, phone, address, tax_id, payment_details, currency_symbol, currency_code, currency_decimals, default_terms, default_notes, logo_base64, signature_base64, signature_label, invoice_prefix, estimate_prefix, next_invoice_number, payment_qr_payload
     ) VALUES (
       'default',
       'My Freelance Studio',
@@ -154,6 +158,8 @@ Future<Database> openLocalDatabase() async {
       'US-EIN-987654321',
       'Bank: Silicon Valley Bank\nAccount: 987654321098\nRouting / SWIFT: SVB12345\nPayPal / UPI: pay@studio.com',
       '$',
+      'USD',
+      2,
       'Payment due within agreed terms. Thank you for your business!',
       'All work includes 30 days post-delivery support.',
       '',

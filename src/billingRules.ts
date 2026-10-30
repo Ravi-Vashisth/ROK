@@ -100,11 +100,36 @@ export interface BusinessProfile {
 }
 
 /**
- * Parses user input price (e.g. "15.50" or "$15.50") into integer cents without float imprecision.
+ * Determines decimal exponent (0 or 2) for currency code or symbol.
  */
-export function parsePriceToCents(input: string): number {
+export function getCurrencyDecimals(codeOrSymbol: string): number {
+  const upper = codeOrSymbol.trim().toUpperCase();
+  if (
+    upper === 'JPY' ||
+    upper === 'KRW' ||
+    upper === 'VND' ||
+    upper === 'CLP' ||
+    upper === '¥' ||
+    upper === '₩' ||
+    upper === '₫'
+  ) {
+    return 0;
+  }
+  return 2;
+}
+
+/**
+ * Parses user input price into minor units based on currency decimals exponent.
+ */
+export function parsePriceToUnits(input: string, decimals: number = 2): number {
   const cleaned = input.trim().replace(/[^\d.]/g, '');
   if (!cleaned) return 0;
+
+  if (decimals === 0) {
+    const wholeStr = cleaned.split('.')[0];
+    return parseInt(wholeStr, 10) || 0;
+  }
+
   const parts = cleaned.split('.');
   const dollars = parseInt(parts[0], 10) || 0;
   let cents = 0;
@@ -113,6 +138,13 @@ export function parsePriceToCents(input: string): number {
     cents = parseInt(centsPart, 10) || 0;
   }
   return dollars * 100 + cents;
+}
+
+/**
+ * Parses user input price (e.g. "15.50" or "$15.50") into integer cents without float imprecision.
+ */
+export function parsePriceToCents(input: string, decimals: number = 2): number {
+  return parsePriceToUnits(input, decimals);
 }
 
 /**
@@ -288,11 +320,29 @@ export function calculateDaysOverdue(dueDateStr: string): number {
 }
 
 /**
- * UI display formatting with dynamic currency symbol.
+ * Formats minor units as formatted currency string.
  */
-export function formatCents(cents: number, symbol = '$'): string {
-  const dollars = (cents / 100).toFixed(2);
-  return `${symbol}${dollars}`;
+export function formatMoney(units: number, symbol = '$', decimals = 2): string {
+  const safeUnits = Math.round(units);
+  if (decimals === 0) {
+    const formatted = new Intl.NumberFormat('en-US', {
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0,
+    }).format(safeUnits);
+    return `${symbol}${formatted}`;
+  }
+  const formatted = new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  }).format(safeUnits / 100);
+  return `${symbol}${formatted}`;
+}
+
+/**
+ * UI display formatting with dynamic currency symbol and decimal exponent.
+ */
+export function formatCents(cents: number, symbol = '$', decimals = 2): string {
+  return formatMoney(cents, symbol, decimals);
 }
 
 /**
@@ -354,4 +404,95 @@ export function generateInvoicesCsvString(
         .join(',')
     )
     .join('\n');
+}
+
+/**
+ * Computes discount in integer cents based on discount type and value.
+ * Clamps flat discounts to subtotal.
+ */
+export function calculateDiscountCents(
+  subtotalCents: number,
+  discountType: 'none' | 'percent' | 'flat',
+  discountValue: number
+): number {
+  if (subtotalCents <= 0 || discountValue <= 0 || discountType === 'none') return 0;
+  if (discountType === 'percent') {
+    const safePct = Math.min(100, Math.max(0, discountValue));
+    return Math.floor((subtotalCents * safePct + 50) / 100);
+  }
+  return Math.min(discountValue, subtotalCents);
+}
+
+/**
+ * Computes Indian GST CGST/SGST (50%/50%) split for intra-state or IGST (100%) for inter-state.
+ */
+export function calculateGstSplit(totalTaxCents: number, isIntraState: boolean): {
+  cgstCents: number;
+  sgstCents: number;
+  igstCents: number;
+} {
+  if (totalTaxCents <= 0) {
+    return { cgstCents: 0, sgstCents: 0, igstCents: 0 };
+  }
+  if (isIntraState) {
+    const cgst = Math.floor(totalTaxCents / 2);
+    const sgst = totalTaxCents - cgst; // absorbs odd cent
+    return { cgstCents: cgst, sgstCents: sgst, igstCents: 0 };
+  }
+  return { cgstCents: 0, sgstCents: 0, igstCents: totalTaxCents };
+}
+
+/**
+ * Returns Indian statutory LUT export notice if zero-rated export under LUT.
+ */
+export function getLutNotice(isExportUnderLut: boolean): string {
+  if (!isExportUnderLut) return '';
+  return 'SUPPLY MEANT FOR EXPORT UNDER BOND OR LETTER OF UNDERTAKING WITHOUT PAYMENT OF INTEGRATED TAX';
+}
+
+/**
+ * Returns EU/UK B2B Reverse Charge notice.
+ */
+export function getEuReverseChargeNotice(isEuCrossBorderB2B: boolean): string {
+  if (!isEuCrossBorderB2B) return '';
+  return 'Reverse charge: Customer to account for VAT under Article 196 of Council Directive 2006/112/EC.';
+}
+
+/**
+ * Calculates Canadian dual tax (GST + PST).
+ */
+export function calculateCanadaTax(
+  subtotalCents: number,
+  gstRatePct: number,
+  pstRatePct: number
+): { gstCents: number; pstCents: number; totalTaxCents: number } {
+  const gstCents = Math.floor((subtotalCents * Math.max(0, gstRatePct) + 50) / 100);
+  const pstCents = Math.floor((subtotalCents * Math.max(0, pstRatePct) + 50) / 100);
+  return {
+    gstCents,
+    pstCents,
+    totalTaxCents: gstCents + pstCents,
+  };
+}
+
+/**
+ * Parses zero-decimal currencies (JPY, KRW) without fractional cent division.
+ */
+export function parseZeroDecimalPrice(input: string): number {
+  const cleaned = input.trim().replace(/[^\d]/g, '');
+  if (!cleaned) return 0;
+  return parseInt(cleaned, 10) || 0;
+}
+
+/**
+ * Extracts sequence number for custom prefixes using dynamic prefix length offset.
+ */
+export function extractSequenceNumber(invoiceNumber: string, prefix: string): number {
+  if (!invoiceNumber.startsWith(prefix)) {
+    const match = invoiceNumber.match(/(\d+)$/);
+    return match ? parseInt(match[1], 10) : 0;
+  }
+  const numericPart = invoiceNumber.substring(prefix.length);
+  const parsed = parseInt(numericPart, 10);
+  return isNaN(parsed) ? 0 : parsed;
 }
