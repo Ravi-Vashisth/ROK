@@ -32,6 +32,10 @@ class BackupService {
   }
 
   static void importDatabaseFromJson(Database db, Map<String, dynamic> backup) {
+    if (!backup.containsKey('business_profile') || !backup.containsKey('clients') || !backup.containsKey('invoices')) {
+      throw const FormatException('Invalid backup file: The selected file is not a valid Freelance Ledger database snapshot.');
+    }
+
     db.execute('BEGIN TRANSACTION;');
     try {
       // Clear existing tables in correct child-first FK order

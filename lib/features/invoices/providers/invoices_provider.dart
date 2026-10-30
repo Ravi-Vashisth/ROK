@@ -74,9 +74,10 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
       prefix = (profileRes.first['invoice_prefix'] as String?) ?? 'INV-';
     }
 
+    final offset = prefix.length + 1;
     final numRes = _db.select('''
-      SELECT COALESCE(MAX(CAST(SUBSTR(invoice_number, 5) AS INTEGER)), 0) + 1 AS next_num FROM invoices;
-    ''');
+      SELECT COALESCE(MAX(CAST(SUBSTR(invoice_number, ?) AS INTEGER)), 0) + 1 AS next_num FROM invoices;
+    ''', [offset]);
     final nextNum = (numRes.first['next_num'] as int?) ?? 1;
     return '$prefix${nextNum.toString().padLeft(4, '0')}';
   }

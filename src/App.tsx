@@ -658,18 +658,36 @@ export default function App() {
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target?.result as string);
+        if (!data || typeof data !== 'object') {
+          alert('Invalid backup file: The selected file is not a valid Freelance Ledger database snapshot.');
+          return;
+        }
         const tbl = data.tables || data;
-        if (tbl.clients) setClients(tbl.clients);
-        if (tbl.invoices) setInvoices(tbl.invoices);
-        if (tbl.invoiceItems) setInvoiceItems(tbl.invoiceItems);
-        if (tbl.payments) setPayments(tbl.payments);
-        if (tbl.expenses) setExpenses(tbl.expenses);
-        if (tbl.estimates) setEstimates(tbl.estimates);
-        if (tbl.savedItems) setSavedItems(tbl.savedItems);
-        if (tbl.businessProfile) setBusinessProfile(tbl.businessProfile);
+        const hasProfile = Boolean(tbl.businessProfile || tbl.business_profile);
+        const hasClients = Boolean(tbl.clients);
+        const hasInvoices = Boolean(tbl.invoices);
+        if (!hasProfile && !hasClients && !hasInvoices) {
+          alert('Invalid backup file: The selected file is not a valid Freelance Ledger database snapshot.');
+          return;
+        }
+
+        if (tbl.clients && Array.isArray(tbl.clients)) setClients(tbl.clients);
+        if (tbl.invoices && Array.isArray(tbl.invoices)) setInvoices(tbl.invoices);
+        if (tbl.invoiceItems && Array.isArray(tbl.invoiceItems)) setInvoiceItems(tbl.invoiceItems);
+        else if (tbl.invoice_items && Array.isArray(tbl.invoice_items)) setInvoiceItems(tbl.invoice_items);
+        if (tbl.payments && Array.isArray(tbl.payments)) setPayments(tbl.payments);
+        if (tbl.expenses && Array.isArray(tbl.expenses)) setExpenses(tbl.expenses);
+        if (tbl.estimates && Array.isArray(tbl.estimates)) setEstimates(tbl.estimates);
+        if (tbl.savedItems && Array.isArray(tbl.savedItems)) setSavedItems(tbl.savedItems);
+        else if (tbl.saved_items && Array.isArray(tbl.saved_items)) setSavedItems(tbl.saved_items);
+        
+        const prof = tbl.businessProfile || tbl.business_profile;
+        if (prof) {
+          setBusinessProfile(Array.isArray(prof) ? prof[0] : prof);
+        }
         alert('Database successfully restored from JSON backup!');
       } catch (err) {
-        alert(`Failed to parse backup JSON file: ${err}`);
+        alert('Invalid backup file: The selected file is not a valid Freelance Ledger database snapshot.');
       }
     };
     reader.readAsText(file);

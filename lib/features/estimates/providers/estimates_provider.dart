@@ -50,9 +50,10 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     if (profileRes.isNotEmpty) {
       prefix = (profileRes.first['estimate_prefix'] as String?) ?? 'EST-';
     }
+    final offset = prefix.length + 1;
     final result = _db.select('''
-      SELECT COALESCE(MAX(CAST(SUBSTR(estimate_number, 5) AS INTEGER)), 0) + 1 AS next_num FROM estimates;
-    ''');
+      SELECT COALESCE(MAX(CAST(SUBSTR(estimate_number, ?) AS INTEGER)), 0) + 1 AS next_num FROM estimates;
+    ''', [offset]);
     final nextNumber = (result.first['next_num'] as int?) ?? 1;
     return '$prefix${nextNumber.toString().padLeft(4, '0')}';
   }

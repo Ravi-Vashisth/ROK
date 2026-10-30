@@ -196,8 +196,12 @@ class _BackupRecoveryCard extends ConsumerWidget {
                     const SnackBar(content: Text('Database successfully restored from backup!')),
                   );
                 } catch (e) {
+                  final msg = e is FormatException ? e.message : 'Error restoring backup: $e';
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error restoring backup: $e')),
+                    SnackBar(
+                      content: Text(msg),
+                      backgroundColor: Colors.red.shade800,
+                    ),
                   );
                 }
               },
