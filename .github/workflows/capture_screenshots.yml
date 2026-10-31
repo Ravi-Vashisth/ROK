@@ -1,0 +1,133 @@
+name: Multi-Platform Visual Screenshot Capture
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  capture-macos-and-ios:
+    name: Capture macOS Desktop & iOS Simulator Screenshots
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Enable macOS Desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Capture macOS Desktop Screenshots
+        run: |
+          mkdir -p screenshots/macos
+          flutter test integration_test/screenshot_tour_test.dart -d macos || true
+
+      - name: Boot iOS Simulator & Capture Screenshots
+        run: |
+          mkdir -p screenshots/ios
+          SIM_UUID=$(xcrun simctl list devices available | grep -m 1 "iPhone" | awk -F '[()]' '{print $2}')
+          echo "Booting iOS Simulator UUID: $SIM_UUID"
+          xcrun simctl boot "$SIM_UUID" || true
+          flutter test integration_test/screenshot_tour_test.dart -d "$SIM_UUID" || true
+
+      - name: Upload macOS & iOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-macos-ios
+          path: screenshots/
+
+  capture-windows:
+    name: Capture Windows Desktop Screenshots
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Enable Windows Desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Capture Windows Desktop Screenshots
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path screenshots/windows
+          flutter test integration_test/screenshot_tour_test.dart -d windows
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-windows
+          path: screenshots/
+
+  capture-android:
+    name: Capture Android Emulator Screenshots
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Capture Android Screenshots
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          script: |
+            mkdir -p screenshots/android
+            flutter test integration_test/screenshot_tour_test.dart -d android
+
+      - name: Upload Android Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-android
+          path: screenshots/
+
+  aggregate-screenshots:
+    name: Aggregate All Platform Screenshots
+    needs: [capture-macos-and-ios, capture-windows, capture-android]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all screenshot artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: combined_screenshots
+
+      - name: Create Clean Aggregated Screenshot Archive
+        run: |
+          mkdir -p all-platforms-screenshots
+          cp -r combined_screenshots/*/* all-platforms-screenshots/ || true
+          zip -r all-platforms-screenshots.zip all-platforms-screenshots/
+
+      - name: Upload Aggregated Zip Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-platforms-screenshots
+          path: all-platforms-screenshots.zip
