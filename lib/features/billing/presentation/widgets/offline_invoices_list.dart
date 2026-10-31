@@ -96,7 +96,8 @@ class OfflineInvoicesList extends ConsumerWidget {
         if (statusFilter == 'Paid' && !inv.isFullyPaid) return false;
         if (statusFilter == 'Partially Paid' && !inv.isPartiallyPaid) return false;
         if (statusFilter == 'Overdue' && !inv.isOverdue) return false;
-        if (statusFilter == 'Pending' && (inv.isFullyPaid || inv.isPartiallyPaid || inv.isOverdue || inv.status == 'VOID')) return false;
+        if (statusFilter == 'Pending' && (inv.isFullyPaid || inv.isPartiallyPaid || inv.isOverdue || inv.status == 'VOID' || inv.isDraft)) return false;
+        if (statusFilter == 'Draft' && !inv.isDraft) return false;
         if (statusFilter == 'Void' && inv.status != 'VOID') return false;
       }
       return true;
@@ -238,86 +239,107 @@ class OfflineInvoicesList extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  title: Row(
-                    children: [
-                      Text(
-                        inv.clientName,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(width: 8),
-                      // Status Badge (PAID / PARTIALLY PAID / OVERDUE / PENDING)
-                      if (isPaid)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.green.shade300),
-                          ),
-                          child: Text(
-                            'PAID',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green.shade800,
-                            ),
-                          ),
-                        )
-                      else if (isPartial)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.shade50,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.amber.shade400),
-                          ),
-                          child: Text(
-                            'PARTIAL (${formatCents(inv.paidCents, symbol: sym)} / ${formatCents(inv.totalCents, symbol: sym)})',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.amber.shade900,
-                            ),
-                          ),
-                        )
-                      else if (isOverdue)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.red.shade400),
-                          ),
-                          child: Text(
-                            'OVERDUE (${inv.daysOverdue}d late)',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red.shade800,
-                            ),
-                          ),
-                        )
-                      else
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.blueGrey.shade50,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.blueGrey.shade300),
-                          ),
-                          child: Text(
-                            'Due: ${inv.dueDate}',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.blueGrey.shade800,
-                            ),
-                          ),
+                  title: Builder(builder: (context) {
+                    final invSym = inv.currencySymbol.isNotEmpty ? inv.currencySymbol : sym;
+                    final invDec = inv.currencyCode.isNotEmpty ? inv.currencyDecimals : profile.currencyDecimals;
+                    return Row(
+                      children: [
+                        Text(
+                          inv.clientName,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                    ],
-                  ),
+                        const SizedBox(width: 8),
+                        // Status Badge (DRAFT / PAID / PARTIALLY PAID / OVERDUE / PENDING)
+                        if (inv.isDraft)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.grey.shade400),
+                            ),
+                            child: Text(
+                              'DRAFT',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade800,
+                              ),
+                            ),
+                          )
+                        else if (isPaid)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.green.shade300),
+                            ),
+                            child: Text(
+                              'PAID',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade800,
+                              ),
+                            ),
+                          )
+                        else if (isPartial)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.amber.shade400),
+                            ),
+                            child: Text(
+                              'PARTIAL (${formatCents(inv.paidCents, symbol: invSym, decimals: invDec)} / ${formatCents(inv.totalCents, symbol: invSym, decimals: invDec)})',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.amber.shade900,
+                              ),
+                            ),
+                          )
+                        else if (isOverdue)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.red.shade400),
+                            ),
+                            child: Text(
+                              'OVERDUE (${inv.daysOverdue}d late)',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red.shade800,
+                              ),
+                            ),
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.blueGrey.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.blueGrey.shade300),
+                            ),
+                            child: Text(
+                              'Due: ${inv.dueDate}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blueGrey.shade800,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  }),
                   subtitle: Text(
-                    'Terms: ${inv.paymentTerms} • Issued: ${inv.issueDate} • Due: ${inv.dueDate}',
+                    '${inv.poNumber.isNotEmpty ? 'PO: ${inv.poNumber} • ' : ''}Terms: ${inv.paymentTerms} • Issued: ${inv.issueDate} • Due: ${inv.dueDate}',
                     style: const TextStyle(fontSize: 11),
                   ),
                   trailing: Row(
@@ -328,7 +350,7 @@ class OfflineInvoicesList extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            formatCents(inv.totalCents, symbol: sym),
+                            formatCents(inv.totalCents, symbol: inv.currencySymbol.isNotEmpty ? inv.currencySymbol : sym, decimals: inv.currencyCode.isNotEmpty ? inv.currencyDecimals : profile.currencyDecimals),
                             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: isPaid
@@ -338,14 +360,14 @@ class OfflineInvoicesList extends ConsumerWidget {
                           ),
                           Text(
                             inv.balanceDueCents > 0
-                                ? 'Bal: ${formatCents(inv.balanceDueCents, symbol: sym)}'
+                                ? 'Bal: ${formatCents(inv.balanceDueCents, symbol: inv.currencySymbol.isNotEmpty ? inv.currencySymbol : sym, decimals: inv.currencyCode.isNotEmpty ? inv.currencyDecimals : profile.currencyDecimals)}'
                                 : '✓ Settled',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                               color: inv.balanceDueCents > 0
-                                  ? (isOverdue ? Colors.red.shade700 : Colors.indigo.shade700)
-                                  : Colors.green.shade700,
+                                   ? (isOverdue ? Colors.red.shade700 : Colors.indigo.shade700)
+                                   : Colors.green.shade700,
                             ),
                           ),
                         ],

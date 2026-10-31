@@ -76,3 +76,49 @@ int calculateDiscountCents(int subtotalCents, String discountType, int discountV
   }
   return 0;
 }
+
+/// Dynamically constructs standard UPI payment URL or appends invoice reference to payment URLs.
+String generateDynamicQrPayload({
+  required String rawPayload,
+  required String businessName,
+  required int balanceDueUnits,
+  required int currencyDecimals,
+  required String invoiceNumber,
+  String currencyCode = 'INR',
+}) {
+  final trimmed = rawPayload.trim();
+  if (trimmed.isEmpty) return '';
+
+  String vpa = '';
+  if (trimmed.startsWith('upi://pay')) {
+    final uri = Uri.tryParse(trimmed);
+    if (uri != null) {
+      vpa = uri.queryParameters['pa'] ?? '';
+    }
+  } else if (trimmed.contains('@') && !trimmed.startsWith('http')) {
+    vpa = trimmed;
+  }
+
+  if (vpa.isNotEmpty) {
+    final encName = Uri.encodeComponent(businessName.trim().isEmpty ? 'Business' : businessName.trim());
+    final amountStr = currencyDecimals == 0
+        ? (balanceDueUnits > 0 ? balanceDueUnits : 0).toString()
+        : ((balanceDueUnits > 0 ? balanceDueUnits : 0) / 100.0).toStringAsFixed(2);
+    final safeInv = Uri.encodeComponent('Invoice-$invoiceNumber');
+    final safeCu = Uri.encodeComponent(currencyCode.isEmpty ? 'INR' : currencyCode);
+    return 'upi://pay?pa=${Uri.encodeComponent(vpa)}&pn=$encName&am=$amountStr&tn=$safeInv&cu=$safeCu';
+  }
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    final uri = Uri.tryParse(trimmed);
+    if (uri != null) {
+      final query = Map<String, String>.from(uri.queryParameters);
+      if (!query.containsKey('ref') && !query.containsKey('invoice')) {
+        query['invoice'] = invoiceNumber;
+      }
+      return uri.replace(queryParameters: query).toString();
+    }
+  }
+
+  return trimmed;
+}

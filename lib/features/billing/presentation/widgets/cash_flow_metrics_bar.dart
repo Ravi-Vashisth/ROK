@@ -20,7 +20,7 @@ class CashFlowMetricsBar extends ConsumerWidget {
     int taxCollectedOnPaymentsCents = 0;
 
     for (final inv in invoices) {
-      if (inv.isVoid) continue;
+      if (inv.isVoid || inv.isDraft) continue;
       if (!inv.isFullyPaid) {
         totalUnpaidReceivablesCents += inv.balanceDueCents;
         if (inv.isOverdue) {

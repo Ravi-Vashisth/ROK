@@ -18,6 +18,10 @@ class EstimateRecord {
   final String discountType; // 'none', 'percent', 'flat'
   final int discountValue;
   final int discountCents;
+  final String poNumber;
+  final String currencyCode;
+  final String currencySymbol;
+  final int currencyDecimals;
   final String createdAt;
 
   const EstimateRecord({
@@ -37,6 +41,10 @@ class EstimateRecord {
     this.discountType = 'none',
     this.discountValue = 0,
     this.discountCents = 0,
+    this.poNumber = '',
+    this.currencyCode = '',
+    this.currencySymbol = '',
+    this.currencyDecimals = 2,
     required this.createdAt,
   });
 
@@ -58,6 +66,10 @@ class EstimateRecord {
       discountType: (row['discount_type'] as String?) ?? 'none',
       discountValue: (row['discount_value'] as int?) ?? 0,
       discountCents: (row['discount_cents'] as int?) ?? 0,
+      poNumber: (row['po_number'] as String?) ?? '',
+      currencyCode: (row['currency_code'] as String?) ?? '',
+      currencySymbol: (row['currency_symbol'] as String?) ?? '',
+      currencyDecimals: (row['currency_decimals'] as int?) ?? 2,
       createdAt: row['created_at'] as String,
     );
   }

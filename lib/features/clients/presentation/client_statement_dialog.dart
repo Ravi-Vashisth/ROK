@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 import '../../../core/utils/currency_formatter_provider.dart';
+import '../../business_profile/providers/business_profile_provider.dart';
+import '../../billing/services/invoice_pdf_service.dart';
 import '../../clients/models/client.dart';
 import '../../invoices/providers/invoices_provider.dart';
 
@@ -20,7 +23,7 @@ class ClientStatementDialog extends ConsumerWidget {
     int totalInvoiced = 0;
     int totalPaid = 0;
     for (final inv in invoices) {
-      if (inv.isVoid || inv.status == 'VOID') continue;
+      if (inv.isVoid || inv.isDraft || inv.status == 'VOID' || inv.status == 'DRAFT') continue;
       totalInvoiced += inv.totalCents;
       totalPaid += inv.paidCents;
     }
@@ -38,6 +41,22 @@ class ClientStatementDialog extends ConsumerWidget {
               title: Text('Statement of Account: ${client.name}'),
               automaticallyImplyLeading: false,
               actions: [
+                FilledButton.tonalIcon(
+                  icon: const Icon(Icons.print, size: 16),
+                  label: const Text('Print / Save Statement PDF'),
+                  onPressed: () async {
+                    final businessProfile = ref.read(businessProfileProvider);
+                    await Printing.layoutPdf(
+                      onLayout: (format) => InvoicePdfService.generateStatementPdf(
+                        client: client,
+                        invoices: invoices,
+                        businessProfile: businessProfile,
+                      ),
+                      name: 'Statement_${client.name.replaceAll(RegExp(r'\s+'), '_')}.pdf',
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
                 IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () => Navigator.of(context).pop(),

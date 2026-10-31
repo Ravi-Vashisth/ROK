@@ -20,6 +20,7 @@ import {
   calculateCanadaTax,
   parseZeroDecimalPrice,
   extractSequenceNumber,
+  generateDynamicQrPayload,
 } from './billingRules';
 
 // ============================================================================
@@ -213,4 +214,30 @@ test('Category E: Sequence extraction using dynamic prefix length offset', () =>
   assert.equal(extractSequenceNumber('BILLING-2026-0042', 'BILLING-2026-'), 42);
   assert.equal(extractSequenceNumber('INV-0001', 'INV-'), 1);
   assert.equal(extractSequenceNumber('INV-9999', 'INV-'), 9999);
+});
+
+// ============================================================================
+// CATEGORY F: COMPETITIVE FEATURES & REMEDIATIONS
+// ============================================================================
+
+test('Category F: Dynamic UPI QR payload formatting', () => {
+  // Test UPI VPA string
+  const upiQr = generateDynamicQrPayload('billing@okaxis', 'Acme Studio', 15000, 2, 'INV-0001', 'INR');
+  assert.equal(upiQr, 'upi://pay?pa=billing%40okaxis&pn=Acme%20Studio&am=150.00&tn=Invoice-INV-0001&cu=INR');
+
+  // Test 0-decimal currency JPY amount string
+  const jpyQr = generateDynamicQrPayload('vendor@upi', 'Tokyo Soft', 50000, 0, 'INV-0002', 'JPY');
+  assert.equal(jpyQr, 'upi://pay?pa=vendor%40upi&pn=Tokyo%20Soft&am=50000&tn=Invoice-INV-0002&cu=JPY');
+
+  // Test Web payment URL appending invoice reference
+  const webQr = generateDynamicQrPayload('https://pay.acme.com/checkout', 'Acme', 25000, 2, 'INV-0003', 'USD');
+  assert.equal(webQr, 'https://pay.acme.com/checkout?invoice=INV-0003');
+});
+
+test('Category F: Draft invoices are excluded from overdue metrics and receivables', () => {
+  const isDraftOverdue = isInvoiceOverdue('DRAFT', '2020-01-01');
+  assert.equal(isDraftOverdue, false);
+
+  const draftStatus = resolveDynamicStatus(10000, 0, '2020-01-01', 'DRAFT');
+  assert.equal(draftStatus, 'DRAFT');
 });

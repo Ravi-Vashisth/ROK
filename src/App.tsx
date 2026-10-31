@@ -28,7 +28,7 @@ import {
   CheckCircle2,
   Upload,
 } from 'lucide-react';
-import { parsePriceToCents, parsePriceToUnits, getCurrencyDecimals, calculateDueDate, isInvoiceOverdue } from './billingRules';
+import { parsePriceToCents, parsePriceToUnits, getCurrencyDecimals, calculateDueDate, isInvoiceOverdue, generateDynamicQrPayload } from './billingRules';
 
 // --- Parity Models & Interfaces ---
 export interface Client {
@@ -75,7 +75,7 @@ export interface InvoiceRecord {
   subtotal_cents: number;
   tax_cents: number;
   total_cents: number;
-  status: string; // 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'VOID'
+  status: string; // 'DRAFT' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'VOID'
   issue_date: string;
   due_date: string;
   payment_terms: string;
@@ -84,6 +84,10 @@ export interface InvoiceRecord {
   discount_type?: 'none' | 'percent' | 'flat';
   discount_value?: number;
   discount_cents?: number;
+  po_number?: string;
+  currency_code?: string;
+  currency_symbol?: string;
+  currency_decimals?: number;
   created_at: string;
 }
 
@@ -101,6 +105,10 @@ export interface StoredEstimateRecord {
   converted_invoice_id?: string;
   terms?: string;
   notes?: string;
+  po_number?: string;
+  currency_code?: string;
+  currency_symbol?: string;
+  currency_decimals?: number;
   created_at: string;
 }
 
@@ -389,12 +397,17 @@ export default function App() {
   const [accentColor, setAccentColor] = useState<'indigo' | 'emerald' | 'blue' | 'rose' | 'amber' | 'slate'>('indigo');
 
   // --- Two-Column Live Invoice & Quote Editor State ---
+  const initialDec = businessProfile.currency_decimals ?? getCurrencyDecimals(businessProfile.currency_code || businessProfile.currency_symbol || 'USD');
   const [editorMode, setEditorMode] = useState<'none' | 'invoice' | 'quote'>('none');
   const [editorClientId, setEditorClientId] = useState<string>('client-1');
   const [editorIssueDate, setEditorIssueDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [editorPaymentTerms, setEditorPaymentTerms] = useState('Due on Receipt');
+  const [editorPoNumber, setEditorPoNumber] = useState('');
+  const [editorCurrencyCode, setEditorCurrencyCode] = useState(businessProfile.currency_code || 'USD');
+  const [editorCurrencySymbol, setEditorCurrencySymbol] = useState(businessProfile.currency_symbol || '$');
+  const [editorCurrencyDecimals, setEditorCurrencyDecimals] = useState<number>(initialDec);
   const [editorItems, setEditorItems] = useState<{ id: string; description: string; sac_hsn: string; unitPriceCents: number; quantity: number; taxSlab: number; totalCents: number }[]>([
-    { id: 'ed-1', description: 'Full-Stack Architecture & Implementation', sac_hsn: '998311', unitPriceCents: 15000, quantity: 1, taxSlab: 10, totalCents: 15000 }
+    { id: 'ed-1', description: '', sac_hsn: '', unitPriceCents: 0, quantity: 1, taxSlab: 10, totalCents: 0 }
   ]);
   const [editorDiscountType, setEditorDiscountType] = useState<'none' | 'percent' | 'flat'>('none');
   const [editorDiscountValue, setEditorDiscountValue] = useState('0');
@@ -459,14 +472,27 @@ export default function App() {
   // Formatters & Currency
   const dec = businessProfile.currency_decimals ?? getCurrencyDecimals(businessProfile.currency_code || businessProfile.currency_symbol || 'USD');
   const sym = businessProfile.currency_symbol || '₹';
-  const formatMoney = (units: number) => {
-    if (dec === 0) {
-      return `${sym}${Math.round(units).toLocaleString('en-US')}`;
+  const formatMoney = (units: number, customSym?: string, customDec?: number) => {
+    const activeDec = customDec !== undefined ? customDec : dec;
+    const activeSym = customSym !== undefined ? customSym : sym;
+    if (activeDec === 0) {
+      return `${activeSym}${Math.round(units).toLocaleString('en-US')}`;
     }
-    return `${sym}${(units / 100).toFixed(2)}`;
+    return `${activeSym}${(units / 100).toFixed(2)}`;
   };
-  const formatDecimal = (units: number) => {
-    if (dec === 0) return Math.round(units).toString();
+  const formatDecimal = (units: number, customDec?: number) => {
+    const activeDec = customDec !== undefined ? customDec : dec;
+    if (activeDec === 0) return Math.round(units).toString();
+    return (units / 100).toFixed(2);
+  };
+  const formatEditorMoney = (units: number) => {
+    if (editorCurrencyDecimals === 0) {
+      return `${editorCurrencySymbol}${Math.round(units).toLocaleString('en-US')}`;
+    }
+    return `${editorCurrencySymbol}${(units / 100).toFixed(2)}`;
+  };
+  const formatEditorDecimal = (units: number) => {
+    if (editorCurrencyDecimals === 0) return Math.round(units).toString();
     return (units / 100).toFixed(2);
   };
   const quote = (text: string) => `"${(text || '').replace(/"/g, '""')}"`;
@@ -479,13 +505,14 @@ export default function App() {
   };
 
   const getInvoiceBalanceDueCents = (inv: InvoiceRecord) => {
-    if (inv.status === 'VOID') return 0;
+    if (inv.status === 'VOID' || inv.status === 'DRAFT') return 0;
     const paid = getInvoicePaidCents(inv.id);
     return Math.max(0, inv.total_cents - paid);
   };
 
-  const getComputedInvoiceStatus = (inv: InvoiceRecord): 'PAID' | 'PARTIALLY_PAID' | 'OVERDUE' | 'PENDING' | 'VOID' => {
+  const getComputedInvoiceStatus = (inv: InvoiceRecord): 'DRAFT' | 'PAID' | 'PARTIALLY_PAID' | 'OVERDUE' | 'PENDING' | 'VOID' => {
     if (inv.status === 'VOID') return 'VOID';
+    if (inv.status === 'DRAFT') return 'DRAFT';
     const paid = getInvoicePaidCents(inv.id);
     const balance = inv.total_cents - paid;
     if (balance <= 0) return 'PAID';
@@ -598,6 +625,10 @@ export default function App() {
       payment_terms: 'Net 15 Days',
       terms: est.terms || '',
       notes: est.notes || '',
+      po_number: est.po_number || '',
+      currency_code: est.currency_code || '',
+      currency_symbol: est.currency_symbol || '',
+      currency_decimals: est.currency_decimals ?? 2,
       created_at: new Date().toISOString(),
     };
     const newItems: StoredInvoiceItem[] = estItems.map(it => ({
@@ -841,8 +872,8 @@ export default function App() {
                   >
                     Cancel
                   </button>
-                  <button
-                    onClick={() => {
+                  {(() => {
+                    const handleSaveDoc = (isDraft: boolean) => {
                       const client = clients.find(c => c.id === editorClientId);
                       if (!client) {
                         alert('Please select a client.');
@@ -862,7 +893,7 @@ export default function App() {
                           subtotal_cents: editorSubtotalCents,
                           tax_cents: editorTaxCents,
                           total_cents: editorTotalCents,
-                          status: 'PENDING',
+                          status: isDraft ? 'DRAFT' : 'PENDING',
                           issue_date: editorIssueDate,
                           due_date: calculateDueDate(editorIssueDate, editorPaymentTerms),
                           payment_terms: editorPaymentTerms,
@@ -871,6 +902,10 @@ export default function App() {
                           discount_type: editorDiscountType,
                           discount_value: parseFloat(editorDiscountValue) || 0,
                           discount_cents: editorDiscountCents,
+                          po_number: editorPoNumber.trim(),
+                          currency_code: editorCurrencyCode,
+                          currency_symbol: editorCurrencySymbol,
+                          currency_decimals: editorCurrencyDecimals,
                           created_at: new Date().toISOString(),
                         };
                         const newItems = editorItems.map(it => ({
@@ -886,7 +921,7 @@ export default function App() {
                         }));
                         setInvoices(prev => [newInv, ...prev]);
                         setInvoiceItems(prev => [...prev, ...newItems]);
-                        alert(`Invoice ${newInv.invoice_number} saved and issued successfully!`);
+                        alert(`Invoice ${newInv.invoice_number} saved ${isDraft ? 'as Draft' : 'and issued'} successfully!`);
                         setActiveTab(1);
                         setSalesSubTab('invoices');
                       } else {
@@ -898,11 +933,15 @@ export default function App() {
                           subtotal_cents: editorSubtotalCents,
                           tax_cents: editorTaxCents,
                           total_cents: editorTotalCents,
-                          status: 'SENT',
+                          status: isDraft ? 'DRAFT' : 'SENT',
                           issue_date: editorIssueDate,
                           expiry_date: calculateDueDate(editorIssueDate, 'Net 30 Days'),
                           terms: editorTerms,
                           notes: editorNotes,
+                          po_number: editorPoNumber.trim(),
+                          currency_code: editorCurrencyCode,
+                          currency_symbol: editorCurrencySymbol,
+                          currency_decimals: editorCurrencyDecimals,
                           created_at: new Date().toISOString(),
                         };
                         const newItems: StoredEstimateItem[] = editorItems.map(it => ({
@@ -917,17 +956,32 @@ export default function App() {
                         }));
                         setEstimates(prev => [newEst, ...prev]);
                         setEstimateItems(prev => [...prev, ...newItems]);
-                        alert(`Quote ${newEst.estimate_number} saved successfully!`);
+                        alert(`Quote ${newEst.estimate_number} saved ${isDraft ? 'as Draft' : 'successfully'}!`);
                         setActiveTab(1);
                         setSalesSubTab('quotes');
                       }
                       setEditorMode('none');
-                    }}
-                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm cursor-pointer flex items-center gap-1.5"
-                  >
-                    <FileCheck className="w-4 h-4" />
-                    <span>Save & Issue {editorMode === 'invoice' ? 'Invoice' : 'Quote'}</span>
-                  </button>
+                    };
+
+                    return (
+                      <>
+                        <button
+                          onClick={() => handleSaveDoc(true)}
+                          className={`px-3.5 py-2 border text-xs font-bold rounded-xl cursor-pointer flex items-center gap-1.5 transition ${isDarkMode ? 'border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
+                        >
+                          <FileText className="w-3.5 h-3.5 text-slate-400" />
+                          <span>Save as Draft</span>
+                        </button>
+                        <button
+                          onClick={() => handleSaveDoc(false)}
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm cursor-pointer flex items-center gap-1.5 transition"
+                        >
+                          <FileCheck className="w-4 h-4" />
+                          <span>Save & Issue {editorMode === 'invoice' ? 'Invoice' : 'Quote'}</span>
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -971,6 +1025,59 @@ export default function App() {
                           <option value="Net 15 Days">Net 15 Days</option>
                           <option value="Net 30 Days">Net 30 Days</option>
                           <option value="Net 60 Days">Net 60 Days</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1">PO / Client Ref #</label>
+                        <input
+                          type="text"
+                          value={editorPoNumber}
+                          onChange={(e) => setEditorPoNumber(e.target.value)}
+                          placeholder="e.g. PO-2026-9874"
+                          className={`w-full px-3 py-2 rounded-xl border text-xs ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200'}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1">Currency Override</label>
+                        <select
+                          value={editorCurrencyCode}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const presets: Record<string, { symbol: string; dec: number }> = {
+                              USD: { symbol: '$', dec: 2 },
+                              INR: { symbol: '₹', dec: 2 },
+                              EUR: { symbol: '€', dec: 2 },
+                              GBP: { symbol: '£', dec: 2 },
+                              CAD: { symbol: 'C$', dec: 2 },
+                              AUD: { symbol: 'A$', dec: 2 },
+                              AED: { symbol: 'AED', dec: 2 },
+                              SAR: { symbol: 'SAR', dec: 2 },
+                              JPY: { symbol: '¥', dec: 0 },
+                              KRW: { symbol: '₩', dec: 0 },
+                              VND: { symbol: '₫', dec: 0 },
+                            };
+                            const p = presets[val] || { symbol: businessProfile.currency_symbol || '$', dec: dec };
+                            setEditorCurrencyCode(val);
+                            setEditorCurrencySymbol(p.symbol);
+                            setEditorCurrencyDecimals(p.dec);
+                          }}
+                          className={`w-full px-3 py-2 rounded-xl border text-xs font-semibold ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200'}`}
+                        >
+                          <option value={businessProfile.currency_code}>Default ({businessProfile.currency_code} - {businessProfile.currency_symbol})</option>
+                          <option value="USD">USD ($) - US Dollar</option>
+                          <option value="INR">INR (₹) - Indian Rupee</option>
+                          <option value="EUR">EUR (€) - Euro</option>
+                          <option value="GBP">GBP (£) - British Pound</option>
+                          <option value="CAD">CAD (C$) - Canadian Dollar</option>
+                          <option value="AUD">AUD (A$) - Australian Dollar</option>
+                          <option value="AED">AED - UAE Dirham</option>
+                          <option value="SAR">SAR - Saudi Riyal</option>
+                          <option value="JPY">JPY (¥) - Japanese Yen (0-Dec)</option>
+                          <option value="KRW">KRW (₩) - Won (0-Dec)</option>
+                          <option value="VND">VND (₫) - Dong (0-Dec)</option>
                         </select>
                       </div>
                     </div>
@@ -1064,10 +1171,10 @@ export default function App() {
                               <span className="text-slate-500">Rate:</span>
                               <input
                                 type="number"
-                                step={dec === 0 ? "1" : "0.01"}
-                                value={formatDecimal(item.unitPriceCents)}
+                                step={editorCurrencyDecimals === 0 ? "1" : "0.01"}
+                                value={formatEditorDecimal(item.unitPriceCents)}
                                 onChange={(e) => {
-                                  const rate = parsePriceToUnits(e.target.value, dec);
+                                  const rate = parsePriceToUnits(e.target.value, editorCurrencyDecimals);
                                   setEditorItems(prev => prev.map((it, i) => i === idx ? { ...it, unitPriceCents: rate, totalCents: rate * it.quantity } : it));
                                 }}
                                 className="w-24 px-2 py-1 rounded-lg border border-slate-200 bg-white text-right font-bold"
@@ -1090,7 +1197,7 @@ export default function App() {
                                 <option value={18}>18%</option>
                               </select>
                             </div>
-                            <span className="ml-auto font-bold text-indigo-700">{formatMoney(item.unitPriceCents * item.quantity)}</span>
+                            <span className="ml-auto font-bold text-indigo-700">{formatEditorMoney(item.unitPriceCents * item.quantity)}</span>
                           </div>
                         </div>
                       ))}
@@ -1115,13 +1222,13 @@ export default function App() {
                         >
                           <option value="none">No Discount</option>
                           <option value="percent">Percentage (%)</option>
-                          <option value="flat">Flat Amount ({sym})</option>
+                          <option value="flat">Flat Amount ({editorCurrencySymbol})</option>
                         </select>
                       </div>
                       {editorDiscountType !== 'none' && (
                         <div>
                           <label className="block text-xs font-bold text-slate-600 mb-1">
-                            {editorDiscountType === 'percent' ? 'Discount %' : `Discount Amount (${sym})`}
+                            {editorDiscountType === 'percent' ? 'Discount %' : `Discount Amount (${editorCurrencySymbol})`}
                           </label>
                           <input
                             type="number"
@@ -1177,6 +1284,9 @@ export default function App() {
                       <div className="text-right space-y-1">
                         <div><span className="text-slate-400">Issue Date:</span> <span className="font-bold">{editorIssueDate}</span></div>
                         <div><span className="text-slate-400">Terms:</span> <span className="font-bold">{editorPaymentTerms}</span></div>
+                        {editorPoNumber && (
+                          <div><span className="text-slate-400">PO Number:</span> <span className="font-bold font-mono text-indigo-600">{editorPoNumber}</span></div>
+                        )}
                       </div>
                     </div>
 
@@ -1195,8 +1305,8 @@ export default function App() {
                           <tr key={idx}>
                             <td className="py-2">{it.description || '—'}</td>
                             <td className="py-2 text-center">{it.quantity}</td>
-                            <td className="py-2 text-right">{formatMoney(it.unitPriceCents)}</td>
-                            <td className="py-2 text-right font-bold">{formatMoney(it.unitPriceCents * it.quantity)}</td>
+                            <td className="py-2 text-right">{formatEditorMoney(it.unitPriceCents)}</td>
+                            <td className="py-2 text-right font-bold">{formatEditorMoney(it.unitPriceCents * it.quantity)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1205,27 +1315,56 @@ export default function App() {
                     {/* Totals */}
                     <div className="flex justify-end pt-3 border-t border-slate-200 text-xs">
                       <div className="w-56 space-y-1.5">
-                        <div className="flex justify-between"><span>Subtotal:</span><span>{formatMoney(editorSubtotalCents)}</span></div>
+                        <div className="flex justify-between"><span>Subtotal:</span><span>{formatEditorMoney(editorSubtotalCents)}</span></div>
                         {editorDiscountCents > 0 && (
                           <div className="flex justify-between text-orange-600 font-semibold">
                             <span>Discount:</span>
-                            <span>-{formatMoney(editorDiscountCents)}</span>
+                            <span>-{formatEditorMoney(editorDiscountCents)}</span>
                           </div>
                         )}
-                        <div className="flex justify-between"><span>Tax:</span><span>{formatMoney(editorTaxCents)}</span></div>
+                        <div className="flex justify-between"><span>Tax:</span><span>{formatEditorMoney(editorTaxCents)}</span></div>
                         <div className="flex justify-between font-bold text-sm text-indigo-700 border-t pt-1.5">
                           <span>Total Amount:</span>
-                          <span>{formatMoney(editorTotalCents)}</span>
+                          <span>{formatEditorMoney(editorTotalCents)}</span>
                         </div>
                       </div>
                     </div>
 
-                    {businessProfile.payment_details && (
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-700 whitespace-pre-line">
-                        <strong>Payment Instructions:</strong>
-                        <div>{businessProfile.payment_details}</div>
-                      </div>
-                    )}
+                    {/* Payment Instructions & Dynamic Settlement QR */}
+                    {(() => {
+                      const dynamicQr = businessProfile.payment_qr_payload ? generateDynamicQrPayload(
+                        businessProfile.payment_qr_payload,
+                        businessProfile.business_name,
+                        editorTotalCents,
+                        editorCurrencyDecimals,
+                        editorMode === 'invoice' ? nextInvoiceNumber : nextEstimateNumber,
+                        editorCurrencyCode
+                      ) : '';
+
+                      if (!businessProfile.payment_details && !dynamicQr) return null;
+
+                      return (
+                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-700 space-y-2">
+                          {businessProfile.payment_details && (
+                            <div>
+                              <strong>Payment Instructions:</strong>
+                              <div className="whitespace-pre-line">{businessProfile.payment_details}</div>
+                            </div>
+                          )}
+                          {dynamicQr && (
+                            <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <strong className="text-indigo-900 block">Instant Settlement Payload:</strong>
+                                <span className="font-mono text-[9px] text-slate-500 break-all">{dynamicQr}</span>
+                              </div>
+                              <span className="shrink-0 px-2 py-1 bg-indigo-100 text-indigo-800 font-bold rounded text-[10px]">
+                                QR Ready
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1245,7 +1384,11 @@ export default function App() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => {
-                          setEditorItems([{ id: `ed-${Date.now()}`, description: 'Full-Stack Development', sac_hsn: '998311', unitPriceCents: 15000, quantity: 1, taxSlab: 10, totalCents: 15000 }]);
+                          setEditorPoNumber('');
+                          setEditorCurrencyCode(businessProfile.currency_code || 'USD');
+                          setEditorCurrencySymbol(businessProfile.currency_symbol || '$');
+                          setEditorCurrencyDecimals(dec);
+                          setEditorItems([{ id: `ed-${Date.now()}`, description: '', sac_hsn: '', unitPriceCents: 0, quantity: 1, taxSlab: 10, totalCents: 0 }]);
                           setEditorMode('invoice');
                         }}
                         className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer"
@@ -1255,7 +1398,11 @@ export default function App() {
                       </button>
                       <button
                         onClick={() => {
-                          setEditorItems([{ id: `ed-${Date.now()}`, description: 'UI/UX Proposal', sac_hsn: '998314', unitPriceCents: 8000, quantity: 1, taxSlab: 10, totalCents: 8000 }]);
+                          setEditorPoNumber('');
+                          setEditorCurrencyCode(businessProfile.currency_code || 'USD');
+                          setEditorCurrencySymbol(businessProfile.currency_symbol || '$');
+                          setEditorCurrencyDecimals(dec);
+                          setEditorItems([{ id: `ed-${Date.now()}`, description: '', sac_hsn: '', unitPriceCents: 0, quantity: 1, taxSlab: 10, totalCents: 0 }]);
                           setEditorMode('quote');
                         }}
                         className={`px-3.5 py-2 border text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-200 hover:bg-slate-800' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'}`}
@@ -1395,7 +1542,11 @@ export default function App() {
                       {salesSubTab === 'invoices' ? (
                         <button
                           onClick={() => {
-                            setEditorItems([{ id: `ed-${Date.now()}`, description: 'Full-Stack Development', sac_hsn: '998311', unitPriceCents: 15000, quantity: 1, taxSlab: 10, totalCents: 15000 }]);
+                            setEditorPoNumber('');
+                            setEditorCurrencyCode(businessProfile.currency_code || 'USD');
+                            setEditorCurrencySymbol(businessProfile.currency_symbol || '$');
+                            setEditorCurrencyDecimals(dec);
+                            setEditorItems([{ id: `ed-${Date.now()}`, description: '', sac_hsn: '', unitPriceCents: 0, quantity: 1, taxSlab: 10, totalCents: 0 }]);
                             setEditorMode('invoice');
                           }}
                           className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer"
@@ -1406,7 +1557,11 @@ export default function App() {
                       ) : (
                         <button
                           onClick={() => {
-                            setEditorItems([{ id: `ed-${Date.now()}`, description: 'UI/UX Proposal', sac_hsn: '998314', unitPriceCents: 8000, quantity: 1, taxSlab: 10, totalCents: 8000 }]);
+                            setEditorPoNumber('');
+                            setEditorCurrencyCode(businessProfile.currency_code || 'USD');
+                            setEditorCurrencySymbol(businessProfile.currency_symbol || '$');
+                            setEditorCurrencyDecimals(dec);
+                            setEditorItems([{ id: `ed-${Date.now()}`, description: '', sac_hsn: '', unitPriceCents: 0, quantity: 1, taxSlab: 10, totalCents: 0 }]);
                             setEditorMode('quote');
                           }}
                           className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5 cursor-pointer"
@@ -1439,6 +1594,7 @@ export default function App() {
                             className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200'}`}
                           >
                             <option value="ALL">All Statuses</option>
+                            <option value="DRAFT">Draft</option>
                             <option value="PENDING">Pending</option>
                             <option value="OVERDUE">Overdue</option>
                             <option value="PAID">Paid</option>
@@ -1463,7 +1619,7 @@ export default function App() {
                           <tbody className="divide-y divide-slate-100">
                             {invoices
                               .filter(inv => {
-                                const matchesSearch = inv.invoice_number.toLowerCase().includes(invoiceSearchQuery.toLowerCase()) || inv.client_name.toLowerCase().includes(invoiceSearchQuery.toLowerCase());
+                                const matchesSearch = inv.invoice_number.toLowerCase().includes(invoiceSearchQuery.toLowerCase()) || inv.client_name.toLowerCase().includes(invoiceSearchQuery.toLowerCase()) || (inv.po_number || '').toLowerCase().includes(invoiceSearchQuery.toLowerCase());
                                 const status = getComputedInvoiceStatus(inv);
                                 const matchesFilter = invoiceStatusFilter === 'ALL' || status === invoiceStatusFilter;
                                 return matchesSearch && matchesFilter;
@@ -1471,6 +1627,8 @@ export default function App() {
                               .map(inv => {
                                 const bal = getInvoiceBalanceDueCents(inv);
                                 const status = getComputedInvoiceStatus(inv);
+                                const invSym = inv.currency_symbol || sym;
+                                const invDec = inv.currency_decimals ?? dec;
                                 return (
                                   <tr key={inv.id} className="hover:bg-slate-50/50">
                                     <td className="p-3">
@@ -1478,16 +1636,20 @@ export default function App() {
                                         status === 'PAID' ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/20' :
                                         status === 'OVERDUE' ? 'bg-rose-500/15 text-rose-600 border border-rose-500/20' :
                                         status === 'PARTIALLY_PAID' ? 'bg-amber-500/15 text-amber-600 border border-amber-500/20' :
+                                        status === 'DRAFT' ? 'bg-slate-500/15 text-slate-400 border border-slate-500/20' :
                                         status === 'VOID' ? 'bg-slate-500/15 text-slate-500 border border-slate-500/20' : 'bg-indigo-500/15 text-indigo-600 border border-indigo-500/20'
                                       }`}>
                                         {status}
                                       </span>
                                     </td>
-                                    <td className="p-3 font-mono font-bold text-indigo-600">{inv.invoice_number}</td>
+                                    <td className="p-3 font-mono font-bold text-indigo-600">
+                                      {inv.invoice_number}
+                                      {inv.po_number && <div className="text-[10px] font-normal text-slate-400">PO: {inv.po_number}</div>}
+                                    </td>
                                     <td className="p-3 font-bold">{inv.client_name}</td>
                                     <td className="p-3 text-slate-500">{inv.issue_date}</td>
-                                    <td className="p-3 text-right font-bold">{formatMoney(inv.total_cents)}</td>
-                                    <td className="p-3 text-right font-bold text-indigo-700">{formatMoney(bal)}</td>
+                                    <td className="p-3 text-right font-bold">{formatMoney(inv.total_cents, invSym, invDec)}</td>
+                                    <td className="p-3 text-right font-bold text-indigo-700">{formatMoney(bal, invSym, invDec)}</td>
                                     <td className="p-3 text-center">
                                       <div className="flex items-center justify-center gap-1.5">
                                         <button onClick={() => setPreviewInvoice(inv)} className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg cursor-pointer" title="View / Print PDF">
@@ -2336,46 +2498,59 @@ export default function App() {
       {/* ===================================================================== */}
 
       {/* Payment Reminder Modal */}
-      {reminderModalInvoice && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className={`rounded-2xl p-6 shadow-2xl max-w-sm w-full space-y-4 border ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)]' : 'bg-white border-slate-200 text-slate-900 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
-            <div className={`flex items-center justify-between border-b pb-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-              <h4 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Send Payment Reminder</h4>
-              <button onClick={() => setReminderModalInvoice(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-4 h-4" /></button>
-            </div>
-            <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Invoice {reminderModalInvoice.invoice_number} for {reminderModalInvoice.client_name} (<span className="font-mono tabular-nums font-bold">{formatMoney(getInvoiceBalanceDueCents(reminderModalInvoice))}</span> due)</p>
-            <div className="space-y-2">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(`Payment Reminder: Invoice ${reminderModalInvoice.invoice_number} for ${formatMoney(getInvoiceBalanceDueCents(reminderModalInvoice))} is overdue. Please remit payment at your earliest convenience.`);
-                  alert('Reminder message copied to clipboard!');
-                  setReminderModalInvoice(null);
-                }}
-                className={`w-full text-left px-4 py-2.5 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2 ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
-              >
-                <Copy className="w-4 h-4 text-slate-400" />
-                <span>Copy Reminder Message</span>
-              </button>
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(`Payment Reminder: Invoice ${reminderModalInvoice.invoice_number} for ${formatMoney(getInvoiceBalanceDueCents(reminderModalInvoice))} is overdue. Please settle payment.`)}`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => setReminderModalInvoice(null)}
-                className="w-full text-left px-4 py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-500 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2 border border-emerald-500/30"
-              >
-                <span>💬 Send via WhatsApp</span>
-              </a>
-              <a
-                href={`mailto:?subject=${encodeURIComponent(`Payment Reminder: Invoice ${reminderModalInvoice.invoice_number}`)}&body=${encodeURIComponent(`Dear ${reminderModalInvoice.client_name},\n\nThis is a polite reminder that Invoice ${reminderModalInvoice.invoice_number} for ${formatMoney(getInvoiceBalanceDueCents(reminderModalInvoice))} was due on ${reminderModalInvoice.due_date}.\n\nThank you,\n${businessProfile.business_name}`)}`}
-                onClick={() => setReminderModalInvoice(null)}
-                className="w-full text-left px-4 py-2.5 bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-400 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2 border border-indigo-500/30"
-              >
-                <span>✉️ Send Email</span>
-              </a>
+      {reminderModalInvoice && (() => {
+        const remSym = reminderModalInvoice.currency_symbol || sym;
+        const remDec = reminderModalInvoice.currency_decimals ?? dec;
+        const balAmount = formatMoney(getInvoiceBalanceDueCents(reminderModalInvoice), remSym, remDec);
+        const clientName = reminderModalInvoice.client_name.trim() || 'Client';
+        const businessName = businessProfile.business_name.trim() || 'Accounts Team';
+        const dueDate = reminderModalInvoice.due_date || 'recently';
+        const reminderMsg = `Hi ${clientName}, hope you're doing well! This is a polite note that Invoice ${reminderModalInvoice.invoice_number} for ${balAmount} was due on ${dueDate}. Please let us know if you need any assistance with remittance. Thank you! - ${businessName}`;
+
+        return (
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div className={`rounded-2xl p-6 shadow-2xl max-w-sm w-full space-y-4 border ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)]' : 'bg-white border-slate-200 text-slate-900 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
+              <div className={`flex items-center justify-between border-b pb-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+                <h4 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Send Payment Reminder</h4>
+                <button onClick={() => setReminderModalInvoice(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-4 h-4" /></button>
+              </div>
+              <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Invoice {reminderModalInvoice.invoice_number} for {reminderModalInvoice.client_name} (<span className="font-mono tabular-nums font-bold">{balAmount}</span> due)</p>
+              <div className={`p-3 rounded-xl text-xs font-mono border italic ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                "{reminderMsg}"
+              </div>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(reminderMsg);
+                    alert('Reminder message copied to clipboard!');
+                    setReminderModalInvoice(null);
+                  }}
+                  className={`w-full text-left px-4 py-2.5 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2 ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
+                >
+                  <Copy className="w-4 h-4 text-slate-400" />
+                  <span>Copy Reminder Message</span>
+                </button>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(reminderMsg)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setReminderModalInvoice(null)}
+                  className="w-full text-left px-4 py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-500 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2 border border-emerald-500/30"
+                >
+                  <span>💬 Send via WhatsApp</span>
+                </a>
+                <a
+                  href={`mailto:?subject=${encodeURIComponent(`Payment Reminder: Invoice ${reminderModalInvoice.invoice_number}`)}&body=${encodeURIComponent(reminderMsg)}`}
+                  onClick={() => setReminderModalInvoice(null)}
+                  className="w-full text-left px-4 py-2.5 bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-400 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2 border border-indigo-500/30"
+                >
+                  <span>✉️ Send Email</span>
+                </a>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Record Payment Modal */}
       {recordPaymentInvoice && (
@@ -2896,126 +3071,162 @@ export default function App() {
       )}
 
       {/* Invoice PDF Preview Modal */}
-      {previewInvoice && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className={`rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto border ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)]' : 'bg-white border-slate-200 text-slate-900 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
-            <div className={`flex items-center justify-between border-b pb-3 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-              <h4 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>TAX INVOICE — {previewInvoice.invoice_number}</h4>
-              <button onClick={() => setPreviewInvoice(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="space-y-4 text-xs">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h5 className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{businessProfile.business_name}</h5>
-                  <p className="text-slate-400 whitespace-pre-line">{businessProfile.address}</p>
-                  <p className="text-slate-400">{businessProfile.email} • {businessProfile.phone}</p>
-                  {businessProfile.tax_id && <p className="text-slate-400 font-mono">Tax ID: {businessProfile.tax_id}</p>}
-                </div>
-                <div className="text-right">
-                  <span className="px-2.5 py-1 bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 font-bold rounded-lg text-xs uppercase tracking-wider">TAX INVOICE</span>
-                  <p className="font-mono font-bold text-sm text-indigo-400 mt-2">{previewInvoice.invoice_number}</p>
-                  <p className="text-slate-400 font-mono">Date: {previewInvoice.issue_date}</p>
-                </div>
-              </div>
-              <div className={`border-t pt-3 flex justify-between ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-                <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">BILL TO</span>
-                  <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{previewInvoice.client_name}</p>
-                  <p className="text-slate-400">Terms: {previewInvoice.payment_terms} • Due: {previewInvoice.due_date}</p>
-                </div>
-              </div>
-              {/* Statutory Compliance Notice Banner */}
-              {previewInvoice.tax_cents === 0 && (() => {
-                const targetClient = clients.find(c => c.id === previewInvoice.client_id);
-                const cTax = (targetClient?.tax_id || '').trim().toUpperCase();
-                const cAddr = (targetClient?.address || '').trim().toUpperCase();
-                const invNotes = (previewInvoice.notes || '').toUpperCase();
-                const invTerms = (previewInvoice.terms || '').toUpperCase();
-                const isExport = cAddr.includes('USA') || cAddr.includes('UNITED STATES') || cAddr.includes('EXPORT') || cAddr.includes('INTERNATIONAL') || cAddr.includes('UK') || cAddr.includes('LONDON') || cAddr.includes('DUBAI') || cAddr.includes('SINGAPORE') || cAddr.includes('LUT') || invNotes.includes('EXPORT') || invTerms.includes('EXPORT');
-                const isEuVat = cTax.startsWith('GB') || cTax.startsWith('DE') || cTax.startsWith('FR') || cTax.startsWith('NL') || cTax.startsWith('IE') || cTax.startsWith('IT') || cTax.startsWith('ES') || cTax.startsWith('BE') || cTax.startsWith('AT') || cTax.startsWith('SE') || cTax.startsWith('DK') || cTax.startsWith('FI') || cTax.startsWith('PL') || cTax.startsWith('CZ') || cTax.startsWith('PT') || cTax.startsWith('RO') || cTax.startsWith('HU') || cTax.startsWith('GR') || cTax.includes('VAT');
+      {previewInvoice && (() => {
+        const pSym = previewInvoice.currency_symbol || sym;
+        const pDec = previewInvoice.currency_decimals ?? dec;
+        const formatP = (cents: number) => formatMoney(cents, pSym, pDec);
+        const dynamicQr = businessProfile.payment_qr_payload ? generateDynamicQrPayload(
+          businessProfile.payment_qr_payload,
+          businessProfile.business_name,
+          previewInvoice.total_cents,
+          pDec,
+          previewInvoice.invoice_number,
+          previewInvoice.currency_code || businessProfile.currency_code
+        ) : '';
 
-                if (isExport) {
-                  return (
-                    <div className="p-2.5 bg-indigo-500/15 border border-indigo-500/30 rounded-xl text-center text-[11px] font-bold text-indigo-300">
-                      SUPPLY MEANT FOR EXPORT UNDER BOND OR LETTER OF UNDERTAKING WITHOUT PAYMENT OF INTEGRATED TAX
-                    </div>
-                  );
-                }
-                if (isEuVat) {
-                  return (
-                    <div className="p-2.5 bg-emerald-500/15 border border-emerald-500/30 rounded-xl text-center text-[11px] font-bold text-emerald-300">
-                      Reverse charge: Customer to account for VAT under Article 196 of Council Directive 2006/112/EC.
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-
-              <div className={`border rounded-xl overflow-hidden ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-                <table className="w-full text-left text-xs">
-                  <thead className={`font-bold border-b ${isDarkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
-                    <tr>
-                      <th className="p-2.5">Item</th>
-                      <th className="p-2.5 text-center">Qty</th>
-                      <th className="p-2.5 text-right">Price</th>
-                      <th className="p-2.5 text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className={`divide-y ${isDarkMode ? 'divide-slate-800 text-slate-200' : 'divide-slate-100'}`}>
-                    {invoiceItems.filter(i => i.invoice_id === previewInvoice.id).map(item => (
-                      <tr key={item.id}>
-                        <td className="p-2.5">{item.description}</td>
-                        <td className="p-2.5 text-center font-mono tabular-nums">{item.quantity}</td>
-                        <td className="p-2.5 text-right font-mono tabular-nums">{formatMoney(item.unit_price_cents)}</td>
-                        <td className={`p-2.5 text-right font-bold font-mono tabular-nums ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatMoney(item.total_cents)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        return (
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div className={`rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto border ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)]' : 'bg-white border-slate-200 text-slate-900 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
+              <div className={`flex items-center justify-between border-b pb-3 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+                <h4 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>TAX INVOICE — {previewInvoice.invoice_number}</h4>
+                <button onClick={() => setPreviewInvoice(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-4 h-4" /></button>
               </div>
-              <div className={`flex justify-end pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-                <div className="w-56 space-y-1 text-right">
-                  <div className="flex justify-between"><span>Subtotal:</span><span className="font-mono tabular-nums">{formatMoney(previewInvoice.subtotal_cents)}</span></div>
-                  {previewInvoice.discount_cents && previewInvoice.discount_cents > 0 ? (
-                    <div className="flex justify-between text-amber-500 font-semibold">
-                      <span>Discount:</span>
-                      <span className="font-mono tabular-nums">-{formatMoney(previewInvoice.discount_cents)}</span>
+              <div className="space-y-4 text-xs">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h5 className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{businessProfile.business_name}</h5>
+                    <p className="text-slate-400 whitespace-pre-line">{businessProfile.address}</p>
+                    <p className="text-slate-400">{businessProfile.email} • {businessProfile.phone}</p>
+                    {businessProfile.tax_id && <p className="text-slate-400 font-mono">Tax ID: {businessProfile.tax_id}</p>}
+                  </div>
+                  <div className="text-right">
+                    <span className={`px-2.5 py-1 font-bold rounded-lg text-xs uppercase tracking-wider ${
+                      previewInvoice.status === 'DRAFT' ? 'bg-slate-500/15 text-slate-400 border border-slate-500/30' : 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
+                    }`}>
+                      {previewInvoice.status === 'DRAFT' ? 'DRAFT INVOICE' : 'TAX INVOICE'}
+                    </span>
+                    <p className="font-mono font-bold text-sm text-indigo-400 mt-2">{previewInvoice.invoice_number}</p>
+                    <p className="text-slate-400 font-mono">Date: {previewInvoice.issue_date}</p>
+                  </div>
+                </div>
+                <div className={`border-t pt-3 flex justify-between ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+                  <div>
+                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">BILL TO</span>
+                    <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{previewInvoice.client_name}</p>
+                    <p className="text-slate-400">Terms: {previewInvoice.payment_terms} • Due: {previewInvoice.due_date}</p>
+                  </div>
+                  {previewInvoice.po_number && (
+                    <div className="text-right">
+                      <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">PO NUMBER</span>
+                      <p className="font-mono font-bold text-indigo-400">{previewInvoice.po_number}</p>
                     </div>
-                  ) : null}
-                  {previewInvoice.tax_cents > 0 ? (
-                    (() => {
-                      const cgst = Math.floor(previewInvoice.tax_cents / 2);
-                      const sgst = previewInvoice.tax_cents - cgst;
-                      return (
-                        <>
-                          <div className={`flex justify-between ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}><span>CGST (50%):</span><span className="font-mono tabular-nums">{formatMoney(cgst)}</span></div>
-                          <div className={`flex justify-between ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}><span>SGST (50%):</span><span className="font-mono tabular-nums">{formatMoney(sgst)}</span></div>
-                        </>
-                      );
-                    })()
-                  ) : (
-                    <div className="flex justify-between text-slate-400"><span>Tax (0% / Exempt):</span><span className="font-mono tabular-nums">{formatMoney(0)}</span></div>
                   )}
-                  <div className={`flex justify-between font-bold text-sm border-t pt-1 ${isDarkMode ? 'text-indigo-400 border-slate-800' : 'text-indigo-700 border-slate-200'}`}>
-                    <span>Total Amount:</span>
-                    <span className="font-mono tabular-nums">{formatMoney(previewInvoice.total_cents)}</span>
-                  </div>
-                  <div className={`flex justify-between font-bold text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                    <span>Balance Due:</span>
-                    <span className="font-mono tabular-nums">{formatMoney(getInvoiceBalanceDueCents(previewInvoice))}</span>
+                </div>
+                {/* Statutory Compliance Notice Banner */}
+                {previewInvoice.tax_cents === 0 && (() => {
+                  const targetClient = clients.find(c => c.id === previewInvoice.client_id);
+                  const cTax = (targetClient?.tax_id || '').trim().toUpperCase();
+                  const cAddr = (targetClient?.address || '').trim().toUpperCase();
+                  const invNotes = (previewInvoice.notes || '').toUpperCase();
+                  const invTerms = (previewInvoice.terms || '').toUpperCase();
+                  const isExport = cAddr.includes('USA') || cAddr.includes('UNITED STATES') || cAddr.includes('EXPORT') || cAddr.includes('INTERNATIONAL') || cAddr.includes('UK') || cAddr.includes('LONDON') || cAddr.includes('DUBAI') || cAddr.includes('SINGAPORE') || cAddr.includes('LUT') || invNotes.includes('EXPORT') || invTerms.includes('EXPORT');
+                  const isEuVat = cTax.startsWith('GB') || cTax.startsWith('DE') || cTax.startsWith('FR') || cTax.startsWith('NL') || cTax.startsWith('IE') || cTax.startsWith('IT') || cTax.startsWith('ES') || cTax.startsWith('BE') || cTax.startsWith('AT') || cTax.startsWith('SE') || cTax.startsWith('DK') || cTax.startsWith('FI') || cTax.startsWith('PL') || cTax.startsWith('CZ') || cTax.startsWith('PT') || cTax.startsWith('RO') || cTax.startsWith('HU') || cTax.startsWith('GR') || cTax.includes('VAT');
+
+                  if (isExport) {
+                    return (
+                      <div className="p-2.5 bg-indigo-500/15 border border-indigo-500/30 rounded-xl text-center text-[11px] font-bold text-indigo-300">
+                        SUPPLY MEANT FOR EXPORT UNDER BOND OR LETTER OF UNDERTAKING WITHOUT PAYMENT OF INTEGRATED TAX
+                      </div>
+                    );
+                  }
+                  if (isEuVat) {
+                    return (
+                      <div className="p-2.5 bg-emerald-500/15 border border-emerald-500/30 rounded-xl text-center text-[11px] font-bold text-emerald-300">
+                        Reverse charge: Customer to account for VAT under Article 196 of Council Directive 2006/112/EC.
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
+                <div className={`border rounded-xl overflow-hidden ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
+                  <table className="w-full text-left text-xs">
+                    <thead className={`font-bold border-b ${isDarkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
+                      <tr>
+                        <th className="p-2.5">Item</th>
+                        <th className="p-2.5 text-center">Qty</th>
+                        <th className="p-2.5 text-right">Price</th>
+                        <th className="p-2.5 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${isDarkMode ? 'divide-slate-800 text-slate-200' : 'divide-slate-100'}`}>
+                      {invoiceItems.filter(i => i.invoice_id === previewInvoice.id).map(item => (
+                        <tr key={item.id}>
+                          <td className="p-2.5">{item.description}</td>
+                          <td className="p-2.5 text-center font-mono tabular-nums">{item.quantity}</td>
+                          <td className="p-2.5 text-right font-mono tabular-nums">{formatP(item.unit_price_cents)}</td>
+                          <td className={`p-2.5 text-right font-bold font-mono tabular-nums ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatP(item.total_cents)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className={`flex justify-end pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
+                  <div className="w-56 space-y-1 text-right">
+                    <div className="flex justify-between"><span>Subtotal:</span><span className="font-mono tabular-nums">{formatP(previewInvoice.subtotal_cents)}</span></div>
+                    {previewInvoice.discount_cents && previewInvoice.discount_cents > 0 ? (
+                      <div className="flex justify-between text-amber-500 font-semibold">
+                        <span>Discount:</span>
+                        <span className="font-mono tabular-nums">-{formatP(previewInvoice.discount_cents)}</span>
+                      </div>
+                    ) : null}
+                    {previewInvoice.tax_cents > 0 ? (
+                      (() => {
+                        const cgst = Math.floor(previewInvoice.tax_cents / 2);
+                        const sgst = previewInvoice.tax_cents - cgst;
+                        return (
+                          <>
+                            <div className={`flex justify-between ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}><span>CGST (50%):</span><span className="font-mono tabular-nums">{formatP(cgst)}</span></div>
+                            <div className={`flex justify-between ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}><span>SGST (50%):</span><span className="font-mono tabular-nums">{formatP(sgst)}</span></div>
+                          </>
+                        );
+                      })()
+                    ) : (
+                      <div className="flex justify-between text-slate-400"><span>Tax (0% / Exempt):</span><span className="font-mono tabular-nums">{formatP(0)}</span></div>
+                    )}
+                    <div className={`flex justify-between font-bold text-sm border-t pt-1 ${isDarkMode ? 'text-indigo-400 border-slate-800' : 'text-indigo-700 border-slate-200'}`}>
+                      <span>Total Amount:</span>
+                      <span className="font-mono tabular-nums">{formatP(previewInvoice.total_cents)}</span>
+                    </div>
+                    <div className={`flex justify-between font-bold text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <span>Balance Due:</span>
+                      <span className="font-mono tabular-nums">{formatP(getInvoiceBalanceDueCents(previewInvoice))}</span>
+                    </div>
                   </div>
                 </div>
+
+                {dynamicQr && (
+                  <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className="min-w-0">
+                      <span className="font-bold text-[11px] block text-indigo-400">Instant Dynamic Settlement Payload</span>
+                      <p className="font-mono text-[10px] text-slate-400 break-all">{dynamicQr}</p>
+                    </div>
+                    <span className="shrink-0 px-2 py-1 bg-indigo-500/20 text-indigo-300 font-bold rounded text-[10px]">
+                      Payload Active
+                    </span>
+                  </div>
+                )}
               </div>
-            </div>
-            <div className={`flex justify-end gap-3 pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-              <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer">
-                <Printer className="w-4 h-4" />
-                <span>Print Invoice</span>
-              </button>
+              <div className={`flex justify-end gap-3 pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+                <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer">
+                  <Printer className="w-4 h-4" />
+                  <span>Print Invoice</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

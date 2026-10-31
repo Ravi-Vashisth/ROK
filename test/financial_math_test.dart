@@ -161,6 +161,55 @@ void main() {
       expect(balanceDue, equals(15000));
     });
   });
+
+  group('Group 4: Dynamic Settlement QR & Draft Invoices', () {
+    test('generateDynamicQrPayload creates valid UPI URL with amount and invoice ref', () {
+      final payload = generateDynamicQrPayload(
+        rawPayload: 'merchant@upi',
+        businessName: 'My Studio',
+        balanceDueUnits: 15000,
+        currencyDecimals: 2,
+        invoiceNumber: 'INV-0010',
+        currencyCode: 'INR',
+      );
+      expect(payload, equals('upi://pay?pa=merchant%40upi&pn=My%20Studio&am=150.00&tn=Invoice-INV-0010&cu=INR'));
+    });
+
+    test('generateDynamicQrPayload formats zero-decimal currencies without fractional cents', () {
+      final payload = generateDynamicQrPayload(
+        rawPayload: 'tokyo@upi',
+        businessName: 'Tokyo Soft',
+        balanceDueUnits: 50000,
+        currencyDecimals: 0,
+        invoiceNumber: 'INV-0011',
+        currencyCode: 'JPY',
+      );
+      expect(payload, equals('upi://pay?pa=tokyo%40upi&pn=Tokyo%20Soft&am=50000&tn=Invoice-INV-0011&cu=JPY'));
+    });
+
+    test('Draft invoice record returns isDraft true and isOverdue false', () {
+      final draftInvoice = InvoiceRecord(
+        id: 'draft-1',
+        clientId: 'c1',
+        clientName: 'Acme',
+        invoiceNumber: 'INV-D1',
+        subtotalCents: 10000,
+        taxCents: 1000,
+        totalCents: 11000,
+        paidCents: 0,
+        balanceDueCents: 11000,
+        status: 'DRAFT',
+        issueDate: '2020-01-01',
+        dueDate: '2020-01-01',
+        paymentTerms: 'Due on Receipt',
+        createdAt: '2020-01-01T00:00:00Z',
+      );
+
+      expect(draftInvoice.isDraft, isTrue);
+      expect(draftInvoice.isOverdue, isFalse);
+      expect(draftInvoice.computedStatus, equals('DRAFT'));
+    });
+  });
 }
 
 class DummyInvoice {

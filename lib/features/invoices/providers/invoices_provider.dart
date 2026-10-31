@@ -55,6 +55,10 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
         i.discount_type,
         i.discount_value,
         i.discount_cents,
+        i.po_number,
+        i.currency_code,
+        i.currency_symbol,
+        i.currency_decimals,
         i.created_at,
         COALESCE(SUM(CASE WHEN p.amount_received_cents > 0 OR p.tds_cents > 0 THEN p.amount_received_cents + p.tds_cents ELSE p.amount_cents END), 0) AS paid_cents
       FROM invoices i
@@ -122,6 +126,10 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     String notes = '',
     String discountType = 'none',
     int discountValue = 0,
+    String poNumber = '',
+    String currencyCode = '',
+    String currencySymbol = '',
+    int currencyDecimals = 2,
     String status = 'PENDING',
   }) {
     if (items.isEmpty) {
@@ -172,8 +180,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
         INSERT INTO invoices (
           id, client_id, invoice_number, subtotal_cents, tax_cents, total_cents,
           status, issue_date, due_date, payment_terms, terms, notes,
-          discount_type, discount_value, discount_cents, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          discount_type, discount_value, discount_cents, po_number, currency_code, currency_symbol, currency_decimals, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         invoiceStmt.execute([
@@ -192,6 +200,10 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
           discountType,
           discountValue,
           discountCents,
+          poNumber,
+          currencyCode,
+          currencySymbol,
+          currencyDecimals,
           createdAt,
         ]);
       } finally {
@@ -251,6 +263,10 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     final discountType = (sourceRow['discount_type'] as String?) ?? 'none';
     final discountValue = (sourceRow['discount_value'] as int?) ?? 0;
     final discountCents = (sourceRow['discount_cents'] as int?) ?? 0;
+    final poNumber = (sourceRow['po_number'] as String?) ?? '';
+    final currencyCode = (sourceRow['currency_code'] as String?) ?? '';
+    final currencySymbol = (sourceRow['currency_symbol'] as String?) ?? '';
+    final currencyDecimals = (sourceRow['currency_decimals'] as int?) ?? 2;
     final subtotalCents = sourceRow['subtotal_cents'] as int;
     final taxCents = sourceRow['tax_cents'] as int;
     final totalCents = sourceRow['total_cents'] as int;
@@ -279,8 +295,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
         INSERT INTO invoices (
           id, client_id, invoice_number, subtotal_cents, tax_cents, total_cents,
           status, issue_date, due_date, payment_terms, terms, notes,
-          discount_type, discount_value, discount_cents, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          discount_type, discount_value, discount_cents, po_number, currency_code, currency_symbol, currency_decimals, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         invoiceStmt.execute([
@@ -299,6 +315,10 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
           discountType,
           discountValue,
           discountCents,
+          poNumber,
+          currencyCode,
+          currencySymbol,
+          currencyDecimals,
           createdAt,
         ]);
       } finally {

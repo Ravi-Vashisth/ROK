@@ -46,16 +46,20 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
   late TextEditingController _issueDateController;
   late TextEditingController _termsController;
   late TextEditingController _notesController;
+  late TextEditingController _poNumberController;
+  String? _overrideCurrencyCode;
+  String? _overrideCurrencySymbol;
+  int? _overrideCurrencyDecimals;
   String _paymentTerms = 'Due on Receipt';
   String _discountType = 'none'; // 'none', 'percent', 'flat'
   final TextEditingController _discountController = TextEditingController(text: '0');
 
   final List<LineItemEntry> _items = [
     LineItemEntry(
-      description: 'Full-Stack Architecture & Implementation',
-      sacHsn: '998311',
+      description: '',
+      sacHsn: '',
       quantity: 1,
-      unitPriceCents: 15000,
+      unitPriceCents: 0,
       taxSlab: 10,
     )
   ];
@@ -68,6 +72,10 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
       text: '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
     );
     final profile = ref.read(businessProfileProvider);
+    _poNumberController = TextEditingController();
+    _overrideCurrencyCode = profile.currencyCode;
+    _overrideCurrencySymbol = profile.currencySymbol;
+    _overrideCurrencyDecimals = profile.currencyDecimals;
     _termsController = TextEditingController(text: profile.defaultTerms);
     _notesController = TextEditingController(text: profile.defaultNotes);
   }
@@ -75,6 +83,7 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
   @override
   void dispose() {
     _issueDateController.dispose();
+    _poNumberController.dispose();
     _termsController.dispose();
     _notesController.dispose();
     _discountController.dispose();
@@ -136,7 +145,7 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
     }
   }
 
-  void _handleSave() {
+  void _handleSave({bool isDraft = false}) {
     if (_selectedClientId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a client first.')),
@@ -181,6 +190,11 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
         : parsePriceToCents(_discountController.text.trim());
 
     final avgTaxPct = _items.isNotEmpty ? _items.first.taxSlab : 10;
+    final profile = ref.read(businessProfileProvider);
+    final curCode = _overrideCurrencyCode ?? profile.currencyCode;
+    final curSym = _overrideCurrencySymbol ?? profile.currencySymbol;
+    final curDec = _overrideCurrencyDecimals ?? profile.currencyDecimals;
+    final docStatus = isDraft ? 'DRAFT' : 'PENDING';
 
     if (widget.isQuote) {
       ref.read(estimatesProvider.notifier).saveEstimate(
@@ -193,9 +207,14 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
             notes: _notesController.text.trim(),
             discountType: _discountType,
             discountValue: discVal,
+            poNumber: _poNumberController.text.trim(),
+            currencyCode: curCode,
+            currencySymbol: curSym,
+            currencyDecimals: curDec,
+            status: docStatus,
           );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Quote saved successfully!')),
+        SnackBar(content: Text(isDraft ? 'Quote saved as Draft!' : 'Quote saved and issued successfully!')),
       );
     } else {
       ref.read(invoicesProvider.notifier).saveInvoice(
@@ -209,9 +228,14 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
             notes: _notesController.text.trim(),
             discountType: _discountType,
             discountValue: discVal,
+            poNumber: _poNumberController.text.trim(),
+            currencyCode: curCode,
+            currencySymbol: curSym,
+            currencyDecimals: curDec,
+            status: docStatus,
           );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invoice saved and issued successfully!')),
+        SnackBar(content: Text(isDraft ? 'Invoice saved as Draft!' : 'Invoice saved and issued successfully!')),
       );
     }
 
@@ -236,10 +260,16 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
             child: const Text('Cancel / Back'),
           ),
           const SizedBox(width: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.drafts_outlined, size: 16),
+            label: const Text('Save as Draft'),
+            onPressed: () => _handleSave(isDraft: true),
+          ),
+          const SizedBox(width: 8),
           FilledButton.icon(
             icon: const Icon(Icons.check, size: 16),
             label: Text(widget.isQuote ? 'Save & Issue Quote' : 'Save & Issue Invoice'),
-            onPressed: _handleSave,
+            onPressed: () => _handleSave(isDraft: false),
           ),
           const SizedBox(width: 16),
         ],
@@ -334,6 +364,60 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
                   ],
                   onChanged: (val) {
                     if (val != null) setState(() => _paymentTerms = val);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // PO Number & Currency Override Row
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: TextField(
+                  controller: _poNumberController,
+                  decoration: const InputDecoration(
+                    labelText: 'PO / Client Reference # (Optional)',
+                    hintText: 'e.g. PO-2026-9874',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: DropdownButtonFormField<String>(
+                  value: _overrideCurrencyCode ?? profile.currencyCode,
+                  decoration: const InputDecoration(
+                    labelText: 'Currency Override',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'USD', child: Text('USD (\$)')),
+                    DropdownMenuItem(value: 'INR', child: Text('INR (₹)')),
+                    DropdownMenuItem(value: 'EUR', child: Text('EUR (€)')),
+                    DropdownMenuItem(value: 'GBP', child: Text('GBP (£)')),
+                    DropdownMenuItem(value: 'JPY', child: Text('JPY (¥)')),
+                    DropdownMenuItem(value: 'CAD', child: Text('CAD (C\$)')),
+                    DropdownMenuItem(value: 'AUD', child: Text('AUD (A\$)')),
+                  ],
+                  onChanged: (code) {
+                    if (code == null) return;
+                    setState(() {
+                      _overrideCurrencyCode = code;
+                      if (code == 'INR') { _overrideCurrencySymbol = '₹'; _overrideCurrencyDecimals = 2; }
+                      else if (code == 'EUR') { _overrideCurrencySymbol = '€'; _overrideCurrencyDecimals = 2; }
+                      else if (code == 'GBP') { _overrideCurrencySymbol = '£'; _overrideCurrencyDecimals = 2; }
+                      else if (code == 'JPY') { _overrideCurrencySymbol = '¥'; _overrideCurrencyDecimals = 0; }
+                      else if (code == 'CAD') { _overrideCurrencySymbol = 'C\$'; _overrideCurrencyDecimals = 2; }
+                      else if (code == 'AUD') { _overrideCurrencySymbol = 'A\$'; _overrideCurrencyDecimals = 2; }
+                      else { _overrideCurrencySymbol = '\$'; _overrideCurrencyDecimals = 2; }
+                    });
                   },
                 ),
               ),
@@ -549,7 +633,9 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
 
   Widget _buildPreview(BusinessProfile profile) {
     final clients = ref.watch(clientsProvider);
-    final formatCurrency = ref.watch(currencyFormatterProvider);
+    final curSym = _overrideCurrencySymbol ?? profile.currencySymbol;
+    final curDec = _overrideCurrencyDecimals ?? profile.currencyDecimals;
+    String formatCurrency(int cents) => formatMoney(cents, symbol: curSym, decimals: curDec);
     final client = _selectedClientId != null
         ? clients.firstWhere(
             (c) => c.id == _selectedClientId,
@@ -633,6 +719,8 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
                       children: [
                         Text('Date: ${_issueDateController.text}', style: const TextStyle(fontSize: 11)),
                         Text('Terms: $_paymentTerms', style: const TextStyle(fontSize: 11)),
+                        if (_poNumberController.text.trim().isNotEmpty)
+                          Text('PO #: ${_poNumberController.text.trim()}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ],

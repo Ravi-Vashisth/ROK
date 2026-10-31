@@ -54,6 +54,10 @@ Future<Database> openLocalDatabase() async {
       discount_type TEXT DEFAULT 'none',
       discount_value INTEGER DEFAULT 0,
       discount_cents INTEGER DEFAULT 0,
+      po_number TEXT DEFAULT '',
+      currency_code TEXT DEFAULT '',
+      currency_symbol TEXT DEFAULT '',
+      currency_decimals INTEGER DEFAULT 2,
       created_at TEXT NOT NULL,
       FOREIGN KEY (client_id) REFERENCES clients (id) ON DELETE RESTRICT
     );
@@ -68,6 +72,10 @@ Future<Database> openLocalDatabase() async {
     "discount_type TEXT DEFAULT 'none'",
     "discount_value INTEGER DEFAULT 0",
     "discount_cents INTEGER DEFAULT 0",
+    "po_number TEXT DEFAULT ''",
+    "currency_code TEXT DEFAULT ''",
+    "currency_symbol TEXT DEFAULT ''",
+    "currency_decimals INTEGER DEFAULT 2",
   ]) {
     try {
       db.execute('ALTER TABLE invoices ADD COLUMN $col;');
@@ -251,6 +259,10 @@ Future<Database> openLocalDatabase() async {
       discount_type TEXT DEFAULT 'none',
       discount_value INTEGER DEFAULT 0,
       discount_cents INTEGER DEFAULT 0,
+      po_number TEXT DEFAULT '',
+      currency_code TEXT DEFAULT '',
+      currency_symbol TEXT DEFAULT '',
+      currency_decimals INTEGER DEFAULT 2,
       created_at TEXT NOT NULL,
       FOREIGN KEY (client_id) REFERENCES clients (id) ON DELETE RESTRICT
     );
@@ -262,6 +274,10 @@ Future<Database> openLocalDatabase() async {
     "discount_type TEXT DEFAULT 'none'",
     "discount_value INTEGER DEFAULT 0",
     "discount_cents INTEGER DEFAULT 0",
+    "po_number TEXT DEFAULT ''",
+    "currency_code TEXT DEFAULT ''",
+    "currency_symbol TEXT DEFAULT ''",
+    "currency_decimals INTEGER DEFAULT 2",
   ]) {
     try {
       db.execute('ALTER TABLE estimates ADD COLUMN $col;');

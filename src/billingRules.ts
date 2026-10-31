@@ -56,10 +56,14 @@ export interface InvoiceRecord {
   totalCents: number;
   paidCents: number;
   balanceDueCents: number;
-  status: string;
+  status: string; // 'DRAFT' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'VOID'
   issueDate: string;
   dueDate: string;
   paymentTerms: string;
+  poNumber?: string;
+  currencyCode?: string;
+  currencySymbol?: string;
+  currencyDecimals?: number;
   createdAt: string;
 }
 
@@ -75,6 +79,10 @@ export interface EstimateRecord {
   issueDate: string;
   expiryDate: string;
   convertedInvoiceId?: string;
+  poNumber?: string;
+  currencyCode?: string;
+  currencySymbol?: string;
+  currencyDecimals?: number;
   createdAt: string;
 }
 
@@ -266,7 +274,7 @@ export function calculateDueDate(issueDateStr: string, paymentTerms: string): st
  * Determines whether an invoice is overdue based on status, paid state, and due date.
  */
 export function isInvoiceOverdue(status: string, dueDateStr: string, isFullyPaid = false): boolean {
-  if (isFullyPaid || status.toUpperCase() === 'PAID') return false;
+  if (isFullyPaid || status.toUpperCase() === 'PAID' || status.toUpperCase() === 'DRAFT' || status.toUpperCase() === 'VOID') return false;
   if (!dueDateStr) return false;
   try {
     const due = new Date(dueDateStr);
@@ -288,7 +296,13 @@ export function resolveDynamicStatus(
   paidCents: number,
   dueDateStr: string,
   manualStatus = 'PENDING'
-): 'PAID' | 'PARTIALLY_PAID' | 'OVERDUE' | 'PENDING' {
+): 'DRAFT' | 'PAID' | 'PARTIALLY_PAID' | 'OVERDUE' | 'PENDING' | 'VOID' {
+  if (manualStatus.toUpperCase() === 'VOID') {
+    return 'VOID';
+  }
+  if (manualStatus.toUpperCase() === 'DRAFT') {
+    return 'DRAFT';
+  }
   if (manualStatus.toUpperCase() === 'PAID' || (totalCents > 0 && paidCents >= totalCents)) {
     return 'PAID';
   }
@@ -495,4 +509,57 @@ export function extractSequenceNumber(invoiceNumber: string, prefix: string): nu
   const numericPart = invoiceNumber.substring(prefix.length);
   const parsed = parseInt(numericPart, 10);
   return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Dynamically constructs standard UPI payment URL or appends invoice reference to payment URLs.
+ */
+export function generateDynamicQrPayload(
+  rawPayload: string,
+  businessName: string,
+  balanceDueUnits: number,
+  currencyDecimals: number,
+  invoiceNumber: string,
+  currencyCode = 'INR'
+): string {
+  const trimmed = rawPayload.trim();
+  if (!trimmed) return '';
+
+  let vpa = '';
+  if (trimmed.startsWith('upi://pay')) {
+    try {
+      const url = new URL(trimmed);
+      vpa = url.searchParams.get('pa') || '';
+    } catch {
+      const match = trimmed.match(/[?&]pa=([^&]+)/);
+      if (match) vpa = decodeURIComponent(match[1]);
+    }
+  } else if (trimmed.includes('@') && !trimmed.startsWith('http')) {
+    vpa = trimmed;
+  }
+
+  if (vpa) {
+    const encodedName = encodeURIComponent(businessName.trim() || 'Business');
+    const amountStr = currencyDecimals === 0
+      ? Math.max(0, Math.round(balanceDueUnits)).toString()
+      : (Math.max(0, Math.round(balanceDueUnits)) / 100).toFixed(2);
+    const safeInv = encodeURIComponent(`Invoice-${invoiceNumber}`);
+    const safeCu = encodeURIComponent(currencyCode || 'INR');
+    return `upi://pay?pa=${encodeURIComponent(vpa)}&pn=${encodedName}&am=${amountStr}&tn=${safeInv}&cu=${safeCu}`;
+  }
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    try {
+      const url = new URL(trimmed);
+      if (!url.searchParams.has('ref') && !url.searchParams.has('invoice')) {
+        url.searchParams.set('invoice', invoiceNumber);
+      }
+      return url.toString();
+    } catch {
+      const sep = trimmed.includes('?') ? '&' : '?';
+      return `${trimmed}${sep}invoice=${encodeURIComponent(invoiceNumber)}`;
+    }
+  }
+
+  return trimmed;
 }

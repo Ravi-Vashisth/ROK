@@ -277,7 +277,7 @@ class _SalesTabState extends ConsumerState<SalesTab> {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: ['All', 'Pending', 'Partially Paid', 'Paid', 'Overdue', 'Void'].map((status) {
+                children: ['All', 'Draft', 'Pending', 'Partially Paid', 'Paid', 'Overdue', 'Void'].map((status) {
                   final isSelected = _statusFilter == status;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8.0),

@@ -48,8 +48,8 @@ class InvoicePdfService {
       theme: fontTheme,
     );
 
-    final sym = businessProfile.currencySymbol;
-    final dec = businessProfile.currencyDecimals;
+    final sym = invoice.currencySymbol.isNotEmpty ? invoice.currencySymbol : businessProfile.currencySymbol;
+    final dec = invoice.currencyCode.isNotEmpty ? invoice.currencyDecimals : businessProfile.currencyDecimals;
 
     String formattedIssueDate = invoice.issueDate;
     if (formattedIssueDate.isEmpty) {
@@ -70,7 +70,12 @@ class InvoicePdfService {
     PdfColor statusTextColor = PdfColor.fromHex('#047857');
     String statusDisplay = 'PAID IN FULL';
 
-    if (isOverdue) {
+    if (invoice.isDraft) {
+      statusBgColor = PdfColor.fromHex('#F1F5F9');
+      statusBorderColor = PdfColor.fromHex('#94A3B8');
+      statusTextColor = PdfColor.fromHex('#475569');
+      statusDisplay = 'DRAFT';
+    } else if (isOverdue) {
       statusBgColor = PdfColor.fromHex('#FFF1F2');
       statusBorderColor = PdfColor.fromHex('#F43F5E');
       statusTextColor = PdfColor.fromHex('#BE123C');
@@ -179,6 +184,17 @@ class InvoicePdfService {
                           color: isOverdue ? PdfColor.fromHex('#BE123C') : PdfColor.fromHex('#1E293B'),
                         ),
                       ),
+                      if (invoice.poNumber.trim().isNotEmpty) ...[
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'PO Number: ${invoice.poNumber.trim()}',
+                          style: pw.TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromHex('#475569'),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -692,13 +708,21 @@ class InvoicePdfService {
                           ],
                         ),
                       ),
-                      if (businessProfile.paymentQrPayload.trim().isNotEmpty) ...[
+                      final dynamicQr = generateDynamicQrPayload(
+                        rawPayload: businessProfile.paymentQrPayload,
+                        businessName: businessProfile.businessName,
+                        balanceDueUnits: invoice.balanceDueCents,
+                        currencyDecimals: dec,
+                        invoiceNumber: invoice.invoiceNumber,
+                        currencyCode: invoice.currencyCode.isNotEmpty ? invoice.currencyCode : businessProfile.currencyCode,
+                      );
+                      if (dynamicQr.isNotEmpty) ...[
                         pw.SizedBox(width: 12),
                         pw.Column(
                           children: [
                             pw.BarcodeWidget(
                               barcode: pw.Barcode.qrCode(),
-                              data: businessProfile.paymentQrPayload.trim(),
+                              data: dynamicQr,
                               width: 58,
                               height: 58,
                             ),
@@ -740,7 +764,8 @@ class InvoicePdfService {
       theme: fontTheme,
     );
 
-    final sym = businessProfile.currencySymbol;
+    final sym = estimate.currencySymbol.isNotEmpty ? estimate.currencySymbol : businessProfile.currencySymbol;
+    final dec = estimate.currencyCode.isNotEmpty ? estimate.currencyDecimals : businessProfile.currencyDecimals;
     final effectiveTerms = _cleanText(
       estimate.terms.trim().isNotEmpty ? estimate.terms : businessProfile.defaultTerms,
     );
@@ -837,6 +862,17 @@ class InvoicePdfService {
                         'Valid Until: ${estimate.expiryDate}',
                         style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1E293B')),
                       ),
+                      if (estimate.poNumber.trim().isNotEmpty) ...[
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'PO / Ref: ${estimate.poNumber.trim()}',
+                          style: pw.TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromHex('#475569'),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -929,8 +965,8 @@ class InvoicePdfService {
                       children: [
                         _buildCell(_cleanText(item.description), align: pw.TextAlign.left),
                         _buildCell('${item.quantity}', align: pw.TextAlign.center),
-                        _buildCell(formatCents(item.unitPriceCents, symbol: sym), align: pw.TextAlign.right),
-                        _buildCell(formatCents(item.totalCents, symbol: sym), align: pw.TextAlign.right, isBold: true),
+                        _buildCell(formatCents(item.unitPriceCents, symbol: sym, decimals: dec), align: pw.TextAlign.right),
+                        _buildCell(formatCents(item.totalCents, symbol: sym, decimals: dec), align: pw.TextAlign.right, isBold: true),
                       ],
                     );
                   }),
@@ -946,24 +982,24 @@ class InvoicePdfService {
                     width: 250,
                     child: pw.Column(
                       children: [
-                        _buildSummaryLine('Subtotal', formatCents(estimate.subtotalCents, symbol: sym)),
+                        _buildSummaryLine('Subtotal', formatCents(estimate.subtotalCents, symbol: sym, decimals: dec)),
                         if (estimate.discountCents > 0) ...[
                           pw.SizedBox(height: 3),
                           _buildSummaryLine(
                             'Discount (${estimate.discountType == 'percent' ? '${estimate.discountValue}%' : 'Flat'})',
-                            '-${formatCents(estimate.discountCents, symbol: sym)}',
+                            '-${formatCents(estimate.discountCents, symbol: sym, decimals: dec)}',
                             color: PdfColor.fromHex('#D97706'),
                             isBold: true,
                           ),
                         ],
                         pw.SizedBox(height: 3),
-                        _buildSummaryLine('Estimated Tax', formatCents(estimate.taxCents, symbol: sym)),
+                        _buildSummaryLine('Estimated Tax', formatCents(estimate.taxCents, symbol: sym, decimals: dec)),
                         pw.SizedBox(height: 3),
                         pw.Divider(color: PdfColor.fromHex('#E2E8F0'), thickness: 0.8),
                         pw.SizedBox(height: 3),
                         _buildSummaryLine(
                           'Estimated Total',
-                          formatCents(estimate.totalCents, symbol: sym),
+                          formatCents(estimate.totalCents, symbol: sym, decimals: dec),
                           isBold: true,
                           fontSize: 12,
                           color: PdfColor.fromHex('#4F46E5'),
@@ -1047,6 +1083,175 @@ class InvoicePdfService {
               ),
             ],
           );
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  /// Generates a print-ready A4 Statement of Account PDF for a client.
+  static Future<Uint8List> generateStatementPdf({
+    required Client client,
+    required List<InvoiceRecord> invoices,
+    required BusinessProfile businessProfile,
+    List<PaymentRecord> payments = const [],
+  }) async {
+    final fontRegular = await PdfGoogleFonts.notoSansRegular();
+    final fontBold = await PdfGoogleFonts.notoSansBold();
+    final fontTheme = pw.ThemeData.withFont(base: fontRegular, bold: fontBold);
+
+    final pdf = pw.Document(
+      title: 'Statement of Account - ${client.name}',
+      author: businessProfile.businessName,
+      theme: fontTheme,
+    );
+
+    final sym = businessProfile.currencySymbol;
+    final dec = businessProfile.currencyDecimals;
+
+    int totalBilledCents = 0;
+    int totalPaidCents = 0;
+    for (final inv in invoices) {
+      if (inv.isVoid || inv.isDraft) continue;
+      totalBilledCents += inv.totalCents;
+      totalPaidCents += inv.paidCents;
+    }
+    final balanceDueCents = (totalBilledCents - totalPaidCents) > 0 ? (totalBilledCents - totalPaidCents) : 0;
+
+    final logoBytes = _safeDecodeBase64(businessProfile.logoBase64);
+    final now = DateTime.now();
+    final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(36),
+        theme: fontTheme,
+        build: (pw.Context context) {
+          return [
+            // Business Header
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    if (logoBytes != null) ...[
+                      pw.Container(
+                        width: 44,
+                        height: 44,
+                        margin: const pw.EdgeInsets.only(right: 12),
+                        child: pw.Image(pw.MemoryImage(logoBytes), fit: pw.BoxFit.contain),
+                      ),
+                    ],
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          businessProfile.businessName.isNotEmpty ? businessProfile.businessName : 'My Studio',
+                          style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A')),
+                        ),
+                        if (businessProfile.email.isNotEmpty)
+                          pw.Text(businessProfile.email, style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#64748B'))),
+                        if (businessProfile.taxId.isNotEmpty)
+                          pw.Text('Tax ID: ${businessProfile.taxId}', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#64748B'))),
+                      ],
+                    ),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text('STATEMENT OF ACCOUNT', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#4F46E5'))),
+                    pw.SizedBox(height: 4),
+                    pw.Text('Date Generated: $todayStr', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#64748B'))),
+                  ],
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 16),
+            pw.Divider(color: PdfColor.fromHex('#E2E8F0'), thickness: 1),
+            pw.SizedBox(height: 12),
+
+            // Client & Financial Summary
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('ACCOUNT FOR:', style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#64748B'))),
+                    pw.SizedBox(height: 2),
+                    pw.Text(client.name, style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A'))),
+                    if (client.email.isNotEmpty) pw.Text(client.email, style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#475569'))),
+                    if (client.phone.isNotEmpty) pw.Text(client.phone, style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#475569'))),
+                    if (client.taxId.isNotEmpty) pw.Text('Tax ID: ${client.taxId}', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#475569'))),
+                  ],
+                ),
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('#F8FAFC'),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                    border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0')),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text('Total Invoiced: ${formatMoney(totalBilledCents, symbol: sym, decimals: dec)}', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1E293B'))),
+                      pw.SizedBox(height: 3),
+                      pw.Text('Total Paid: ${formatMoney(totalPaidCents, symbol: sym, decimals: dec)}', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#047857'))),
+                      pw.SizedBox(height: 4),
+                      pw.Container(width: 140, height: 1, color: PdfColor.fromHex('#CBD5E1')),
+                      pw.SizedBox(height: 4),
+                      pw.Text('Balance Due: ${formatMoney(balanceDueCents, symbol: sym, decimals: dec)}', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: balanceDueCents > 0 ? PdfColor.fromHex('#BE123C') : PdfColor.fromHex('#047857'))),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 20),
+
+            // Invoices Ledger Table
+            pw.Text('CHRONOLOGICAL INVOICES & BILLING HISTORY', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#475569'))),
+            pw.SizedBox(height: 8),
+
+            pw.Table(
+              border: pw.TableBorder.all(color: PdfColor.fromHex('#E2E8F0'), width: 0.5),
+              children: [
+                pw.TableRow(
+                  decoration: pw.BoxDecoration(color: PdfColor.fromHex('#F1F5F9')),
+                  children: [
+                    _buildHeaderCell('Invoice #', align: pw.TextAlign.left),
+                    _buildHeaderCell('Issue Date', align: pw.TextAlign.center),
+                    _buildHeaderCell('Due Date', align: pw.TextAlign.center),
+                    _buildHeaderCell('Status', align: pw.TextAlign.center),
+                    _buildHeaderCell('Billed', align: pw.TextAlign.right),
+                    _buildHeaderCell('Paid', align: pw.TextAlign.right),
+                    _buildHeaderCell('Balance Due', align: pw.TextAlign.right),
+                  ],
+                ),
+                ...invoices.where((inv) => !inv.isVoid).map((inv) {
+                  final invSym = inv.currencySymbol.isNotEmpty ? inv.currencySymbol : sym;
+                  final invDec = inv.currencyCode.isNotEmpty ? inv.currencyDecimals : dec;
+                  return pw.TableRow(
+                    children: [
+                      _buildCell(inv.invoiceNumber, align: pw.TextAlign.left, isBold: true),
+                      _buildCell(inv.issueDate, align: pw.TextAlign.center),
+                      _buildCell(inv.dueDate, align: pw.TextAlign.center),
+                      _buildCell(inv.computedStatus, align: pw.TextAlign.center),
+                      _buildCell(formatMoney(inv.totalCents, symbol: invSym, decimals: invDec), align: pw.TextAlign.right),
+                      _buildCell(formatMoney(inv.paidCents, symbol: invSym, decimals: invDec), align: pw.TextAlign.right),
+                      _buildCell(formatMoney(inv.balanceDueCents, symbol: invSym, decimals: invDec), align: pw.TextAlign.right, isBold: true),
+                    ],
+                  );
+                }),
+              ],
+            ),
+          ];
         },
       ),
     );

@@ -35,6 +35,10 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
         e.discount_type,
         e.discount_value,
         e.discount_cents,
+        e.po_number,
+        e.currency_code,
+        e.currency_symbol,
+        e.currency_decimals,
         e.created_at
       FROM estimates e
       LEFT JOIN clients c ON e.client_id = c.id
@@ -76,6 +80,10 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     String notes = '',
     String discountType = 'none',
     int discountValue = 0,
+    String poNumber = '',
+    String currencyCode = '',
+    String currencySymbol = '',
+    int currencyDecimals = 2,
     String status = 'PENDING',
   }) {
     if (items.isEmpty) {
@@ -122,8 +130,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
         INSERT INTO estimates (
           id, client_id, estimate_number, subtotal_cents, tax_cents, total_cents,
           status, issue_date, expiry_date, converted_invoice_id, terms, notes,
-          discount_type, discount_value, discount_cents, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          discount_type, discount_value, discount_cents, po_number, currency_code, currency_symbol, currency_decimals, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         stmt.execute([
@@ -142,6 +150,10 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
           discountType,
           discountValue,
           discountCents,
+          poNumber,
+          currencyCode,
+          currencySymbol,
+          currencyDecimals,
           createdAt,
         ]);
       } finally {
@@ -196,6 +208,10 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     final discountType = (estRow['discount_type'] as String?) ?? 'none';
     final discountValue = (estRow['discount_value'] as int?) ?? 0;
     final discountCents = (estRow['discount_cents'] as int?) ?? 0;
+    final poNumber = (estRow['po_number'] as String?) ?? '';
+    final currencyCode = (estRow['currency_code'] as String?) ?? '';
+    final currencySymbol = (estRow['currency_symbol'] as String?) ?? '';
+    final currencyDecimals = (estRow['currency_decimals'] as int?) ?? 2;
 
     final items = getEstimateItems(estimateId);
     final draftItems = items
@@ -225,8 +241,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
         INSERT INTO invoices (
           id, client_id, invoice_number, subtotal_cents, tax_cents, total_cents,
           status, issue_date, due_date, payment_terms, terms, notes,
-          discount_type, discount_value, discount_cents, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          discount_type, discount_value, discount_cents, po_number, currency_code, currency_symbol, currency_decimals, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         invoiceStmt.execute([
@@ -245,6 +261,10 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
           discountType,
           discountValue,
           discountCents,
+          poNumber,
+          currencyCode,
+          currencySymbol,
+          currencyDecimals,
           createdAt,
         ]);
       } finally {

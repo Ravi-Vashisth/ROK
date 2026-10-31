@@ -20,6 +20,10 @@ class InvoiceRecord {
   final String discountType; // 'none', 'percent', 'flat'
   final int discountValue; // % integer or flat cents
   final int discountCents; // Computed discount in cents
+  final String poNumber;
+  final String currencyCode;
+  final String currencySymbol;
+  final int currencyDecimals;
   final String createdAt;
 
   const InvoiceRecord({
@@ -41,6 +45,10 @@ class InvoiceRecord {
     this.discountType = 'none',
     this.discountValue = 0,
     this.discountCents = 0,
+    this.poNumber = '',
+    this.currencyCode = '',
+    this.currencySymbol = '',
+    this.currencyDecimals = 2,
     required this.createdAt,
   });
 
@@ -80,6 +88,10 @@ class InvoiceRecord {
       discountType: (row['discount_type'] as String?) ?? 'none',
       discountValue: (row['discount_value'] as int?) ?? 0,
       discountCents: (row['discount_cents'] as int?) ?? 0,
+      poNumber: (row['po_number'] as String?) ?? '',
+      currencyCode: (row['currency_code'] as String?) ?? '',
+      currencySymbol: (row['currency_symbol'] as String?) ?? '',
+      currencyDecimals: (row['currency_decimals'] as int?) ?? 2,
       createdAt: rawCreatedAt,
     );
   }
@@ -90,15 +102,18 @@ class InvoiceRecord {
   /// Whether the invoice is voided.
   bool get isVoid => status.toUpperCase() == 'VOID';
 
+  /// Whether the invoice is in draft status.
+  bool get isDraft => status.toUpperCase() == 'DRAFT';
+
   /// Whether the invoice is fully settled.
-  bool get isFullyPaid => !isVoid && (paidCents >= totalCents || status.toUpperCase() == 'PAID');
+  bool get isFullyPaid => !isVoid && !isDraft && (paidCents >= totalCents || status.toUpperCase() == 'PAID');
 
   /// Whether some payment has been received but remaining balance is still due.
-  bool get isPartiallyPaid => !isVoid && paidCents > 0 && paidCents < totalCents && status.toUpperCase() != 'PAID';
+  bool get isPartiallyPaid => !isVoid && !isDraft && paidCents > 0 && paidCents < totalCents && status.toUpperCase() != 'PAID';
 
   /// Returns true if the invoice is not paid and the due date is strictly in the past.
   bool get isOverdue {
-    if (isVoid || isFullyPaid) return false;
+    if (isVoid || isDraft || isFullyPaid) return false;
     if (dueDate.isEmpty) return false;
     try {
       final due = DateTime.parse(dueDate);
@@ -114,6 +129,7 @@ class InvoiceRecord {
   /// Resolves the real-time dynamic status of the invoice based on payments and due date.
   String get computedStatus {
     if (isVoid) return 'VOID';
+    if (isDraft) return 'DRAFT';
     if (isFullyPaid) return 'PAID';
     if (isPartiallyPaid) return 'PARTIALLY_PAID';
     if (isOverdue) return 'OVERDUE';
