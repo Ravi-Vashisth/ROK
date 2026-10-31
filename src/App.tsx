@@ -386,7 +386,7 @@ export default function App() {
 
   // Theme & Accent Palette
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [accentColor, setAccentColor] = useState<'indigo' | 'emerald' | 'blue' | 'rose' | 'amber'>('indigo');
+  const [accentColor, setAccentColor] = useState<'indigo' | 'emerald' | 'blue' | 'rose' | 'amber' | 'slate'>('indigo');
 
   // --- Two-Column Live Invoice & Quote Editor State ---
   const [editorMode, setEditorMode] = useState<'none' | 'invoice' | 'quote'>('none');
@@ -763,16 +763,17 @@ export default function App() {
             </div>
             <div className="flex items-center gap-2">
               {/* Accent Color Palette Selector */}
-              <div className="flex items-center gap-1.5 p-1 rounded-xl border border-slate-200 bg-white">
-                {(['indigo', 'emerald', 'blue', 'rose', 'amber'] as const).map(color => (
+              <div className={`flex items-center gap-1.5 p-1 rounded-xl border ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+                {(['indigo', 'emerald', 'blue', 'rose', 'amber', 'slate'] as const).map(color => (
                   <button
                     key={color}
                     onClick={() => setAccentColor(color)}
                     className={`w-4 h-4 rounded-full transition ${accentColor === color ? 'ring-2 ring-offset-1 ring-slate-700 scale-110' : 'opacity-70 hover:opacity-100'} ${
-                      color === 'indigo' ? 'bg-indigo-600' :
-                      color === 'emerald' ? 'bg-emerald-600' :
-                      color === 'blue' ? 'bg-blue-600' :
-                      color === 'rose' ? 'bg-rose-600' : 'bg-amber-600'
+                      color === 'indigo' ? 'bg-[#4F46E5]' :
+                      color === 'emerald' ? 'bg-[#10B981]' :
+                      color === 'blue' ? 'bg-[#2563EB]' :
+                      color === 'rose' ? 'bg-[#F43F5E]' :
+                      color === 'amber' ? 'bg-[#F59E0B]' : 'bg-[#475569]'
                     }`}
                     title={`Accent: ${color}`}
                   />
@@ -1473,11 +1474,11 @@ export default function App() {
                                 return (
                                   <tr key={inv.id} className="hover:bg-slate-50/50">
                                     <td className="p-3">
-                                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                        status === 'PAID' ? 'bg-emerald-100 text-emerald-800' :
-                                        status === 'OVERDUE' ? 'bg-red-100 text-red-800' :
-                                        status === 'PARTIALLY_PAID' ? 'bg-amber-100 text-amber-800' :
-                                        status === 'VOID' ? 'bg-slate-200 text-slate-700' : 'bg-indigo-50 text-indigo-700'
+                                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                        status === 'PAID' ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/20' :
+                                        status === 'OVERDUE' ? 'bg-rose-500/15 text-rose-600 border border-rose-500/20' :
+                                        status === 'PARTIALLY_PAID' ? 'bg-amber-500/15 text-amber-600 border border-amber-500/20' :
+                                        status === 'VOID' ? 'bg-slate-500/15 text-slate-500 border border-slate-500/20' : 'bg-indigo-500/15 text-indigo-600 border border-indigo-500/20'
                                       }`}>
                                         {status}
                                       </span>
@@ -1544,7 +1545,7 @@ export default function App() {
                               return (
                                 <tr key={est.id} className="hover:bg-slate-50/50">
                                   <td className="p-3">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${est.status === 'CONVERTED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-50 text-amber-800'}`}>
+                                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${est.status === 'CONVERTED' ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/20' : 'bg-amber-500/15 text-amber-600 border border-amber-500/20'}`}>
                                       {est.status}
                                     </span>
                                   </td>
@@ -2179,11 +2180,11 @@ export default function App() {
       {/* 2. EXPENSE LOGGING SLIDE-OVER DRAWER */}
       {/* ===================================================================== */}
       {isExpenseDrawerOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex justify-end">
-          <div className="bg-white w-full max-w-md h-full shadow-2xl p-6 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-200">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex justify-end">
+          <div className={`w-full max-w-md h-full shadow-2xl p-6 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-200 border-l ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}>
             <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                <h4 className="font-bold text-base text-slate-900">Log New Business Expense</h4>
+              <div className={`flex items-center justify-between border-b pb-4 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+                <h4 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Log New Business Expense</h4>
                 <button onClick={() => setIsExpenseDrawerOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                   <X className="w-5 h-5" />
                 </button>
@@ -2191,21 +2192,21 @@ export default function App() {
 
               <div className="space-y-4 text-xs">
                 <div>
-                  <label className="block font-bold text-slate-600 uppercase tracking-wider mb-1">Vendor Name *</label>
+                  <label className={`block font-bold uppercase tracking-wider mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Vendor Name *</label>
                   <input
                     type="text"
                     value={expenseVendor}
                     onChange={(e) => setExpenseVendor(e.target.value)}
                     placeholder="e.g. AWS Cloud / GitHub"
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold"
+                    className={`w-full px-3 py-2.5 rounded-xl border text-sm font-semibold ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-600 uppercase tracking-wider mb-1">Category</label>
+                  <label className={`block font-bold uppercase tracking-wider mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Category</label>
                   <select
                     value={expenseCategory}
                     onChange={(e) => setExpenseCategory(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                    className={`w-full px-3 py-2.5 rounded-xl border text-sm ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   >
                     <option value="Software & Tools">Software & Tools</option>
                     <option value="Cloud Hosting">Cloud Hosting</option>
@@ -2215,45 +2216,45 @@ export default function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-600 uppercase tracking-wider mb-1">Expense Date</label>
+                  <label className={`block font-bold uppercase tracking-wider mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Expense Date</label>
                   <input
                     type="date"
                     value={expenseDate}
                     onChange={(e) => setExpenseDate(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                    className={`w-full px-3 py-2.5 rounded-xl border text-sm ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-bold text-slate-600 uppercase tracking-wider mb-1">Base Amount ({sym})</label>
+                    <label className={`block font-bold uppercase tracking-wider mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Base Amount ({sym})</label>
                     <input
                       type="number"
-                      step="0.01"
+                      step={dec === 0 ? "1" : "0.01"}
                       value={expenseAmount}
                       onChange={(e) => setExpenseAmount(e.target.value)}
-                      placeholder="100.00"
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold"
+                      placeholder={dec === 0 ? "100" : "100.00"}
+                      className={`w-full px-3 py-2.5 rounded-xl border text-sm font-bold font-mono tabular-nums ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                     />
                   </div>
                   <div>
-                    <label className="block font-bold text-slate-600 uppercase tracking-wider mb-1">Tax Amount ({sym})</label>
+                    <label className={`block font-bold uppercase tracking-wider mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Tax Amount ({sym})</label>
                     <input
                       type="number"
-                      step="0.01"
+                      step={dec === 0 ? "1" : "0.01"}
                       value={expenseTax}
                       onChange={(e) => setExpenseTax(e.target.value)}
-                      placeholder="10.00"
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold"
+                      placeholder={dec === 0 ? "10" : "10.00"}
+                      className={`w-full px-3 py-2.5 rounded-xl border text-sm font-bold font-mono tabular-nums ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                     />
                   </div>
                 </div>
 
                 {/* Receipt Dropzone */}
                 <div>
-                  <label className="block font-bold text-slate-600 uppercase tracking-wider mb-1">Receipt Attachment</label>
-                  <label className="border-2 border-dashed border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition">
-                    <Paperclip className="w-5 h-5 text-indigo-600 mb-1" />
-                    <span className="font-semibold text-slate-700">{expenseReceiptName || 'Click to attach receipt photo/PDF'}</span>
+                  <label className={`block font-bold uppercase tracking-wider mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Receipt Attachment</label>
+                  <label className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition ${isDarkMode ? 'border-slate-700 hover:bg-slate-800/50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                    <Paperclip className="w-5 h-5 text-indigo-500 mb-1" />
+                    <span className={`font-semibold text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>{expenseReceiptName || 'Click to attach receipt photo/PDF'}</span>
                     <input
                       type="file"
                       className="hidden"
@@ -2266,22 +2267,22 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-600 uppercase tracking-wider mb-1">Notes / Memo</label>
+                  <label className={`block font-bold uppercase tracking-wider mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Notes / Memo</label>
                   <textarea
                     value={expenseNotes}
                     onChange={(e) => setExpenseNotes(e.target.value)}
                     rows={2}
-                    className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs"
+                    className={`w-full p-3 rounded-xl border text-xs ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                     placeholder="Optional expense memo..."
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4 border-t border-slate-100">
+            <div className={`flex gap-3 pt-4 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
               <button
                 onClick={() => setIsExpenseDrawerOpen(false)}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
+                className={`flex-1 py-2.5 font-bold rounded-xl text-xs cursor-pointer ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
               >
                 Cancel
               </button>
@@ -2336,13 +2337,13 @@ export default function App() {
 
       {/* Payment Reminder Modal */}
       {reminderModalInvoice && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h4 className="font-bold text-base text-slate-900">Send Payment Reminder</h4>
-              <button onClick={() => setReminderModalInvoice(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className={`rounded-2xl p-6 shadow-2xl max-w-sm w-full space-y-4 border ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)]' : 'bg-white border-slate-200 text-slate-900 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
+            <div className={`flex items-center justify-between border-b pb-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+              <h4 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Send Payment Reminder</h4>
+              <button onClick={() => setReminderModalInvoice(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
-            <p className="text-xs text-slate-600">Invoice {reminderModalInvoice.invoice_number} for {reminderModalInvoice.client_name} ({formatMoney(getInvoiceBalanceDueCents(reminderModalInvoice))} due)</p>
+            <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Invoice {reminderModalInvoice.invoice_number} for {reminderModalInvoice.client_name} (<span className="font-mono tabular-nums font-bold">{formatMoney(getInvoiceBalanceDueCents(reminderModalInvoice))}</span> due)</p>
             <div className="space-y-2">
               <button
                 onClick={() => {
@@ -2350,9 +2351,9 @@ export default function App() {
                   alert('Reminder message copied to clipboard!');
                   setReminderModalInvoice(null);
                 }}
-                className="w-full text-left px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2"
+                className={`w-full text-left px-4 py-2.5 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2 ${isDarkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
               >
-                <Copy className="w-4 h-4 text-slate-600" />
+                <Copy className="w-4 h-4 text-slate-400" />
                 <span>Copy Reminder Message</span>
               </button>
               <a
@@ -2360,14 +2361,14 @@ export default function App() {
                 target="_blank"
                 rel="noreferrer"
                 onClick={() => setReminderModalInvoice(null)}
-                className="w-full text-left px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2"
+                className="w-full text-left px-4 py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-500 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2 border border-emerald-500/30"
               >
                 <span>💬 Send via WhatsApp</span>
               </a>
               <a
                 href={`mailto:?subject=${encodeURIComponent(`Payment Reminder: Invoice ${reminderModalInvoice.invoice_number}`)}&body=${encodeURIComponent(`Dear ${reminderModalInvoice.client_name},\n\nThis is a polite reminder that Invoice ${reminderModalInvoice.invoice_number} for ${formatMoney(getInvoiceBalanceDueCents(reminderModalInvoice))} was due on ${reminderModalInvoice.due_date}.\n\nThank you,\n${businessProfile.business_name}`)}`}
                 onClick={() => setReminderModalInvoice(null)}
-                className="w-full text-left px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2"
+                className="w-full text-left px-4 py-2.5 bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-400 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-2 border border-indigo-500/30"
               >
                 <span>✉️ Send Email</span>
               </a>
@@ -2378,40 +2379,40 @@ export default function App() {
 
       {/* Record Payment Modal */}
       {recordPaymentInvoice && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h4 className="font-bold text-base text-slate-900">Record Payment for {recordPaymentInvoice.invoice_number}</h4>
-              <button onClick={() => setRecordPaymentInvoice(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className={`rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)]' : 'bg-white border-slate-200 text-slate-900 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
+            <div className={`flex items-center justify-between border-b pb-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+              <h4 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Record Payment for {recordPaymentInvoice.invoice_number}</h4>
+              <button onClick={() => setRecordPaymentInvoice(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-600 mb-1">Amount Received in Bank ({sym}) *</label>
+                <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Amount Received in Bank ({sym}) *</label>
                 <input
                   type="number"
-                  step="0.01"
+                  step={dec === 0 ? "1" : "0.01"}
                   value={paymentAmountReceived}
                   onChange={(e) => setPaymentAmountReceived(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50"
+                  className={`w-full px-3 py-2 rounded-xl border text-sm font-bold font-mono tabular-nums ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">TDS Withheld ({sym})</label>
+                  <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>TDS Withheld ({sym})</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step={dec === 0 ? "1" : "0.01"}
                     value={paymentTds}
                     onChange={(e) => setPaymentTds(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50"
+                    className={`w-full px-3 py-2 rounded-xl border text-sm font-mono tabular-nums ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">Payment Method</label>
+                  <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Payment Method</label>
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50"
+                    className={`w-full px-3 py-2 rounded-xl border text-sm ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   >
                     <option value="Bank Wire">Bank Wire</option>
                     <option value="UPI / PayPal">UPI / PayPal</option>
@@ -2421,18 +2422,18 @@ export default function App() {
                 </div>
               </div>
               <div>
-                <label className="block font-bold text-slate-600 mb-1">Reference / UTR Number</label>
+                <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Reference / UTR Number</label>
                 <input
                   type="text"
                   value={paymentRefNumber}
                   onChange={(e) => setPaymentRefNumber(e.target.value)}
                   placeholder="e.g. UTR-98765432"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50"
+                  className={`w-full px-3 py-2 rounded-xl border text-sm ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-              <button onClick={() => setRecordPaymentInvoice(null)} className="px-4 py-2 text-xs font-semibold text-slate-600 cursor-pointer">Cancel</button>
+            <div className={`flex justify-end gap-3 pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+              <button onClick={() => setRecordPaymentInvoice(null)} className={`px-4 py-2 text-xs font-semibold cursor-pointer ${isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'}`}>Cancel</button>
               <button
                 onClick={() => {
                   const amt = parsePriceToCents(paymentAmountReceived);
@@ -2473,68 +2474,68 @@ export default function App() {
 
       {/* Add / Edit Client Modal */}
       {(isAddClientModalOpen || editingClient) && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h4 className="font-bold text-base text-slate-900">{editingClient ? 'Edit Client Details' : 'Add New Client'}</h4>
-              <button onClick={() => { setIsAddClientModalOpen(false); setEditingClient(null); }} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className={`rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)]' : 'bg-white border-slate-200 text-slate-900 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
+            <div className={`flex items-center justify-between border-b pb-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+              <h4 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{editingClient ? 'Edit Client Details' : 'Add New Client'}</h4>
+              <button onClick={() => { setIsAddClientModalOpen(false); setEditingClient(null); }} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-600 mb-1">Client / Company Name *</label>
+                <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Client / Company Name *</label>
                 <input
                   type="text"
                   value={clientFormName}
                   onChange={(e) => setClientFormName(e.target.value)}
                   placeholder="e.g. Acme Corp"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50 font-semibold"
+                  className={`w-full px-3 py-2 rounded-xl border text-sm font-semibold ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">Billing Email</label>
+                  <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Billing Email</label>
                   <input
                     type="email"
                     value={clientFormEmail}
                     onChange={(e) => setClientFormEmail(e.target.value)}
                     placeholder="billing@acme.com"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">Phone</label>
+                  <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Phone</label>
                   <input
                     type="text"
                     value={clientFormPhone}
                     onChange={(e) => setClientFormPhone(e.target.value)}
                     placeholder="+1 555-0199"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                 </div>
               </div>
               <div>
-                <label className="block font-bold text-slate-600 mb-1">Billing Address</label>
+                <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Billing Address</label>
                 <textarea
                   value={clientFormAddress}
                   onChange={(e) => setClientFormAddress(e.target.value)}
                   rows={2}
                   placeholder="Street, City, State, ZIP..."
-                  className="w-full p-2.5 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                  className={`w-full p-2.5 rounded-xl border text-xs ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
               </div>
               <div>
-                <label className="block font-bold text-slate-600 mb-1">GSTIN / Tax ID</label>
+                <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>GSTIN / Tax ID</label>
                 <input
                   type="text"
                   value={clientFormTaxId}
                   onChange={(e) => setClientFormTaxId(e.target.value)}
                   placeholder="e.g. GSTIN29ABCDE1234F1Z5"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                  className={`w-full px-3 py-2 rounded-xl border text-xs ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-              <button onClick={() => { setIsAddClientModalOpen(false); setEditingClient(null); }} className="px-4 py-2 text-xs font-semibold text-slate-600 cursor-pointer">Cancel</button>
+            <div className={`flex justify-end gap-3 pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+              <button onClick={() => { setIsAddClientModalOpen(false); setEditingClient(null); }} className={`px-4 py-2 text-xs font-semibold cursor-pointer ${isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'}`}>Cancel</button>
               <button
                 onClick={() => {
                   if (!clientFormName.trim()) {
@@ -2579,59 +2580,59 @@ export default function App() {
 
       {/* Add / Edit Catalog Item Modal */}
       {(isAddItemModalOpen || editingItem) && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h4 className="font-bold text-base text-slate-900">{editingItem ? 'Edit Catalog Item' : 'Add Item to Catalog'}</h4>
-              <button onClick={() => { setIsAddItemModalOpen(false); setEditingItem(null); }} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className={`rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)]' : 'bg-white border-slate-200 text-slate-900 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
+            <div className={`flex items-center justify-between border-b pb-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+              <h4 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{editingItem ? 'Edit Catalog Item' : 'Add Item to Catalog'}</h4>
+              <button onClick={() => { setIsAddItemModalOpen(false); setEditingItem(null); }} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-600 mb-1">Item / Service Title *</label>
+                <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Item / Service Title *</label>
                 <input
                   type="text"
                   value={itemFormTitle}
                   onChange={(e) => setItemFormTitle(e.target.value)}
                   placeholder="e.g. Full-Stack Engineering Rate"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50 font-semibold"
+                  className={`w-full px-3 py-2 rounded-xl border text-sm font-semibold ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">SAC / HSN Code</label>
+                  <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>SAC / HSN Code</label>
                   <input
                     type="text"
                     value={itemFormSacHsn}
                     onChange={(e) => setItemFormSacHsn(e.target.value)}
                     placeholder="998311"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">Default Price ({sym}) *</label>
+                  <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Default Price ({sym}) *</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step={dec === 0 ? "1" : "0.01"}
                     value={itemFormPrice}
                     onChange={(e) => setItemFormPrice(e.target.value)}
-                    placeholder="100.00"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 font-bold"
+                    placeholder={dec === 0 ? "100" : "100.00"}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-bold font-mono tabular-nums ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                 </div>
               </div>
               <div>
-                <label className="block font-bold text-slate-600 mb-1">Description (optional)</label>
+                <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Description (optional)</label>
                 <textarea
                   value={itemFormDesc}
                   onChange={(e) => setItemFormDesc(e.target.value)}
                   rows={2}
                   placeholder="Scope deliverables..."
-                  className="w-full p-2.5 rounded-xl border border-slate-200 text-xs bg-slate-50"
+                  className={`w-full p-2.5 rounded-xl border text-xs ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-              <button onClick={() => { setIsAddItemModalOpen(false); setEditingItem(null); }} className="px-4 py-2 text-xs font-semibold text-slate-600 cursor-pointer">Cancel</button>
+            <div className={`flex justify-end gap-3 pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+              <button onClick={() => { setIsAddItemModalOpen(false); setEditingItem(null); }} className={`px-4 py-2 text-xs font-semibold cursor-pointer ${isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'}`}>Cancel</button>
               <button
                 onClick={() => {
                   if (!itemFormTitle.trim()) {
@@ -2678,27 +2679,27 @@ export default function App() {
 
       {/* Statement of Account Preview Dialog */}
       {statementClient && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h4 className="font-bold text-base text-slate-900">Statement of Account: {statementClient.name}</h4>
-              <button onClick={() => setStatementClient(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className={`rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto border ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)]' : 'bg-white border-slate-200 text-slate-900 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
+            <div className={`flex items-center justify-between border-b pb-3 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+              <h4 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Statement of Account: {statementClient.name}</h4>
+              <button onClick={() => setStatementClient(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-4 text-xs">
               <div className="flex justify-between items-start">
                 <div>
-                  <h5 className="font-bold text-sm text-slate-900">{businessProfile.business_name}</h5>
-                  <p className="text-slate-500">{businessProfile.email} • {businessProfile.phone}</p>
+                  <h5 className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{businessProfile.business_name}</h5>
+                  <p className="text-slate-400">{businessProfile.email} • {businessProfile.phone}</p>
                 </div>
                 <div className="text-right">
                   <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">CLIENT</span>
-                  <p className="font-bold text-slate-900">{statementClient.name}</p>
-                  <p className="text-slate-500">{statementClient.email}</p>
+                  <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{statementClient.name}</p>
+                  <p className="text-slate-400">{statementClient.email}</p>
                 </div>
               </div>
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <div className={`border rounded-xl overflow-hidden ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 font-bold border-b border-slate-200">
+                  <thead className={`font-bold border-b ${isDarkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
                     <tr>
                       <th className="p-2.5">Date</th>
                       <th className="p-2.5">Reference</th>
@@ -2706,28 +2707,28 @@ export default function App() {
                       <th className="p-2.5 text-right">Credit</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className={`divide-y ${isDarkMode ? 'divide-slate-800 text-slate-200' : 'divide-slate-100'}`}>
                     {invoices.filter(i => i.client_id === statementClient.id).map(inv => (
                       <tr key={inv.id}>
                         <td className="p-2.5">{inv.issue_date}</td>
-                        <td className="p-2.5 font-mono font-bold">{inv.invoice_number}</td>
-                        <td className="p-2.5 text-right font-bold text-slate-900">{formatMoney(inv.total_cents)}</td>
+                        <td className="p-2.5 font-mono font-bold text-indigo-500">{inv.invoice_number}</td>
+                        <td className={`p-2.5 text-right font-bold font-mono tabular-nums ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatMoney(inv.total_cents)}</td>
                         <td className="p-2.5 text-right text-slate-400">-</td>
                       </tr>
                     ))}
                     {payments.filter(p => invoices.some(i => i.id === p.invoice_id && i.client_id === statementClient.id)).map(pay => (
                       <tr key={pay.id}>
                         <td className="p-2.5">{pay.payment_date}</td>
-                        <td className="p-2.5 font-mono text-emerald-700">Payment ({pay.payment_method})</td>
+                        <td className="p-2.5 font-mono text-emerald-500">Payment ({pay.payment_method})</td>
                         <td className="p-2.5 text-right text-slate-400">-</td>
-                        <td className="p-2.5 text-right font-bold text-emerald-700">{formatMoney(pay.amount_cents)}</td>
+                        <td className="p-2.5 text-right font-bold font-mono tabular-nums text-emerald-500">{formatMoney(pay.amount_cents)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-            <div className="flex justify-end gap-3 pt-3 border-t">
+            <div className={`flex justify-end gap-3 pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
               <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer">
                 <Printer className="w-4 h-4" />
                 <span>Print Statement</span>
@@ -2739,20 +2740,20 @@ export default function App() {
 
       {/* CSV Export Modal */}
       {isCsvModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h4 className="font-bold text-base text-slate-900">Export Accounting CSV</h4>
-              <button onClick={() => setIsCsvModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className={`rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)]' : 'bg-white border-slate-200 text-slate-900 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
+            <div className={`flex items-center justify-between border-b pb-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+              <h4 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Export Accounting CSV</h4>
+              <button onClick={() => setIsCsvModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
-            <p className="text-xs text-slate-500">Download formatted accounting exports compatible with QuickBooks, Xero, Tally, and Excel.</p>
+            <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Download formatted accounting exports compatible with QuickBooks, Xero, Tally, and Excel.</p>
             <div className="space-y-3">
-              <button onClick={handleExportInvoicesCsv} className="w-full py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl border border-indigo-200 transition flex items-center justify-center gap-2 cursor-pointer">
-                <FileSpreadsheet className="w-4 h-4 text-indigo-600" />
+              <button onClick={handleExportInvoicesCsv} className={`w-full py-3 text-xs font-bold rounded-xl border transition flex items-center justify-center gap-2 cursor-pointer ${isDarkMode ? 'bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-400 border-indigo-500/30' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'}`}>
+                <FileSpreadsheet className="w-4 h-4" />
                 <span>Export Invoices Ledger CSV ({invoices.length} records)</span>
               </button>
-              <button onClick={handleExportExpensesCsv} className="w-full py-3 bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-bold rounded-xl border border-orange-200 transition flex items-center justify-center gap-2 cursor-pointer">
-                <FileSpreadsheet className="w-4 h-4 text-orange-600" />
+              <button onClick={handleExportExpensesCsv} className={`w-full py-3 text-xs font-bold rounded-xl border transition flex items-center justify-center gap-2 cursor-pointer ${isDarkMode ? 'bg-orange-500/15 hover:bg-orange-500/25 text-orange-400 border-orange-500/30' : 'bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200'}`}>
+                <FileSpreadsheet className="w-4 h-4" />
                 <span>Export Expenses Ledger CSV ({expenses.length} records)</span>
               </button>
             </div>
@@ -2762,25 +2763,25 @@ export default function App() {
 
       {/* Business Profile Modal */}
       {isProfileModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h4 className="font-bold text-base text-slate-900">Business Profile & Branding Settings</h4>
-              <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className={`rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto border ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)]' : 'bg-white border-slate-200 text-slate-900 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
+            <div className={`flex items-center justify-between border-b pb-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+              <h4 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Business Profile & Branding Settings</h4>
+              <button onClick={() => setIsProfileModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-600 mb-1">Business Name</label>
+                <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Business Name</label>
                 <input
                   type="text"
                   value={businessProfile.business_name}
                   onChange={(e) => setBusinessProfile(prev => ({ ...prev, business_name: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 font-bold"
+                  className={`w-full px-3 py-2 rounded-xl border font-bold ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">Currency Preset</label>
+                  <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Currency Preset</label>
                   <select
                     value={businessProfile.currency_code}
                     onChange={(e) => {
@@ -2806,7 +2807,7 @@ export default function App() {
                         currency_decimals: found.dec,
                       }));
                     }}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 font-bold text-xs"
+                    className={`w-full px-3 py-2 rounded-xl border font-bold text-xs ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   >
                     <option value="USD">USD ($) - US Dollar</option>
                     <option value="INR">INR (₹) - Indian Rupee</option>
@@ -2822,64 +2823,64 @@ export default function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">Currency Symbol</label>
+                  <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Currency Symbol</label>
                   <input
                     type="text"
                     value={businessProfile.currency_symbol}
                     onChange={(e) => setBusinessProfile(prev => ({ ...prev, currency_symbol: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 font-bold"
+                    className={`w-full px-3 py-2 rounded-xl border font-bold ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">Email</label>
+                  <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Email</label>
                   <input
                     type="email"
                     value={businessProfile.email}
                     onChange={(e) => setBusinessProfile(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50"
+                    className={`w-full px-3 py-2 rounded-xl border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">Phone</label>
+                  <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Phone</label>
                   <input
                     type="text"
                     value={businessProfile.phone}
                     onChange={(e) => setBusinessProfile(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50"
+                    className={`w-full px-3 py-2 rounded-xl border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                   />
                 </div>
               </div>
               <div>
-                <label className="block font-bold text-slate-600 mb-1">Address</label>
+                <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Address</label>
                 <textarea
                   value={businessProfile.address}
                   onChange={(e) => setBusinessProfile(prev => ({ ...prev, address: e.target.value }))}
                   rows={2}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50"
+                  className={`w-full p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
               </div>
               <div>
-                <label className="block font-bold text-slate-600 mb-1">Tax ID / GSTIN</label>
+                <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Tax ID / GSTIN</label>
                 <input
                   type="text"
                   value={businessProfile.tax_id}
                   onChange={(e) => setBusinessProfile(prev => ({ ...prev, tax_id: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50"
+                  className={`w-full px-3 py-2 rounded-xl border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
               </div>
               <div>
-                <label className="block font-bold text-slate-600 mb-1">Payment Instructions</label>
+                <label className={`block font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Payment Instructions</label>
                 <textarea
                   value={businessProfile.payment_details}
                   onChange={(e) => setBusinessProfile(prev => ({ ...prev, payment_details: e.target.value }))}
                   rows={3}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50"
+                  className={`w-full p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
               </div>
             </div>
-            <div className="flex justify-end pt-3 border-t">
+            <div className={`flex justify-end pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
               <button
                 onClick={() => {
                   setIsProfileModalOpen(false);
@@ -2896,31 +2897,31 @@ export default function App() {
 
       {/* Invoice PDF Preview Modal */}
       {previewInvoice && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h4 className="font-bold text-base text-slate-900">TAX INVOICE — {previewInvoice.invoice_number}</h4>
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className={`rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto border ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.7)]' : 'bg-white border-slate-200 text-slate-900 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]'}`}>
+            <div className={`flex items-center justify-between border-b pb-3 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+              <h4 className={`font-bold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>TAX INVOICE — {previewInvoice.invoice_number}</h4>
               <button onClick={() => setPreviewInvoice(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-4 text-xs">
               <div className="flex justify-between items-start">
                 <div>
-                  <h5 className="font-bold text-sm text-slate-900">{businessProfile.business_name}</h5>
-                  <p className="text-slate-500 whitespace-pre-line">{businessProfile.address}</p>
-                  <p className="text-slate-500">{businessProfile.email} • {businessProfile.phone}</p>
-                  {businessProfile.tax_id && <p className="text-slate-500 font-mono">Tax ID: {businessProfile.tax_id}</p>}
+                  <h5 className={`font-bold text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{businessProfile.business_name}</h5>
+                  <p className="text-slate-400 whitespace-pre-line">{businessProfile.address}</p>
+                  <p className="text-slate-400">{businessProfile.email} • {businessProfile.phone}</p>
+                  {businessProfile.tax_id && <p className="text-slate-400 font-mono">Tax ID: {businessProfile.tax_id}</p>}
                 </div>
                 <div className="text-right">
-                  <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 font-bold rounded-lg text-xs uppercase tracking-wider">TAX INVOICE</span>
-                  <p className="font-mono font-bold text-sm text-slate-900 mt-2">{previewInvoice.invoice_number}</p>
-                  <p className="text-slate-500 font-mono">Date: {previewInvoice.issue_date}</p>
+                  <span className="px-2.5 py-1 bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 font-bold rounded-lg text-xs uppercase tracking-wider">TAX INVOICE</span>
+                  <p className="font-mono font-bold text-sm text-indigo-400 mt-2">{previewInvoice.invoice_number}</p>
+                  <p className="text-slate-400 font-mono">Date: {previewInvoice.issue_date}</p>
                 </div>
               </div>
-              <div className="border-t pt-3 flex justify-between">
+              <div className={`border-t pt-3 flex justify-between ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
                 <div>
                   <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px]">BILL TO</span>
-                  <p className="font-bold text-slate-900">{previewInvoice.client_name}</p>
-                  <p className="text-slate-500">Terms: {previewInvoice.payment_terms} • Due: {previewInvoice.due_date}</p>
+                  <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{previewInvoice.client_name}</p>
+                  <p className="text-slate-400">Terms: {previewInvoice.payment_terms} • Due: {previewInvoice.due_date}</p>
                 </div>
               </div>
               {/* Statutory Compliance Notice Banner */}
@@ -2935,14 +2936,14 @@ export default function App() {
 
                 if (isExport) {
                   return (
-                    <div className="p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-center text-[11px] font-bold text-indigo-900">
+                    <div className="p-2.5 bg-indigo-500/15 border border-indigo-500/30 rounded-xl text-center text-[11px] font-bold text-indigo-300">
                       SUPPLY MEANT FOR EXPORT UNDER BOND OR LETTER OF UNDERTAKING WITHOUT PAYMENT OF INTEGRATED TAX
                     </div>
                   );
                 }
                 if (isEuVat) {
                   return (
-                    <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-[11px] font-bold text-emerald-900">
+                    <div className="p-2.5 bg-emerald-500/15 border border-emerald-500/30 rounded-xl text-center text-[11px] font-bold text-emerald-300">
                       Reverse charge: Customer to account for VAT under Article 196 of Council Directive 2006/112/EC.
                     </div>
                   );
@@ -2950,9 +2951,9 @@ export default function App() {
                 return null;
               })()}
 
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <div className={`border rounded-xl overflow-hidden ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 font-bold border-b border-slate-200">
+                  <thead className={`font-bold border-b ${isDarkMode ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
                     <tr>
                       <th className="p-2.5">Item</th>
                       <th className="p-2.5 text-center">Qty</th>
@@ -2960,25 +2961,25 @@ export default function App() {
                       <th className="p-2.5 text-right">Total</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className={`divide-y ${isDarkMode ? 'divide-slate-800 text-slate-200' : 'divide-slate-100'}`}>
                     {invoiceItems.filter(i => i.invoice_id === previewInvoice.id).map(item => (
                       <tr key={item.id}>
                         <td className="p-2.5">{item.description}</td>
-                        <td className="p-2.5 text-center">{item.quantity}</td>
-                        <td className="p-2.5 text-right">{formatMoney(item.unit_price_cents)}</td>
-                        <td className="p-2.5 text-right font-bold">{formatMoney(item.total_cents)}</td>
+                        <td className="p-2.5 text-center font-mono tabular-nums">{item.quantity}</td>
+                        <td className="p-2.5 text-right font-mono tabular-nums">{formatMoney(item.unit_price_cents)}</td>
+                        <td className={`p-2.5 text-right font-bold font-mono tabular-nums ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatMoney(item.total_cents)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div className="flex justify-end pt-3 border-t border-slate-200">
+              <div className={`flex justify-end pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
                 <div className="w-56 space-y-1 text-right">
-                  <div className="flex justify-between"><span>Subtotal:</span><span>{formatMoney(previewInvoice.subtotal_cents)}</span></div>
+                  <div className="flex justify-between"><span>Subtotal:</span><span className="font-mono tabular-nums">{formatMoney(previewInvoice.subtotal_cents)}</span></div>
                   {previewInvoice.discount_cents && previewInvoice.discount_cents > 0 ? (
-                    <div className="flex justify-between text-amber-700 font-semibold">
+                    <div className="flex justify-between text-amber-500 font-semibold">
                       <span>Discount:</span>
-                      <span>-{formatMoney(previewInvoice.discount_cents)}</span>
+                      <span className="font-mono tabular-nums">-{formatMoney(previewInvoice.discount_cents)}</span>
                     </div>
                   ) : null}
                   {previewInvoice.tax_cents > 0 ? (
@@ -2987,26 +2988,26 @@ export default function App() {
                       const sgst = previewInvoice.tax_cents - cgst;
                       return (
                         <>
-                          <div className="flex justify-between text-slate-600"><span>CGST (50%):</span><span>{formatMoney(cgst)}</span></div>
-                          <div className="flex justify-between text-slate-600"><span>SGST (50%):</span><span>{formatMoney(sgst)}</span></div>
+                          <div className={`flex justify-between ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}><span>CGST (50%):</span><span className="font-mono tabular-nums">{formatMoney(cgst)}</span></div>
+                          <div className={`flex justify-between ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}><span>SGST (50%):</span><span className="font-mono tabular-nums">{formatMoney(sgst)}</span></div>
                         </>
                       );
                     })()
                   ) : (
-                    <div className="flex justify-between text-slate-500"><span>Tax (0% / Exempt):</span><span>{formatMoney(0)}</span></div>
+                    <div className="flex justify-between text-slate-400"><span>Tax (0% / Exempt):</span><span className="font-mono tabular-nums">{formatMoney(0)}</span></div>
                   )}
-                  <div className="flex justify-between font-bold text-sm text-indigo-700 border-t pt-1">
+                  <div className={`flex justify-between font-bold text-sm border-t pt-1 ${isDarkMode ? 'text-indigo-400 border-slate-800' : 'text-indigo-700 border-slate-200'}`}>
                     <span>Total Amount:</span>
-                    <span>{formatMoney(previewInvoice.total_cents)}</span>
+                    <span className="font-mono tabular-nums">{formatMoney(previewInvoice.total_cents)}</span>
                   </div>
-                  <div className="flex justify-between font-bold text-xs text-slate-700">
+                  <div className={`flex justify-between font-bold text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                     <span>Balance Due:</span>
-                    <span>{formatMoney(getInvoiceBalanceDueCents(previewInvoice))}</span>
+                    <span className="font-mono tabular-nums">{formatMoney(getInvoiceBalanceDueCents(previewInvoice))}</span>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+            <div className={`flex justify-end gap-3 pt-3 border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
               <button onClick={() => window.print()} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer">
                 <Printer className="w-4 h-4" />
                 <span>Print Invoice</span>

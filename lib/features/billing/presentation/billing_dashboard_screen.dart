@@ -263,12 +263,12 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
 
 
   String _getColorName(Color color) {
-    if (color == const Color(0xFF4F46E5)) return 'Indigo';
-    if (color == const Color(0xFF059669)) return 'Emerald';
-    if (color == const Color(0xFF2563EB)) return 'Royal Blue';
-    if (color == const Color(0xFFE11D48)) return 'Rose';
-    if (color == const Color(0xFFD97706)) return 'Amber';
-    if (color == const Color(0xFF475569)) return 'Slate';
+    if (color == AppPalette.indigo) return 'Indigo';
+    if (color == AppPalette.emerald) return 'Emerald';
+    if (color == AppPalette.royalBlue) return 'Royal Blue';
+    if (color == AppPalette.roseRed) return 'Rose Red';
+    if (color == AppPalette.amberGold) return 'Amber Gold';
+    if (color == AppPalette.slateSteel) return 'Slate Steel';
     return 'Custom';
   }
 }
