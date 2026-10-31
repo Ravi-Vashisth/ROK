@@ -708,32 +708,38 @@ class InvoicePdfService {
                           ],
                         ),
                       ),
-                      final dynamicQr = generateDynamicQrPayload(
-                        rawPayload: businessProfile.paymentQrPayload,
-                        businessName: businessProfile.businessName,
-                        balanceDueUnits: invoice.balanceDueCents,
-                        currencyDecimals: dec,
-                        invoiceNumber: invoice.invoiceNumber,
-                        currencyCode: invoice.currencyCode.isNotEmpty ? invoice.currencyCode : businessProfile.currencyCode,
-                      );
-                      if (dynamicQr.isNotEmpty) ...[
-                        pw.SizedBox(width: 12),
-                        pw.Column(
+                      () {
+                        final dynamicQr = generateDynamicQrPayload(
+                          rawPayload: businessProfile.paymentQrPayload,
+                          businessName: businessProfile.businessName,
+                          balanceDueUnits: invoice.balanceDueCents,
+                          currencyDecimals: dec,
+                          invoiceNumber: invoice.invoiceNumber,
+                          currencyCode: invoice.currencyCode.isNotEmpty ? invoice.currencyCode : businessProfile.currencyCode,
+                        );
+                        if (dynamicQr.isEmpty) return pw.SizedBox.shrink();
+                        return pw.Row(
+                          mainAxisSize: pw.MainAxisSize.min,
                           children: [
-                            pw.BarcodeWidget(
-                              barcode: pw.Barcode.qrCode(),
-                              data: dynamicQr,
-                              width: 58,
-                              height: 58,
-                            ),
-                            pw.SizedBox(height: 2),
-                            pw.Text(
-                              'Scan to Pay',
-                              style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#64748B')),
+                            pw.SizedBox(width: 12),
+                            pw.Column(
+                              children: [
+                                pw.BarcodeWidget(
+                                  barcode: pw.Barcode.qrCode(),
+                                  data: dynamicQr,
+                                  width: 58,
+                                  height: 58,
+                                ),
+                                pw.SizedBox(height: 2),
+                                pw.Text(
+                                  'Scan to Pay',
+                                  style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#64748B')),
+                                ),
+                              ],
                             ),
                           ],
-                        ),
-                      ],
+                        );
+                      }(),
                     ],
                   ),
                 ),

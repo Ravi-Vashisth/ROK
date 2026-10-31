@@ -1,0 +1,412 @@
+﻿2026-10-31T10:34:51.0745410Z Current runner version: '2.338.0'
+2026-10-31T10:34:51.0779210Z ##[group]Runner Image Provisioner
+2026-10-31T10:34:51.0780120Z Hosted Compute Agent
+2026-10-31T10:34:51.0780570Z Version: 20261012.601
+2026-10-31T10:34:51.0781060Z Commit: f3dc54e1fb89da6852db922499a0233137369e1d
+2026-10-31T10:34:51.0781680Z Build Date: 2026-10-12T17:48:21Z
+2026-10-31T10:34:51.0782180Z Worker ID: {b7b0f870-9557-484a-9634-4833ded6d0b7}
+2026-10-31T10:34:51.0782700Z Region: westus
+2026-10-31T10:34:51.0783070Z Cloud: MacCloud
+2026-10-31T10:34:51.0783560Z ##[endgroup]
+2026-10-31T10:34:51.0785000Z ##[group]Operating System
+2026-10-31T10:34:51.0785400Z macOS
+2026-10-31T10:34:51.0785720Z 26.6.2
+2026-10-31T10:34:51.0786050Z 25G83
+2026-10-31T10:34:51.0786370Z ##[endgroup]
+2026-10-31T10:34:51.0786720Z ##[group]Runner Image
+2026-10-31T10:34:51.0787100Z Image: macos-26-arm64
+2026-10-31T10:34:51.0787470Z Version: 20261013.0424.1
+2026-10-31T10:34:51.0789690Z Included Software: https://github.com/actions/runner-images/blob/macos-26-arm64/20261013.0424/images/macos/macos-26-arm64-Readme.md
+2026-10-31T10:34:51.0790860Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-26-arm64%2F20261013.0424
+2026-10-31T10:34:51.0791650Z ##[endgroup]
+2026-10-31T10:34:51.0792530Z ##[group]GITHUB_TOKEN Permissions
+2026-10-31T10:34:51.0795130Z Contents: write
+2026-10-31T10:34:51.0795530Z Metadata: read
+2026-10-31T10:34:51.0795950Z ##[endgroup]
+2026-10-31T10:34:51.0798050Z Secret source: Actions
+2026-10-31T10:34:51.0798740Z Cache mode: write
+2026-10-31T10:34:51.0799320Z Prepare workflow directory
+2026-10-31T10:34:51.1553150Z Prepare all required actions
+2026-10-31T10:34:51.1632800Z Getting action download info
+2026-10-31T10:34:51.6234700Z Download action repository 'actions/checkout@v4.2.2' (SHA:11bd71901bbe5b1630ceea73d27597364c9af683)
+2026-10-31T10:34:52.2720460Z Download action repository 'subosito/flutter-action@v2.18.0' (SHA:f2c4f6686ca8e8d6e6d0f28410eeef506ed66aff)
+2026-10-31T10:34:52.7260780Z Download action repository 'actions/upload-artifact@v4.4.3' (SHA:b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882)
+2026-10-31T10:34:53.0221820Z Getting action download info
+2026-10-31T10:34:53.1652700Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-10-31T10:34:53.5718440Z Complete job name: Build macOS Release (.app)
+2026-10-31T10:34:53.7640880Z ##[group]Run actions/checkout@v4.2.2
+2026-10-31T10:34:53.7641830Z with:
+2026-10-31T10:34:53.7642230Z   repository: Ravi-Vashisth/ROK
+2026-10-31T10:34:53.7645550Z   token: ***
+2026-10-31T10:34:53.7645960Z   ssh-strict: true
+2026-10-31T10:34:53.7646320Z   ssh-user: git
+2026-10-31T10:34:53.7646700Z   persist-credentials: true
+2026-10-31T10:34:53.7647100Z   clean: true
+2026-10-31T10:34:53.7647510Z   sparse-checkout-cone-mode: true
+2026-10-31T10:34:53.7647980Z   fetch-depth: 1
+2026-10-31T10:34:53.7648420Z   fetch-tags: false
+2026-10-31T10:34:53.7648850Z   show-progress: true
+2026-10-31T10:34:53.7649350Z   lfs: false
+2026-10-31T10:34:53.7649810Z   submodules: false
+2026-10-31T10:34:53.7650550Z   set-safe-directory: true
+2026-10-31T10:34:53.7651540Z ##[endgroup]
+2026-10-31T10:34:55.1037420Z Syncing repository: Ravi-Vashisth/ROK
+2026-10-31T10:34:55.1039070Z ##[group]Getting Git version info
+2026-10-31T10:34:55.1039980Z Working directory is '/Users/runner/work/ROK/ROK'
+2026-10-31T10:34:55.1042820Z [command]/opt/homebrew/bin/git version
+2026-10-31T10:34:55.1082460Z git version 2.56.0
+2026-10-31T10:34:55.1097240Z ##[endgroup]
+2026-10-31T10:34:55.1110950Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/041f5cbf-e589-4a6f-96fc-84ad57837c3d/.gitconfig'
+2026-10-31T10:34:55.1114640Z Temporarily overriding HOME='/Users/runner/work/_temp/041f5cbf-e589-4a6f-96fc-84ad57837c3d' before making global git config changes
+2026-10-31T10:34:55.1118320Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-31T10:34:55.1121080Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/ROK/ROK
+2026-10-31T10:34:55.1446300Z Deleting the contents of '/Users/runner/work/ROK/ROK'
+2026-10-31T10:34:55.1452400Z ##[group]Initializing the repository
+2026-10-31T10:34:55.1454900Z [command]/opt/homebrew/bin/git init /Users/runner/work/ROK/ROK
+2026-10-31T10:34:55.2102430Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-31T10:34:55.2105350Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-31T10:34:55.2111040Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-31T10:34:55.2118520Z hint: call:
+2026-10-31T10:34:55.2129790Z hint:
+2026-10-31T10:34:55.2131730Z hint: 	git config --global init.defaultBranch <name>
+2026-10-31T10:34:55.2136890Z hint:
+2026-10-31T10:34:55.2141210Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-31T10:34:55.2148920Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-31T10:34:55.2156150Z hint:
+2026-10-31T10:34:55.2169200Z hint: 	git branch -m <name>
+2026-10-31T10:34:55.2175970Z hint:
+2026-10-31T10:34:55.2177000Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-31T10:34:55.2178340Z Initialized empty Git repository in /Users/runner/work/ROK/ROK/.git/
+2026-10-31T10:34:55.2180810Z [command]/opt/homebrew/bin/git remote add origin https://github.com/Ravi-Vashisth/ROK
+2026-10-31T10:34:55.2327040Z ##[endgroup]
+2026-10-31T10:34:55.2328060Z ##[group]Disabling automatic garbage collection
+2026-10-31T10:34:55.2336670Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2026-10-31T10:34:55.2541150Z ##[endgroup]
+2026-10-31T10:34:55.2547280Z ##[group]Setting up auth
+2026-10-31T10:34:55.2554650Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-31T10:34:55.5621740Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-31T10:34:55.8962280Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-31T10:34:55.9060860Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-31T10:34:56.1329090Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-31T10:34:56.1364480Z ##[endgroup]
+2026-10-31T10:34:56.1377720Z ##[group]Fetching the repository
+2026-10-31T10:34:56.1401180Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +99a235a455dc8826208b365e14501e921cb68c0d:refs/remotes/origin/main
+2026-10-31T10:34:56.9065280Z From https://github.com/Ravi-Vashisth/ROK
+2026-10-31T10:34:56.9406850Z  * [new ref]         99a235a455dc8826208b365e14501e921cb68c0d -> origin/main
+2026-10-31T10:34:56.9896740Z ##[endgroup]
+2026-10-31T10:34:57.0053910Z ##[group]Determining the checkout info
+2026-10-31T10:34:57.0268490Z ##[endgroup]
+2026-10-31T10:34:57.0403250Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2026-10-31T10:34:57.0739580Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-31T10:34:57.0974980Z ##[group]Checking out the ref
+2026-10-31T10:34:57.0978960Z [command]/opt/homebrew/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-10-31T10:34:57.1128750Z Switched to a new branch 'main'
+2026-10-31T10:34:57.1145400Z branch 'main' set up to track 'origin/main'.
+2026-10-31T10:34:57.1150190Z ##[endgroup]
+2026-10-31T10:34:57.1421090Z [command]/opt/homebrew/bin/git log -1 --format=%H
+2026-10-31T10:34:57.1597760Z 99a235a455dc8826208b365e14501e921cb68c0d
+2026-10-31T10:34:57.3548460Z ##[group]Run subosito/flutter-action@v2.18.0
+2026-10-31T10:34:57.3550670Z with:
+2026-10-31T10:34:57.3552100Z   channel: stable
+2026-10-31T10:34:57.3554670Z   cache: true
+2026-10-31T10:34:57.3556110Z   architecture: ARM64
+2026-10-31T10:34:57.3557980Z   pub-cache-path: default
+2026-10-31T10:34:57.3559830Z   dry-run: false
+2026-10-31T10:34:57.3561710Z   git-source: https://github.com/flutter/flutter.git
+2026-10-31T10:34:57.3564130Z ##[endgroup]
+2026-10-31T10:34:57.3704420Z ##[start-action display=Make yq tool available on Windows runners;id=__subosito_flutter-action.__run]
+2026-10-31T10:34:57.3764550Z ##[end-action id=__subosito_flutter-action.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-31T10:34:57.3770400Z ##[start-action display=Make setup script executable;id=__subosito_flutter-action.__run_2]
+2026-10-31T10:34:57.3893800Z ##[group]Run chmod +x "$GITHUB_ACTION_PATH/setup.sh"
+2026-10-31T10:34:57.3894990Z [36;1mchmod +x "$GITHUB_ACTION_PATH/setup.sh"[0m
+2026-10-31T10:34:57.4041220Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-31T10:34:57.4042240Z ##[endgroup]
+2026-10-31T10:34:57.5717770Z ##[end-action id=__subosito_flutter-action.__run_2;outcome=success;conclusion=success;duration_ms=194]
+2026-10-31T10:34:57.5732150Z ##[start-action display=Set action inputs;id=__subosito_flutter-action.flutter-action]
+2026-10-31T10:34:57.5899900Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh -p \
+2026-10-31T10:34:57.5902400Z [36;1m$GITHUB_ACTION_PATH/setup.sh -p \[0m
+2026-10-31T10:34:57.5904790Z [36;1m  -n '' \[0m
+2026-10-31T10:34:57.5907220Z [36;1m  -f '' \[0m
+2026-10-31T10:34:57.5908960Z [36;1m  -a 'ARM64' \[0m
+2026-10-31T10:34:57.5910830Z [36;1m  -k '' \[0m
+2026-10-31T10:34:57.5912310Z [36;1m  -c '' \[0m
+2026-10-31T10:34:57.5914050Z [36;1m  -l '' \[0m
+2026-10-31T10:34:57.5915770Z [36;1m  -d 'default' \[0m
+2026-10-31T10:34:57.5918110Z [36;1m  -g 'https://github.com/flutter/flutter.git' \[0m
+2026-10-31T10:34:57.5920340Z [36;1m  stable[0m
+2026-10-31T10:34:57.5980770Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-31T10:34:57.5981810Z ##[endgroup]
+2026-10-31T10:34:58.2044540Z ##[end-action id=__subosito_flutter-action.flutter-action;outcome=success;conclusion=success;duration_ms=630]
+2026-10-31T10:34:58.2067780Z ##[start-action display=Cache Flutter;id=__subosito_flutter-action.__actions_cache]
+2026-10-31T10:34:58.2285590Z ##[group]Run actions/cache@v4
+2026-10-31T10:34:58.2286320Z with:
+2026-10-31T10:34:58.2287180Z   path: /Users/runner/hostedtoolcache/flutter/stable-3.47.9-arm64
+2026-10-31T10:34:58.2288630Z   key: flutter-macos-stable-3.47.9-arm64-c197ca5199e9ee5661e865596c9c07294dfab51c
+2026-10-31T10:34:58.2290220Z   restore-keys: flutter-macos-stable-3.47.9-arm64-c197ca5199e9ee5661e865596c9c07294dfab51c
+
+2026-10-31T10:34:58.2291590Z   enableCrossOsArchive: false
+2026-10-31T10:34:58.2292400Z   fail-on-cache-miss: false
+2026-10-31T10:34:58.2293070Z   lookup-only: false
+2026-10-31T10:34:58.2293790Z   save-always: false
+2026-10-31T10:34:58.2294460Z ##[endgroup]
+2026-10-31T10:34:58.4703430Z (node:2829) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-31T10:34:58.4733020Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-31T10:34:58.8085710Z Cache hit for: flutter-macos-stable-3.47.9-arm64-c197ca5199e9ee5661e865596c9c07294dfab51c
+2026-10-31T10:34:58.8280900Z (node:2829) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-31T10:35:00.2211240Z Received 0 of 2228646640 (0.0%), 0.0 MBs/sec
+2026-10-31T10:35:01.2155070Z Received 41943040 of 2228646640 (1.9%), 19.2 MBs/sec
+2026-10-31T10:35:02.2232480Z Received 117440512 of 2228646640 (5.3%), 36.2 MBs/sec
+2026-10-31T10:35:03.2376460Z Received 146800640 of 2228646640 (6.6%), 34.1 MBs/sec
+2026-10-31T10:35:04.2386220Z Received 209715200 of 2228646640 (9.4%), 39.1 MBs/sec
+2026-10-31T10:35:05.6350370Z Received 268435456 of 2228646640 (12.0%), 39.3 MBs/sec
+2026-10-31T10:35:06.6428750Z Received 318767104 of 2228646640 (14.3%), 40.5 MBs/sec
+2026-10-31T10:35:07.9574270Z Received 402653184 of 2228646640 (18.1%), 43.5 MBs/sec
+2026-10-31T10:35:08.9609050Z Received 448790528 of 2228646640 (20.1%), 43.5 MBs/sec
+2026-10-31T10:35:09.9664560Z Received 520093696 of 2228646640 (23.3%), 45.8 MBs/sec
+2026-10-31T10:35:10.9926060Z Received 536870912 of 2228646640 (24.1%), 43.2 MBs/sec
+2026-10-31T10:35:11.9852770Z Received 595591168 of 2228646640 (26.7%), 44.2 MBs/sec
+2026-10-31T10:35:12.9848840Z Received 654311424 of 2228646640 (29.4%), 45.0 MBs/sec
+2026-10-31T10:35:13.9873040Z Received 696254464 of 2228646640 (31.2%), 44.7 MBs/sec
+2026-10-31T10:35:14.9890660Z Received 750780416 of 2228646640 (33.7%), 45.1 MBs/sec
+2026-10-31T10:35:15.9885620Z Received 796917760 of 2228646640 (35.8%), 45.1 MBs/sec
+2026-10-31T10:35:16.9896670Z Received 813694976 of 2228646640 (36.5%), 43.4 MBs/sec
+2026-10-31T10:35:17.9895810Z Received 872415232 of 2228646640 (39.1%), 44.1 MBs/sec
+2026-10-31T10:35:18.9912550Z Received 935329792 of 2228646640 (42.0%), 44.9 MBs/sec
+2026-10-31T10:35:20.0016540Z Received 960495616 of 2228646640 (43.1%), 43.9 MBs/sec
+2026-10-31T10:35:20.9932480Z Received 1023410176 of 2228646640 (45.9%), 44.6 MBs/sec
+2026-10-31T10:35:22.0410930Z Received 1073741824 of 2228646640 (48.2%), 44.7 MBs/sec
+2026-10-31T10:35:23.0393180Z Received 1115684864 of 2228646640 (50.1%), 44.5 MBs/sec
+2026-10-31T10:35:24.0397700Z Received 1178599424 of 2228646640 (52.9%), 45.1 MBs/sec
+2026-10-31T10:35:25.0427230Z Received 1220542464 of 2228646640 (54.8%), 44.9 MBs/sec
+2026-10-31T10:35:26.0425810Z Received 1291845632 of 2228646640 (58.0%), 45.8 MBs/sec
+2026-10-31T10:35:27.1740010Z Received 1342177280 of 2228646640 (60.2%), 45.6 MBs/sec
+2026-10-31T10:35:28.1716490Z Received 1384120320 of 2228646640 (62.1%), 45.4 MBs/sec
+2026-10-31T10:35:29.1845870Z Received 1455423488 of 2228646640 (65.3%), 46.2 MBs/sec
+2026-10-31T10:35:30.1734590Z Received 1509949440 of 2228646640 (67.8%), 46.4 MBs/sec
+2026-10-31T10:35:31.1756400Z Received 1572864000 of 2228646640 (70.6%), 46.8 MBs/sec
+2026-10-31T10:35:32.1759370Z Received 1614807040 of 2228646640 (72.5%), 46.6 MBs/sec
+2026-10-31T10:35:33.1780030Z Received 1690304512 of 2228646640 (75.8%), 47.3 MBs/sec
+2026-10-31T10:35:34.1804240Z Received 1740636160 of 2228646640 (78.1%), 47.4 MBs/sec
+2026-10-31T10:35:35.1819460Z Received 1795162112 of 2228646640 (80.5%), 47.5 MBs/sec
+2026-10-31T10:35:36.1885800Z Received 1870659584 of 2228646640 (83.9%), 48.1 MBs/sec
+2026-10-31T10:35:37.1873610Z Received 1887436800 of 2228646640 (84.7%), 47.3 MBs/sec
+2026-10-31T10:35:38.1937510Z Received 1971322880 of 2228646640 (88.5%), 48.1 MBs/sec
+2026-10-31T10:35:39.1895000Z Received 2013265920 of 2228646640 (90.3%), 47.9 MBs/sec
+2026-10-31T10:35:40.1963550Z Received 2080374784 of 2228646640 (93.3%), 48.3 MBs/sec
+2026-10-31T10:35:41.1966100Z Received 2143289344 of 2228646640 (96.2%), 48.6 MBs/sec
+2026-10-31T10:35:42.1974920Z Received 2181038080 of 2228646640 (97.9%), 48.3 MBs/sec
+2026-10-31T10:35:43.1996210Z Received 2224452336 of 2228646640 (99.8%), 48.1 MBs/sec
+2026-10-31T10:35:43.2676610Z Received 2228646640 of 2228646640 (100.0%), 48.1 MBs/sec
+2026-10-31T10:35:43.2699050Z Cache Size: ~2125 MB (2228646640 B)
+2026-10-31T10:35:43.2959900Z [command]/opt/homebrew/bin/gtar -xf /Users/runner/work/_temp/a3c4e3a6-5227-4d4b-b074-2a7a5f613067/cache.tzst -P -C /Users/runner/work/ROK/ROK --delay-directory-restore --use-compress-program unzstd
+2026-10-31T10:36:08.0513250Z Cache restored successfully
+2026-10-31T10:36:08.3503450Z Cache restored from key: flutter-macos-stable-3.47.9-arm64-c197ca5199e9ee5661e865596c9c07294dfab51c
+2026-10-31T10:36:08.4120290Z ##[end-action id=__subosito_flutter-action.__actions_cache;outcome=success;conclusion=success;duration_ms=70168]
+2026-10-31T10:36:08.4222170Z ##[start-action display=Cache pub dependencies;id=__subosito_flutter-action.__actions_cache_2]
+2026-10-31T10:36:09.5170740Z ##[group]Run actions/cache@v4
+2026-10-31T10:36:09.5171210Z with:
+2026-10-31T10:36:09.5171520Z   path: /Users/runner/.pub-cache
+2026-10-31T10:36:09.5174370Z   key: flutter-pub-macos-stable-3.47.9-arm64-c197ca5199e9ee5661e865596c9c07294dfab51c-
+2026-10-31T10:36:09.5185870Z   restore-keys: flutter-pub-macos-stable-3.47.9-arm64-c197ca5199e9ee5661e865596c9c07294dfab51c-
+flutter-pub-macos-stable-3.47.9-arm64-c197ca5199e9ee5661e865596c9c07294dfab51c
+
+2026-10-31T10:36:09.5187880Z   enableCrossOsArchive: false
+2026-10-31T10:36:09.5270100Z   fail-on-cache-miss: false
+2026-10-31T10:36:09.5270500Z   lookup-only: false
+2026-10-31T10:36:09.5270740Z   save-always: false
+2026-10-31T10:36:09.5271100Z ##[endgroup]
+2026-10-31T10:36:10.1902060Z (node:4003) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-31T10:36:10.2005610Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-31T10:36:10.5343820Z (node:4003) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-31T10:36:10.5507970Z Cache hit for: flutter-pub-macos-stable-3.47.9-arm64-c197ca5199e9ee5661e865596c9c07294dfab51c-
+2026-10-31T10:36:11.8626190Z Received 0 of 52521481 (0.0%), 0.0 MBs/sec
+2026-10-31T10:36:12.8764230Z Received 33554432 of 52521481 (63.9%), 15.9 MBs/sec
+2026-10-31T10:36:13.3335450Z Received 52521481 of 52521481 (100.0%), 20.3 MBs/sec
+2026-10-31T10:36:13.3664140Z Cache Size: ~50 MB (52521481 B)
+2026-10-31T10:36:13.3893750Z [command]/opt/homebrew/bin/gtar -xf /Users/runner/work/_temp/377890af-87e7-4cda-95f0-b4c1805636a8/cache.tzst -P -C /Users/runner/work/ROK/ROK --delay-directory-restore --use-compress-program unzstd
+2026-10-31T10:36:23.0706560Z Cache restored successfully
+2026-10-31T10:36:23.1058490Z Cache restored from key: flutter-pub-macos-stable-3.47.9-arm64-c197ca5199e9ee5661e865596c9c07294dfab51c-
+2026-10-31T10:36:23.1298890Z ##[end-action id=__subosito_flutter-action.__actions_cache_2;outcome=success;conclusion=success;duration_ms=14698]
+2026-10-31T10:36:23.1316370Z ##[start-action display=Run setup script;id=__subosito_flutter-action.__run_3]
+2026-10-31T10:36:23.1454470Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh \
+2026-10-31T10:36:23.1456830Z [36;1m$GITHUB_ACTION_PATH/setup.sh \[0m
+2026-10-31T10:36:23.1457270Z [36;1m  -n '3.47.9' \[0m
+2026-10-31T10:36:23.1457600Z [36;1m  -a 'arm64' \[0m
+2026-10-31T10:36:23.1458330Z [36;1m  -c '/Users/runner/hostedtoolcache/flutter/stable-3.47.9-arm64' \[0m
+2026-10-31T10:36:23.1458800Z [36;1m  stable[0m
+2026-10-31T10:36:23.1774000Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-31T10:36:23.1774450Z ##[endgroup]
+2026-10-31T10:36:23.9636920Z ##[end-action id=__subosito_flutter-action.__run_3;outcome=success;conclusion=success;duration_ms=831]
+2026-10-31T10:36:23.9814080Z ##[group]Run flutter config --enable-macos-desktop
+2026-10-31T10:36:23.9814770Z [36;1mflutter config --enable-macos-desktop[0m
+2026-10-31T10:36:23.9815630Z [36;1mflutter create --platforms=macos .[0m
+2026-10-31T10:36:23.9900730Z shell: /bin/bash -e {0}
+2026-10-31T10:36:23.9905210Z env:
+2026-10-31T10:36:23.9905620Z   FLUTTER_ROOT: /Users/runner/hostedtoolcache/flutter/stable-3.47.9-arm64
+2026-10-31T10:36:23.9906150Z   PUB_CACHE: /Users/runner/.pub-cache
+2026-10-31T10:36:23.9906620Z ##[endgroup]
+2026-10-31T10:36:25.2569500Z Setting "enable-macos-desktop" value to "true".
+2026-10-31T10:36:25.2570810Z 
+2026-10-31T10:36:25.2571590Z You may need to restart any open editors for them to read new settings.
+2026-10-31T10:36:25.8994770Z Recreating project ....
+2026-10-31T10:36:26.0061970Z   billing_app.iml (created)
+2026-10-31T10:36:26.0307930Z   macos/Runner.xcworkspace/contents.xcworkspacedata (created)
+2026-10-31T10:36:26.0359600Z   macos/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist (created)
+2026-10-31T10:36:26.0384060Z   macos/RunnerTests/RunnerTests.swift (created)
+2026-10-31T10:36:26.0510320Z   macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_32.png (created)
+2026-10-31T10:36:26.0535010Z   macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_16.png (created)
+2026-10-31T10:36:26.0569960Z   macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png (created)
+2026-10-31T10:36:26.0597920Z   macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_64.png (created)
+2026-10-31T10:36:26.0628270Z   macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png (created)
+2026-10-31T10:36:26.0644370Z   macos/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json (created)
+2026-10-31T10:36:26.0655440Z   macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_128.png (created)
+2026-10-31T10:36:26.0664660Z   macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png (created)
+2026-10-31T10:36:26.0674880Z   macos/Runner/DebugProfile.entitlements (created)
+2026-10-31T10:36:26.0695100Z   macos/Runner/Base.lproj/MainMenu.xib (created)
+2026-10-31T10:36:26.0745440Z   macos/Runner/MainFlutterWindow.swift (created)
+2026-10-31T10:36:26.0770510Z   macos/Runner/Configs/Debug.xcconfig (created)
+2026-10-31T10:36:26.0786270Z   macos/Runner/Configs/Release.xcconfig (created)
+2026-10-31T10:36:26.0797990Z   macos/Runner/Configs/Warnings.xcconfig (created)
+2026-10-31T10:36:26.0804330Z   macos/Runner/Configs/AppInfo.xcconfig (created)
+2026-10-31T10:36:26.0843880Z   macos/Runner/AppDelegate.swift (created)
+2026-10-31T10:36:26.0861630Z   macos/Runner/Info.plist (created)
+2026-10-31T10:36:26.0886170Z   macos/Runner/Release.entitlements (created)
+2026-10-31T10:36:26.0910280Z   macos/Runner.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist (created)
+2026-10-31T10:36:26.0937220Z   macos/Runner.xcodeproj/project.pbxproj (created)
+2026-10-31T10:36:26.1239610Z   macos/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme (created)
+2026-10-31T10:36:26.1267190Z   macos/Flutter/Flutter-Debug.xcconfig (created)
+2026-10-31T10:36:26.1276690Z   macos/Flutter/Flutter-Release.xcconfig (created)
+2026-10-31T10:36:26.1325860Z   macos/.gitignore (created)
+2026-10-31T10:36:26.1350930Z   README.md (created)
+2026-10-31T10:36:26.1393230Z   analysis_options.yaml (created)
+2026-10-31T10:36:26.1414850Z   .idea/runConfigurations/main_dart.xml (created)
+2026-10-31T10:36:26.1487060Z   .idea/libraries/Dart_SDK.xml (created)
+2026-10-31T10:36:26.1497920Z   .idea/libraries/KotlinJavaRuntime.xml (created)
+2026-10-31T10:36:26.1549040Z   .idea/modules.xml (created)
+2026-10-31T10:36:26.1599540Z   .idea/workspace.xml (created)
+2026-10-31T10:36:26.1650120Z   test/widget_test.dart (created)
+2026-10-31T10:36:26.4359970Z Resolving dependencies...
+2026-10-31T10:36:27.2220240Z Downloading packages...
+2026-10-31T10:36:27.3577890Z Got dependencies.
+2026-10-31T10:36:28.8217540Z Wrote 36 files.
+2026-10-31T10:36:28.8218730Z 
+2026-10-31T10:36:28.8219700Z All done!
+2026-10-31T10:36:28.8237810Z You can find general documentation for Flutter at: https://docs.flutter.dev/
+2026-10-31T10:36:28.8248680Z Detailed API documentation is available at: https://api.flutter.dev/
+2026-10-31T10:36:28.8249670Z If you prefer video documentation, consider: https://www.youtube.com/c/flutterdev
+2026-10-31T10:36:28.8251520Z 
+2026-10-31T10:36:28.8251740Z In order to run your application, type:
+2026-10-31T10:36:28.8252160Z 
+2026-10-31T10:36:28.8252340Z   $ flutter run
+2026-10-31T10:36:28.8252590Z 
+2026-10-31T10:36:28.8252790Z Your application code is in ./lib/main.dart.
+2026-10-31T10:36:28.8253100Z 
+2026-10-31T10:36:28.8428570Z ##[group]Run flutter pub get
+2026-10-31T10:36:28.8429620Z [36;1mflutter pub get[0m
+2026-10-31T10:36:28.8524540Z shell: /bin/bash -e {0}
+2026-10-31T10:36:28.8524830Z env:
+2026-10-31T10:36:28.8525280Z   FLUTTER_ROOT: /Users/runner/hostedtoolcache/flutter/stable-3.47.9-arm64
+2026-10-31T10:36:28.8525790Z   PUB_CACHE: /Users/runner/.pub-cache
+2026-10-31T10:36:28.8526120Z ##[endgroup]
+2026-10-31T10:36:29.5151760Z Resolving dependencies...
+2026-10-31T10:36:29.6474980Z Downloading packages...
+2026-10-31T10:36:29.9919510Z   code_assets 1.2.1 (2.1.0 available)
+2026-10-31T10:36:30.0189740Z   cross_file 0.3.5+5 (0.4.0 available)
+2026-10-31T10:36:30.0293500Z   file_picker 8.3.7 (13.3.0 available)
+2026-10-31T10:36:30.0297730Z   flutter_lints 4.0.0 (6.0.0 available)
+2026-10-31T10:36:30.0405200Z   flutter_riverpod 2.6.1 (3.4.3 available)
+2026-10-31T10:36:30.0537650Z   hooks 2.0.2 (2.2.0 available)
+2026-10-31T10:36:30.0650150Z   intl 0.19.0 (0.20.3 available)
+2026-10-31T10:36:30.0805450Z   lints 4.0.0 (6.1.0 available)
+2026-10-31T10:36:30.0918090Z   material_color_utilities 0.13.0 (0.13.1 available)
+2026-10-31T10:36:30.1074860Z   meta 1.18.3 (1.19.0 available)
+2026-10-31T10:36:30.1194260Z   objective_c 9.5.0 (9.6.2 available)
+2026-10-31T10:36:30.1297780Z   petitparser 7.0.2 (7.1.0 available)
+2026-10-31T10:36:30.1402430Z   qr 3.0.3 (4.0.1 available)
+2026-10-31T10:36:30.1509740Z   record_use 0.6.0 (1.1.1 available)
+2026-10-31T10:36:30.1648020Z   riverpod 2.6.1 (3.4.3 available)
+2026-10-31T10:36:30.1775050Z   sqlite3 2.9.4 (3.8.0 available)
+2026-10-31T10:36:30.1905470Z   sqlite3_flutter_libs 0.5.42 (0.6.0+eol available)
+2026-10-31T10:36:30.2058060Z   test_api 0.7.12 (0.7.15 available)
+2026-10-31T10:36:30.2059010Z   vector_math 2.4.0 (2.4.4 available)
+2026-10-31T10:36:30.2170440Z   win32 5.15.0 (6.4.0 available)
+2026-10-31T10:36:30.2284440Z   xml 7.0.1 (7.1.0 available)
+2026-10-31T10:36:30.2398220Z Got dependencies!
+2026-10-31T10:36:30.2400510Z 21 packages have newer versions incompatible with dependency constraints.
+2026-10-31T10:36:30.2401780Z Try `flutter pub outdated` for more information.
+2026-10-31T10:36:30.7770130Z ##[group]Run flutter test test/financial_math_test.dart
+2026-10-31T10:36:30.7770940Z [36;1mflutter test test/financial_math_test.dart[0m
+2026-10-31T10:36:30.7840230Z shell: /bin/bash -e {0}
+2026-10-31T10:36:30.7840830Z env:
+2026-10-31T10:36:30.7841300Z   FLUTTER_ROOT: /Users/runner/hostedtoolcache/flutter/stable-3.47.9-arm64
+2026-10-31T10:36:30.7841830Z   PUB_CACHE: /Users/runner/.pub-cache
+2026-10-31T10:36:30.7842310Z ##[endgroup]
+2026-10-31T10:36:59.5092330Z 
+2026-10-31T10:37:19.8251770Z ##[group]✅ Passing tests
+2026-10-31T10:37:19.8402200Z ✅ Group 1: MoneyUtils & Integer Cents Math parsePriceToCents converts string prices into exact integer cents without float imprecision
+2026-10-31T10:37:19.8532270Z ✅ Group 1: MoneyUtils & Integer Cents Math USD 2-decimal parsing and formatting ($15.50 -> 1550 -> "$15.50")
+2026-10-31T10:37:19.8664490Z ✅ Group 1: MoneyUtils & Integer Cents Math JPY 0-decimal parsing and formatting (¥50000 -> 50000 -> "¥50,000")
+2026-10-31T10:37:19.8804640Z ✅ Group 1: MoneyUtils & Integer Cents Math JPY 0-decimal 10% tax calculation (¥50,000 subtotal @ 10% tax yields exactly ¥5,000 tax)
+2026-10-31T10:37:19.8808150Z ✅ Group 1: MoneyUtils & Integer Cents Math calculateTaxCents applies strict round-half-up integer arithmetic
+2026-10-31T10:37:19.8913680Z ✅ Group 1: MoneyUtils & Integer Cents Math calculateDiscountCents clamps flat discounts to subtotal
+2026-10-31T10:37:19.9027820Z ✅ Group 2: Tax Compliance & International Rules Indian Intra-state CGST + SGST 50/50 split math
+2026-10-31T10:37:19.9155170Z ✅ Group 2: Tax Compliance & International Rules Indian Inter-state IGST calculation
+2026-10-31T10:37:19.9265460Z ✅ Group 2: Tax Compliance & International Rules Export under LUT zero-rating and mandatory statutory notice text
+2026-10-31T10:37:19.9371570Z ✅ Group 2: Tax Compliance & International Rules EU B2B Reverse Charge zero-rating with VAT note
+2026-10-31T10:37:19.9483210Z ✅ Group 3: Database Sequence, Foreign Keys & Disaster Recovery Dynamic sequence offset extraction using prefix.length + 1
+2026-10-31T10:37:19.9610530Z ✅ Group 3: Database Sequence, Foreign Keys & Disaster Recovery Pre-flight backup schema validation throws FormatException on invalid payload
+2026-10-31T10:37:19.9718040Z ✅ Group 3: Database Sequence, Foreign Keys & Disaster Recovery Client deletion is guarded when linked invoices or estimates exist
+2026-10-31T10:37:19.9820210Z ✅ Group 3: Database Sequence, Foreign Keys & Disaster Recovery Void invoices are excluded from client statement of account calculations
+2026-10-31T10:37:19.9924140Z ✅ Group 4: Dynamic Settlement QR & Draft Invoices generateDynamicQrPayload creates valid UPI URL with amount and invoice ref
+2026-10-31T10:37:20.0091420Z ✅ Group 4: Dynamic Settlement QR & Draft Invoices generateDynamicQrPayload formats zero-decimal currencies without fractional cents
+2026-10-31T10:37:20.0193770Z ✅ Group 4: Dynamic Settlement QR & Draft Invoices Draft invoice record returns isDraft true and isOverdue false
+2026-10-31T10:37:20.0200100Z ##[endgroup]
+2026-10-31T10:37:20.0301280Z 
+2026-10-31T10:37:20.0404760Z 🎉 17 tests passed.
+2026-10-31T10:37:20.0755570Z ##[group]Run flutter build macos --release
+2026-10-31T10:37:20.0756530Z [36;1mflutter build macos --release[0m
+2026-10-31T10:37:20.2826430Z shell: /bin/bash -e {0}
+2026-10-31T10:37:20.2827130Z env:
+2026-10-31T10:37:20.2828180Z   FLUTTER_ROOT: /Users/runner/hostedtoolcache/flutter/stable-3.47.9-arm64
+2026-10-31T10:37:20.2829460Z   PUB_CACHE: /Users/runner/.pub-cache
+2026-10-31T10:37:20.2830180Z ##[endgroup]
+2026-10-31T10:37:54.9396760Z Xcode is fetching Swift Package Manager dependencies. This may take several minutes...
+2026-10-31T10:38:00.1965860Z   Fetching from https://github.com/simolus3/CSQLite.git...      
+2026-10-31T10:39:55.3073040Z Building macOS application...                                   
+2026-10-31T10:39:55.3190090Z lib/features/billing/services/invoice_pdf_service.dart:711:23: Error: Expected an identifier, but got 'final'.
+2026-10-31T10:39:55.3309780Z Try inserting an identifier before 'final'.
+2026-10-31T10:39:55.3458790Z                       final dynamicQr = generateDynamicQrPayload(
+2026-10-31T10:39:55.3560570Z                       ^^^^^
+2026-10-31T10:39:55.3574280Z lib/features/billing/services/invoice_pdf_service.dart:711:23: Error: Expected ']' before this.
+2026-10-31T10:39:55.3700670Z                       final dynamicQr = generateDynamicQrPayload(
+2026-10-31T10:39:55.3806210Z                       ^^^^^
+2026-10-31T10:39:55.3908810Z Target kernel_snapshot_program failed: Exception
+2026-10-31T10:39:55.4012690Z Failed to package /Users/runner/work/ROK/ROK.
+2026-10-31T10:39:55.4115510Z Command PhaseScriptExecution failed with a nonzero exit code
+2026-10-31T10:39:55.7051720Z warning: Run script build phase 'Run Script' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'Flutter Assemble' from project 'Runner')
+2026-10-31T10:39:55.7160010Z ** BUILD FAILED **
+2026-10-31T10:39:55.7264020Z 
+2026-10-31T10:39:56.2012060Z Build process failed
+2026-10-31T10:39:56.2976020Z ##[error]Process completed with exit code 1.
+2026-10-31T10:39:56.3973870Z Post job cleanup.
+2026-10-31T10:39:56.3994080Z ##[start-action display=Cache pub dependencies;id=__14de4462-ab87-4501-b89b-eab9a6852994.__actions_cache_2]
+2026-10-31T10:39:56.3998130Z ##[end-action id=__14de4462-ab87-4501-b89b-eab9a6852994.__actions_cache_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-31T10:39:56.4000250Z ##[start-action display=Cache Flutter;id=__14de4462-ab87-4501-b89b-eab9a6852994.__actions_cache]
+2026-10-31T10:39:56.4002550Z ##[end-action id=__14de4462-ab87-4501-b89b-eab9a6852994.__actions_cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-31T10:39:56.4279520Z Post job cleanup.
+2026-10-31T10:39:57.8126360Z [command]/opt/homebrew/bin/git version
+2026-10-31T10:39:57.8810740Z git version 2.56.0
+2026-10-31T10:39:57.9403710Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/3e8f966c-3cb7-42c7-bf54-acf1f7a458f8/.gitconfig'
+2026-10-31T10:39:57.9506820Z Temporarily overriding HOME='/Users/runner/work/_temp/3e8f966c-3cb7-42c7-bf54-acf1f7a458f8' before making global git config changes
+2026-10-31T10:39:57.9609870Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-31T10:39:57.9714970Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/ROK/ROK
+2026-10-31T10:39:57.9921620Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-31T10:39:58.0265210Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-31T10:39:58.4903380Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-31T10:39:58.5010000Z http.https://github.com/.extraheader
+2026-10-31T10:39:58.5319950Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-31T10:39:58.5605780Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-31T10:39:59.3308710Z Cleaning up orphan processes
+2026-10-31T10:40:02.7550410Z Terminate orphan process: pid (7727) (ibtoold)
+2026-10-31T10:40:02.9046620Z Terminate orphan process: pid (7711) (ibtoold)
+2026-10-31T10:40:05.8386780Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, actions/checkout@v4.2.2. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
