@@ -138,7 +138,13 @@ jobs:
       - name: Create Clean Aggregated Screenshot Archive
         run: |
           mkdir -p all-platforms-screenshots
-          cp -r combined_screenshots/*/* all-platforms-screenshots/ || true
+          if [ -d combined_screenshots ]; then
+            find combined_screenshots -type f -name "*.png" | while read -r img; do
+              platform=$(basename $(dirname "$img"))
+              mkdir -p "all-platforms-screenshots/$platform"
+              cp -f "$img" "all-platforms-screenshots/$platform/"
+            done
+          fi
           zip -r all-platforms-screenshots.zip all-platforms-screenshots/
 
       - name: Upload Aggregated Zip Artifact
