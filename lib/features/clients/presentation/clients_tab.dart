@@ -318,8 +318,11 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
   }
 
   Widget _buildClientListHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 12,
+      runSpacing: 12,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,

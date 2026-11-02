@@ -29,7 +29,16 @@ jobs:
       - name: Run Flutter Tests
         run: flutter test test/financial_math_test.dart
       - name: Compile Windows
-        run: flutter build windows --release
+        shell: powershell
+        run: |
+          for ($i = 1; $i -le 3; $i++) {
+            Write-Host "Attempt $i: Compiling Windows Release..."
+            flutter build windows --release
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            Write-Warning "Attempt $i failed. Retrying in 10 seconds..."
+            Start-Sleep -Seconds 10
+          }
+          exit 1
       - name: Package Zip
         run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath billing_app_windows.zip
       - uses: actions/upload-artifact@v4.4.3

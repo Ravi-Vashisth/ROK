@@ -254,25 +254,38 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
           widget.isQuote ? 'Two-Column Live Quote Editor' : 'Two-Column Live Invoice Editor',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel / Back'),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.drafts_outlined, size: 16),
-            label: const Text('Save as Draft'),
-            onPressed: () => _handleSave(isDraft: true),
-          ),
-          const SizedBox(width: 8),
-          FilledButton.icon(
-            icon: const Icon(Icons.check, size: 16),
-            label: Text(widget.isQuote ? 'Save & Issue Quote' : 'Save & Issue Invoice'),
-            onPressed: () => _handleSave(isDraft: false),
-          ),
-          const SizedBox(width: 16),
-        ],
+        actions: isWide
+            ? [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel / Back'),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.drafts_outlined, size: 16),
+                  label: const Text('Save as Draft'),
+                  onPressed: () => _handleSave(isDraft: true),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  icon: const Icon(Icons.check, size: 16),
+                  label: Text(widget.isQuote ? 'Save & Issue Quote' : 'Save & Issue Invoice'),
+                  onPressed: () => _handleSave(isDraft: false),
+                ),
+                const SizedBox(width: 16),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.drafts_outlined),
+                  tooltip: 'Save as Draft',
+                  onPressed: () => _handleSave(isDraft: true),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.check),
+                  tooltip: 'Save & Issue',
+                  onPressed: () => _handleSave(isDraft: false),
+                ),
+              ],
       ),
       body: isWide ? _buildSplitView(profile) : _buildMobileView(profile),
     );

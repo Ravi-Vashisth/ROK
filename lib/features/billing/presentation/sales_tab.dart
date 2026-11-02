@@ -124,8 +124,9 @@ class _SalesTabState extends ConsumerState<SalesTab> {
               'Sales & Proposals Hub',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 ToggleButtons(
                   isSelected: [_subTab == 0, _subTab == 1],

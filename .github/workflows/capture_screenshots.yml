@@ -115,7 +115,7 @@ jobs:
           arch: x86_64
           script: |
             mkdir -p screenshots/android
-            flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d android || true
+            flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d emulator-5554 || true
 
       - name: Upload Android Artifacts
         uses: actions/upload-artifact@v4

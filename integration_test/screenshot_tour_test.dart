@@ -64,12 +64,20 @@ void main() {
       ),
     );
 
+    if (Platform.isAndroid) {
+      try {
+        await binding.convertFlutterSurfaceToImage();
+      } catch (e) {
+        debugPrint('convertFlutterSurfaceToImage notice: $e');
+      }
+    }
+
     await tester.pumpAndSettle();
 
     Future<void> takeTourScreenshot(String name) async {
       await tester.pumpAndSettle();
       try {
-        await binding.takeScreenshot(name, {'platform': platformName});
+        await binding.takeScreenshot(name, <String, dynamic>{'platform': platformName});
       } catch (e) {
         debugPrint('Binding takeScreenshot status ($name): $e');
       }
@@ -100,13 +108,18 @@ void main() {
       await takeTourScreenshot('03_invoice_editor');
 
       // Pop back from Invoice Editor
-      final backBtn = find.byType(BackButton);
-      if (backBtn.evaluate().isNotEmpty) {
-        await tester.tap(backBtn.first, warnIfMissed: false);
+      final cancelBtn = find.text('Cancel / Back');
+      if (cancelBtn.evaluate().isNotEmpty) {
+        await tester.tap(cancelBtn.first, warnIfMissed: false);
       } else {
-        final backIcon = find.byIcon(Icons.arrow_back);
-        if (backIcon.evaluate().isNotEmpty) {
-          await tester.tap(backIcon.first, warnIfMissed: false);
+        final backBtn = find.byType(BackButton);
+        if (backBtn.evaluate().isNotEmpty) {
+          await tester.tap(backBtn.first, warnIfMissed: false);
+        } else {
+          final backIcon = find.byIcon(Icons.arrow_back);
+          if (backIcon.evaluate().isNotEmpty) {
+            await tester.tap(backIcon.first, warnIfMissed: false);
+          }
         }
       }
       await tester.pumpAndSettle();
