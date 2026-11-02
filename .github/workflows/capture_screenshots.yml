@@ -27,7 +27,7 @@ jobs:
       - name: Capture macOS Desktop Screenshots
         run: |
           mkdir -p screenshots/macos
-          flutter test integration_test/screenshot_tour_test.dart -d macos || true
+          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d macos || true
 
       - name: Boot iOS Simulator & Capture Screenshots
         run: |
@@ -35,8 +35,7 @@ jobs:
           SIM_UUID=$(xcrun simctl list devices available | grep -m 1 "iPhone" | awk -F '[()]' '{print $2}')
           echo "Booting iOS Simulator UUID: $SIM_UUID"
           xcrun simctl boot "$SIM_UUID" || true
-          flutter test integration_test/screenshot_tour_test.dart -d "$SIM_UUID" || true
-          xcrun simctl io "$SIM_UUID" screenshot screenshots/ios/01_dashboard.png || true
+          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d "$SIM_UUID" || true
 
       - name: Upload macOS & iOS Artifacts
         uses: actions/upload-artifact@v4
@@ -69,7 +68,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path screenshots/windows
           $ErrorActionPreference = 'Continue'
-          flutter test integration_test/screenshot_tour_test.dart -d windows
+          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d windows
           exit 0
 
       - name: Upload Windows Artifacts
@@ -116,7 +115,7 @@ jobs:
           arch: x86_64
           script: |
             mkdir -p screenshots/android
-            flutter test integration_test/screenshot_tour_test.dart -d android || true
+            flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d android || true
 
       - name: Upload Android Artifacts
         uses: actions/upload-artifact@v4
