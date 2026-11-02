@@ -1,4 +1,9 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -15,13 +20,28 @@ void main() {
   testWidgets('Multi-platform visual screenshot tour test',
       (WidgetTester tester) async {
     final Database db = await openLocalDatabase();
+    final GlobalKey rootKey = GlobalKey();
+
+    String getPlatformDir() {
+      if (Platform.isMacOS) return 'macos';
+      if (Platform.isIOS) return 'ios';
+      if (Platform.isWindows) return 'windows';
+      if (Platform.isAndroid) return 'android';
+      if (Platform.isLinux) return 'linux';
+      return 'web';
+    }
+
+    final platformName = getPlatformDir();
 
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-        ],
-        child: const BillingDesktopApp(),
+      RepaintBoundary(
+        key: rootKey,
+        child: ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+          ],
+          child: const BillingDesktopApp(),
+        ),
       ),
     );
 
@@ -30,9 +50,28 @@ void main() {
     Future<void> takeTourScreenshot(String name) async {
       await tester.pumpAndSettle();
       try {
+        final RenderRepaintBoundary? boundary =
+            rootKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+        if (boundary != null) {
+          final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
+          final ByteData? byteData =
+              await image.toByteData(format: ui.ImageByteFormat.png);
+          if (byteData != null) {
+            final buffer = byteData.buffer.asUint8List();
+            final file = File('screenshots/$platformName/$name.png');
+            file.parent.createSync(recursive: true);
+            file.writeAsBytesSync(buffer);
+            debugPrint('Saved screenshot directly to: ${file.path}');
+          }
+        }
+      } catch (e) {
+        debugPrint('Repaint boundary screenshot error ($name): $e');
+      }
+
+      try {
         await binding.takeScreenshot(name);
       } catch (e) {
-        debugPrint('Screenshot driver status: $name ($e)');
+        debugPrint('Binding takeScreenshot status ($name): $e');
       }
     }
 
