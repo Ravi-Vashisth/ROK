@@ -36,6 +36,7 @@ jobs:
           echo "Booting iOS Simulator UUID: $SIM_UUID"
           xcrun simctl boot "$SIM_UUID" || true
           flutter test integration_test/screenshot_tour_test.dart -d "$SIM_UUID" || true
+          xcrun simctl io "$SIM_UUID" screenshot screenshots/ios/01_dashboard.png || true
 
       - name: Upload macOS & iOS Artifacts
         uses: actions/upload-artifact@v4
