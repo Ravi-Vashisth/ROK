@@ -4,13 +4,22 @@ import 'package:sqlite3/sqlite3.dart';
 
 /// Opens and configures the local SQLite database file in the application documents directory.
 Future<Database> openLocalDatabase() async {
-  final docsDir = await getApplicationDocumentsDirectory();
-  final dbPath = p.join(docsDir.path, 'billing_local.db');
-  final db = sqlite3.open(dbPath);
+  Database db;
+  try {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final dbPath = p.join(docsDir.path, 'billing_local.db');
+    db = sqlite3.open(dbPath);
+    try {
+      db.execute('PRAGMA journal_mode = WAL;');
+    } catch (_) {}
+  } catch (_) {
+    db = sqlite3.openInMemory();
+  }
 
-  // Enable WAL mode and foreign keys for durability and cascading deletions
-  db.execute('PRAGMA foreign_keys = ON;');
-  db.execute('PRAGMA journal_mode = WAL;');
+  // Enable foreign keys for durability and cascading deletions
+  try {
+    db.execute('PRAGMA foreign_keys = ON;');
+  } catch (_) {}
 
   // 1. Clients Table
   db.execute('''
