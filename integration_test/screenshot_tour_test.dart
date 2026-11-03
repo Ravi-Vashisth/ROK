@@ -116,9 +116,12 @@ void main() {
         debugPrint('Repaint boundary screenshot error ($name): $e');
       }
 
-      // Layer 2: Integration test driver screenshot transmission
+      // Layer 2: Integration test driver screenshot transmission (with 1s timeout to prevent SwiftShader PixelCopy hang)
       try {
-        await binding.takeScreenshot(name);
+        await binding.takeScreenshot(name).timeout(
+          const Duration(seconds: 1),
+          onTimeout: () => [],
+        );
       } catch (e) {
         debugPrint('Binding takeScreenshot status ($name): $e');
       }
