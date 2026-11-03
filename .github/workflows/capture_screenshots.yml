@@ -131,9 +131,14 @@ jobs:
             flutter devices
             export SCREENSHOT_PLATFORM=android
             flutter drive --android-skip-build-dependency-validation --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d emulator-5554 || true
-            if [ ! -f screenshots/android/01_dashboard.png ]; then
-              adb exec-out screencapture -p > screenshots/android/01_dashboard.png || true
-            fi
+
+      - name: Android Fallback Screenshot Capture
+        if: always()
+        run: |
+          mkdir -p screenshots/android
+          if [ ! -f screenshots/android/01_dashboard.png ]; then
+            adb exec-out screencapture -p > screenshots/android/01_dashboard.png || true
+          fi
 
       - name: Upload Android Artifacts
         uses: actions/upload-artifact@v4

@@ -1,50 +1,16 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Applying Android build fixes: AGP 8.11.1, Settings repository mode, download.flutter.io engine repo, root compileSdkVersion extra property, and AarMetadata bypass..."
+echo "Applying Android build patches: compileSdk 36, download.flutter.io repository, and AarMetadata bypass..."
 
-# 0. Remove any legacy init scripts that could conflict with settings dependency resolution
+# 0. Remove any legacy init scripts that could conflict
 rm -f "$HOME/.gradle/init.d/01-mirrors.gradle" || true
 
-# 1. Cleanly write android/settings.gradle.kts with AGP 8.11.1, PREFER_SETTINGS, google(), mavenCentral() & download.flutter.io
-if [ -d "android" ]; then
-  cat << 'EOF' > android/settings.gradle.kts
-pluginManagement {
-    val flutterSdkPath = run {
-        val properties = java.util.Properties()
-        file("local.properties").inputStream().use { properties.load(it) }
-        val flutterSdkPath = properties.getProperty("flutter.sdk")
-        require(flutterSdkPath != null) { "flutter.sdk not set in local.properties" }
-        flutterSdkPath
-    }
-
-    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
-
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-        maven { url = java.net.URI.create("https://storage.googleapis.com/download.flutter.io") }
-    }
-}
-
-plugins {
-    id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.11.1" apply false
-    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
-}
-
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-    repositories {
-        google()
-        mavenCentral()
-        maven { url = java.net.URI.create("https://storage.googleapis.com/download.flutter.io") }
-    }
-}
-
-include(":app")
-EOF
+# 1. Ensure download.flutter.io is in android/settings.gradle.kts if present
+if [ -f "android/settings.gradle.kts" ]; then
+  if ! grep -q "download.flutter.io" android/settings.gradle.kts; then
+    sed -i '/repositories {/a \        maven { url = java.net.URI.create("https://storage.googleapis.com/download.flutter.io") }' android/settings.gradle.kts || true
+  fi
 fi
 
 # 2. Patch android/gradle.properties
@@ -54,11 +20,10 @@ android.compileSdk=36
 systemProp.org.gradle.internal.http.socketTimeout=120000
 systemProp.org.gradle.internal.http.connectionTimeout=120000
 systemProp.http.keepAlive=false
-org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m
 EOF
 fi
 
-# 3. Update android/app/build.gradle
+# 3. Patch compileSdk = 36 in android/app/build.gradle & android/app/build.gradle.kts
 if [ -f "android/app/build.gradle" ]; then
   sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle || true
   sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle || true
@@ -66,22 +31,14 @@ if [ -f "android/app/build.gradle" ]; then
   sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 36/g' android/app/build.gradle || true
 fi
 
-# 4. Update android/app/build.gradle.kts if present
 if [ -f "android/app/build.gradle.kts" ]; then
   sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts || true
   sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle.kts || true
 fi
 
-# 5. Append root extra compileSdkVersion & disable AarMetadata check in root android/build.gradle (Groovy)
+# 4. Disable AarMetadata task in root android/build.gradle or android/build.gradle.kts
 if [ -f "android/build.gradle" ]; then
   cat << 'EOF' >> android/build.gradle
-
-buildscript {
-    ext {
-        compileSdkVersion = 36
-        targetSdkVersion = 36
-    }
-}
 
 allprojects {
     ext {
@@ -95,7 +52,6 @@ allprojects {
 EOF
 fi
 
-# 6. Handle Kotlin DSL root if present (android/build.gradle.kts)
 if [ -f "android/build.gradle.kts" ]; then
   cat << 'EOF' >> android/build.gradle.kts
 
