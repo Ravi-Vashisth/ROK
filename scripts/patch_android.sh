@@ -17,6 +17,7 @@ fi
 if [ -f "android/gradle.properties" ]; then
   cat << 'EOF' >> android/gradle.properties
 android.compileSdk=36
+org.gradle.daemon=false
 systemProp.org.gradle.internal.http.socketTimeout=120000
 systemProp.org.gradle.internal.http.connectionTimeout=120000
 systemProp.http.keepAlive=false
