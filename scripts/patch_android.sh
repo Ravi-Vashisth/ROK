@@ -36,16 +36,23 @@ if [ -f "android/app/build.gradle.kts" ]; then
   sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle.kts || true
 fi
 
-# 4. Force all subprojects (like file_picker) to use compileSdkVersion 36
+# 4. Force all subprojects (like file_picker) to use compileSdkVersion 36 safely
 if [ -f "android/build.gradle" ]; then
   cat << 'EOF' >> android/build.gradle
 
 subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty("android")) {
-            project.android {
+    def configProject = { p ->
+        if (p.hasProperty("android")) {
+            p.android {
                 compileSdkVersion 36
             }
+        }
+    }
+    if (state.executed) {
+        configProject(project)
+    } else {
+        afterEvaluate {
+            configProject(project)
         }
     }
 }
@@ -56,9 +63,16 @@ if [ -f "android/build.gradle.kts" ]; then
   cat << 'EOF' >> android/build.gradle.kts
 
 subprojects {
-    afterEvaluate {
+    val configProject: Project.() -> Unit = {
         val android = extensions.findByName("android") as? com.android.build.gradle.BaseExtension
         android?.compileSdkVersion(36)
+    }
+    if (state.executed) {
+        configProject()
+    } else {
+        afterEvaluate {
+            configProject()
+        }
     }
 }
 EOF
