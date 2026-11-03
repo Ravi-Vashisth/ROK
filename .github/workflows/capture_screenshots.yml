@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  capture-macos-and-ios:
-    name: Capture macOS Desktop & iOS Simulator Screenshots
+  capture-macos:
+    name: Capture macOS Desktop Screenshots
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
@@ -19,10 +19,10 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Enable macOS Desktop & Create Native Projects
+      - name: Enable macOS Desktop & Create Native Project
         run: |
           flutter config --enable-macos-desktop
-          flutter create --platforms=macos,ios .
+          flutter create --platforms=macos .
           flutter pub get
 
       - name: Capture macOS Desktop Screenshots
@@ -31,6 +31,31 @@ jobs:
         run: |
           mkdir -p screenshots/macos
           flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d macos || true
+
+      - name: Upload macOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-macos
+          path: screenshots/
+          if-no-files-found: ignore
+
+  capture-ios:
+    name: Capture iOS Simulator Screenshots
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Create Native iOS Project
+        run: |
+          flutter create --platforms=ios .
+          flutter pub get
 
       - name: Boot iOS Simulator & Capture Screenshots
         env:
@@ -46,10 +71,10 @@ jobs:
             xcrun simctl io "$SIM_UUID" screenshot screenshots/ios/01_dashboard.png || true
           fi
 
-      - name: Upload macOS & iOS Artifacts
+      - name: Upload iOS Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots-macos-ios
+          name: screenshots-ios
           path: screenshots/
           if-no-files-found: ignore
 
@@ -154,7 +179,7 @@ jobs:
   aggregate-screenshots:
     name: Aggregate All Platform Screenshots
     if: always()
-    needs: [capture-macos-and-ios, capture-windows, capture-android]
+    needs: [capture-macos, capture-ios, capture-windows, capture-android]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
