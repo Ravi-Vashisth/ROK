@@ -44,17 +44,6 @@ void main() {
 
     final Database db = await openLocalDatabase();
 
-    String getPlatformDir() {
-      if (Platform.isMacOS) return 'macos';
-      if (Platform.isIOS) return 'ios';
-      if (Platform.isWindows) return 'windows';
-      if (Platform.isAndroid) return 'android';
-      if (Platform.isLinux) return 'linux';
-      return 'web';
-    }
-
-    final platformName = getPlatformDir();
-
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -77,7 +66,8 @@ void main() {
     Future<void> takeTourScreenshot(String name) async {
       await tester.pumpAndSettle();
       try {
-        await binding.takeScreenshot(name, <String, dynamic>{'platform': platformName});
+        // Do NOT pass args map to takeScreenshot on IO platforms as Flutter asserts args == null!
+        await binding.takeScreenshot(name);
       } catch (e) {
         debugPrint('Binding takeScreenshot status ($name): $e');
       }

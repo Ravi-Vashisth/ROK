@@ -2,9 +2,11 @@ import 'dart:io';
 import 'package:integration_test/integration_test_driver_extended.dart';
 
 Future<void> main() async {
+  final envPlatform = Platform.environment['SCREENSHOT_PLATFORM'] ?? '';
+
   await integrationDriver(
     onScreenshot: (String screenshotName, List<int> screenshotBytes, [Map<String, Object?>? args]) async {
-      String platform = (args?['platform'] as String?) ?? '';
+      String platform = envPlatform.trim();
       if (platform.isEmpty) {
         if (Platform.isWindows) {
           platform = 'windows';

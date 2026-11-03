@@ -25,11 +25,15 @@ jobs:
           flutter pub get
 
       - name: Capture macOS Desktop Screenshots
+        env:
+          SCREENSHOT_PLATFORM: macos
         run: |
           mkdir -p screenshots/macos
           flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d macos || true
 
       - name: Boot iOS Simulator & Capture Screenshots
+        env:
+          SCREENSHOT_PLATFORM: ios
         run: |
           mkdir -p screenshots/ios
           SIM_UUID=$(xcrun simctl list devices available | grep -m 1 "iPhone" | awk -F '[()]' '{print $2}')
@@ -65,6 +69,8 @@ jobs:
 
       - name: Capture Windows Desktop Screenshots
         shell: powershell
+        env:
+          SCREENSHOT_PLATFORM: windows
         run: |
           New-Item -ItemType Directory -Force -Path screenshots/windows
           $ErrorActionPreference = 'Continue'
@@ -115,6 +121,10 @@ jobs:
           arch: x86_64
           script: |
             mkdir -p screenshots/android
+            adb wait-for-device
+            sleep 5
+            flutter devices
+            export SCREENSHOT_PLATFORM=android
             flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d emulator-5554 || true
 
       - name: Upload Android Artifacts
