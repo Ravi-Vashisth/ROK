@@ -63,7 +63,7 @@ void main() {
     }
 
     final platformName = getPlatformDir();
-    final Map<String, String> screenshotsMap = {};
+    final List<Map<String, dynamic>> screenshotsList = [];
 
     await tester.pumpWidget(
       RepaintBoundary(
@@ -90,7 +90,7 @@ void main() {
     Future<void> takeTourScreenshot(String name) async {
       await tester.pumpAndSettle();
 
-      // Layer 1: Direct RepaintBoundary PNG rendering to file & reportData map
+      // Layer 1: Direct RepaintBoundary PNG rendering & reportData list population
       try {
         final RenderRepaintBoundary? boundary =
             rootKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
@@ -100,7 +100,10 @@ void main() {
               await image.toByteData(format: ui.ImageByteFormat.png);
           if (byteData != null) {
             final buffer = byteData.buffer.asUint8List();
-            screenshotsMap[name] = base64Encode(buffer);
+            screenshotsList.add({
+              'screenshotName': name,
+              'bytes': buffer.toList(),
+            });
             try {
               final file = File('screenshots/$platformName/$name.png');
               file.parent.createSync(recursive: true);
@@ -223,10 +226,9 @@ void main() {
     }
     await takeTourScreenshot('08_settings_branding');
 
-    // Report base64 screenshots to integration test driver on host
+    // Populate reportData with standard Flutter screenshots List structure
     binding.reportData = {
-      'platform': platformName,
-      'screenshots': screenshotsMap,
+      'screenshots': screenshotsList,
     };
   });
 }

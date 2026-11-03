@@ -1,0 +1,122 @@
+﻿2026-11-03T04:45:33.5101231Z Current runner version: '2.338.2'
+2026-11-03T04:45:33.5126936Z ##[group]Runner Image Provisioner
+2026-11-03T04:45:33.5128090Z Hosted Compute Agent
+2026-11-03T04:45:33.5128819Z Version: 20261021.618
+2026-11-03T04:45:33.5129452Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-11-03T04:45:33.5130314Z Build Date: 2026-10-21T00:45:21Z
+2026-11-03T04:45:33.5131033Z Worker ID: {998a63b7-142f-4fa4-92b5-bcb350c5874b}
+2026-11-03T04:45:33.5131735Z Region: westus2
+2026-11-03T04:45:33.5132326Z Cloud: Azure
+2026-11-03T04:45:33.5132868Z ##[endgroup]
+2026-11-03T04:45:33.5134379Z ##[group]Operating System
+2026-11-03T04:45:33.5135144Z Ubuntu
+2026-11-03T04:45:33.5135674Z 26.04.1
+2026-11-03T04:45:33.5136263Z LTS
+2026-11-03T04:45:33.5136779Z ##[endgroup]
+2026-11-03T04:45:33.5137573Z ##[group]Runner Image
+2026-11-03T04:45:33.5138282Z Image: ubuntu-26.04
+2026-11-03T04:45:33.5138864Z Version: 20261025.179.1
+2026-11-03T04:45:33.5140160Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261025.179/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-03T04:45:33.5141728Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261025.179
+2026-11-03T04:45:33.5142759Z ##[endgroup]
+2026-11-03T04:45:33.5143932Z ##[group]GITHUB_TOKEN Permissions
+2026-11-03T04:45:33.5146143Z Contents: read
+2026-11-03T04:45:33.5146807Z Metadata: read
+2026-11-03T04:45:33.5148057Z Packages: read
+2026-11-03T04:45:33.5148767Z ##[endgroup]
+2026-11-03T04:45:33.5150876Z Secret source: Actions
+2026-11-03T04:45:33.5151935Z Cache mode: write
+2026-11-03T04:45:33.5152661Z Prepare workflow directory
+2026-11-03T04:45:33.5546682Z Prepare all required actions
+2026-11-03T04:45:33.5602341Z Getting action download info
+2026-11-03T04:45:33.8754356Z Download action repository 'actions/download-artifact@v4' (SHA:d3f86a106a0bac45b974a628896c90dbdf5c8093)
+2026-11-03T04:45:34.7562672Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-11-03T04:45:34.9375089Z Complete job name: Aggregate All Platform Screenshots
+2026-11-03T04:45:35.0324265Z ##[group]Run actions/download-artifact@v4
+2026-11-03T04:45:35.0325376Z with:
+2026-11-03T04:45:35.0325884Z   path: combined_screenshots
+2026-11-03T04:45:35.0326462Z   merge-multiple: false
+2026-11-03T04:45:35.0327008Z   repository: Ravi-Vashisth/ROK
+2026-11-03T04:45:35.0327801Z   run-id: 41578585072
+2026-11-03T04:45:35.0329125Z ##[endgroup]
+2026-11-03T04:45:35.4040889Z (node:2504) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-03T04:45:35.4042623Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-03T04:45:35.6623375Z Found 2 artifact(s)
+2026-11-03T04:45:35.6625570Z No input name, artifact-ids or pattern filtered specified, downloading all artifacts
+2026-11-03T04:45:35.6627765Z An extra directory with the artifact name will be created for each download
+2026-11-03T04:45:35.6629420Z Preparing to download the following artifacts:
+2026-11-03T04:45:35.6631905Z - screenshots-macos-ios (ID: 13205390611, Size: 3144780, Expected Digest: sha256:d7d44236d5a56ecd1d51cd1bf86f2dcb258b3b3b930125f818610836f5afdaaf)
+2026-11-03T04:45:35.6639763Z - screenshots-windows (ID: 13204028440, Size: 1086287, Expected Digest: sha256:f4b3467af19f7833593b64cce2a1b5ac33957d7726f900d3299d18bc01552ecb)
+2026-11-03T04:45:35.9114893Z Redirecting to blob download url: https://productionresultssa17.blob.core.windows.net/actions-results/d2ef2302-a942-8a9d-9fd9-4ac005f557dc/workflow-job-run-e0d07840-df73-599c-8287-a0b95c785b21/artifacts/089b807b9a62133918b4f165a4c72208b1feba98009510758401216fe3386766.zip
+2026-11-03T04:45:35.9119455Z Starting download of artifact to: /home/runner/work/ROK/ROK/combined_screenshots/screenshots-macos-ios
+2026-11-03T04:45:36.0776818Z Redirecting to blob download url: https://productionresultssa17.blob.core.windows.net/actions-results/d2ef2302-a942-8a9d-9fd9-4ac005f557dc/workflow-job-run-901d5934-f631-523c-b7b9-dc625ff493f1/artifacts/32e305a3b6f097ac53060deb4dea4e9e4a703fa9dfaa6e4142dbd621cfc47376.zip
+2026-11-03T04:45:36.0782285Z Starting download of artifact to: /home/runner/work/ROK/ROK/combined_screenshots/screenshots-windows
+2026-11-03T04:45:36.2536940Z (node:2504) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+2026-11-03T04:45:36.7882340Z SHA256 digest of downloaded artifact is f4b3467af19f7833593b64cce2a1b5ac33957d7726f900d3299d18bc01552ecb
+2026-11-03T04:45:36.7886402Z Artifact download completed successfully.
+2026-11-03T04:45:36.9768226Z SHA256 digest of downloaded artifact is d7d44236d5a56ecd1d51cd1bf86f2dcb258b3b3b930125f818610836f5afdaaf
+2026-11-03T04:45:36.9771254Z Artifact download completed successfully.
+2026-11-03T04:45:36.9772887Z Total of 2 artifact(s) downloaded
+2026-11-03T04:45:36.9774461Z Download artifact has finished successfully
+2026-11-03T04:45:37.0061558Z ##[group]Run mkdir -p all-platforms-screenshots/android all-platforms-screenshots/ios all-platforms-screenshots/macos all-platforms-screenshots/windows
+2026-11-03T04:45:37.0066933Z [36;1mmkdir -p all-platforms-screenshots/android all-platforms-screenshots/ios all-platforms-screenshots/macos all-platforms-screenshots/windows[0m
+2026-11-03T04:45:37.0070733Z [36;1mif [ -d combined_screenshots ]; then[0m
+2026-11-03T04:45:37.0072859Z [36;1m  find combined_screenshots -type f -name "*.png" | while read -r img; do[0m
+2026-11-03T04:45:37.0074922Z [36;1m    filename=$(basename "$img")[0m
+2026-11-03T04:45:37.0076398Z [36;1m    if [[ "$img" == *"/android/"* ]]; then[0m
+2026-11-03T04:45:37.0078339Z [36;1m      cp -f "$img" "all-platforms-screenshots/android/$filename"[0m
+2026-11-03T04:45:37.0080169Z [36;1m    elif [[ "$img" == *"/ios/"* ]]; then[0m
+2026-11-03T04:45:37.0081970Z [36;1m      cp -f "$img" "all-platforms-screenshots/ios/$filename"[0m
+2026-11-03T04:45:37.0083863Z [36;1m    elif [[ "$img" == *"/macos/"* ]]; then[0m
+2026-11-03T04:45:37.0085684Z [36;1m      cp -f "$img" "all-platforms-screenshots/macos/$filename"[0m
+2026-11-03T04:45:37.0087668Z [36;1m    elif [[ "$img" == *"/windows/"* ]]; then[0m
+2026-11-03T04:45:37.0089555Z [36;1m      cp -f "$img" "all-platforms-screenshots/windows/$filename"[0m
+2026-11-03T04:45:37.0091359Z [36;1m    else[0m
+2026-11-03T04:45:37.0092601Z [36;1m      platform=$(basename $(dirname "$img"))[0m
+2026-11-03T04:45:37.0094396Z [36;1m      mkdir -p "all-platforms-screenshots/$platform"[0m
+2026-11-03T04:45:37.0096607Z [36;1m      cp -f "$img" "all-platforms-screenshots/$platform/$filename"[0m
+2026-11-03T04:45:37.0098543Z [36;1m    fi[0m
+2026-11-03T04:45:37.0099580Z [36;1m  done[0m
+2026-11-03T04:45:37.0100633Z [36;1mfi[0m
+2026-11-03T04:45:37.0102213Z [36;1mzip -r all-platforms-screenshots.zip all-platforms-screenshots/[0m
+2026-11-03T04:45:37.0139391Z shell: /usr/bin/bash -e {0}
+2026-11-03T04:45:37.0140661Z ##[endgroup]
+2026-11-03T04:45:37.0805227Z   adding: all-platforms-screenshots/ (stored 0%)
+2026-11-03T04:45:37.0807718Z   adding: all-platforms-screenshots/macos/ (stored 0%)
+2026-11-03T04:45:37.0809836Z   adding: all-platforms-screenshots/ios/ (stored 0%)
+2026-11-03T04:45:37.1596472Z   adding: all-platforms-screenshots/ios/01_dashboard.png (deflated 0%)
+2026-11-03T04:45:37.1599904Z   adding: all-platforms-screenshots/windows/ (stored 0%)
+2026-11-03T04:45:37.1626962Z   adding: all-platforms-screenshots/windows/08_settings_branding.png (deflated 17%)
+2026-11-03T04:45:37.1685134Z   adding: all-platforms-screenshots/windows/04_quotes_estimates.png (deflated 12%)
+2026-11-03T04:45:37.1745856Z   adding: all-platforms-screenshots/windows/02_sales_invoices.png (deflated 11%)
+2026-11-03T04:45:37.1778901Z   adding: all-platforms-screenshots/windows/01_dashboard.png (deflated 16%)
+2026-11-03T04:45:37.1805986Z   adding: all-platforms-screenshots/windows/06_client_dossier.png (deflated 20%)
+2026-11-03T04:45:37.1876274Z   adding: all-platforms-screenshots/windows/03_invoice_editor.png (deflated 10%)
+2026-11-03T04:45:37.1931942Z   adding: all-platforms-screenshots/windows/07_catalog_items.png (deflated 12%)
+2026-11-03T04:45:37.1968596Z   adding: all-platforms-screenshots/windows/05_expenses_ledger.png (deflated 16%)
+2026-11-03T04:45:37.1971307Z   adding: all-platforms-screenshots/android/ (stored 0%)
+2026-11-03T04:45:37.2130616Z ##[group]Run actions/upload-artifact@v4
+2026-11-03T04:45:37.2131950Z with:
+2026-11-03T04:45:37.2132970Z   name: all-platforms-screenshots
+2026-11-03T04:45:37.2134298Z   path: all-platforms-screenshots.zip
+2026-11-03T04:45:37.2135608Z   if-no-files-found: warn
+2026-11-03T04:45:37.2136714Z   compression-level: 6
+2026-11-03T04:45:37.2138082Z   overwrite: false
+2026-11-03T04:45:37.2139137Z   include-hidden-files: false
+2026-11-03T04:45:37.2140287Z ##[endgroup]
+2026-11-03T04:45:37.3889144Z (node:2542) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-03T04:45:37.3895245Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-03T04:45:37.3959382Z With the provided path, there will be 1 file uploaded
+2026-11-03T04:45:37.3984343Z Artifact name is valid!
+2026-11-03T04:45:37.3986298Z Root directory input is valid!
+2026-11-03T04:45:37.7804273Z Beginning upload of artifact content to blob storage
+2026-11-03T04:45:37.9525654Z (node:2542) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-03T04:45:38.8900189Z Uploaded bytes 4214291
+2026-11-03T04:45:38.9748813Z Finished uploading artifact content to blob storage!
+2026-11-03T04:45:38.9750297Z SHA256 digest of uploaded artifact zip is cef7971b416cb98fb86abe44cf60c0124fb44a6a2d7d3452e1792e219cb5fe69
+2026-11-03T04:45:38.9751681Z Finalizing artifact upload
+2026-11-03T04:45:39.4454527Z Artifact all-platforms-screenshots.zip successfully finalized. Artifact ID 13204984386
+2026-11-03T04:45:39.4456364Z Artifact all-platforms-screenshots has been successfully uploaded! Final size is 4214291 bytes. Artifact ID is 13204984386
+2026-11-03T04:45:39.4464380Z Artifact download URL: https://github.com/Ravi-Vashisth/ROK/actions/runs/41578585072/artifacts/13204984386
+2026-11-03T04:45:39.4652983Z Cleaning up orphan processes
+2026-11-03T04:45:39.5151177Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/download-artifact@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

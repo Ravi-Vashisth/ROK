@@ -39,6 +39,7 @@ jobs:
           SIM_UUID=$(xcrun simctl list devices available | grep -m 1 "iPhone" | awk -F '[()]' '{print $2}')
           echo "Booting iOS Simulator UUID: $SIM_UUID"
           xcrun simctl boot "$SIM_UUID" || true
+          xcrun simctl bootstatus "$SIM_UUID" -b || true
           flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d "$SIM_UUID" || true
           if [ ! -f screenshots/ios/01_dashboard.png ]; then
             xcrun simctl io "$SIM_UUID" screenshot screenshots/ios/01_dashboard.png || true
@@ -126,10 +127,10 @@ jobs:
           script: |
             mkdir -p screenshots/android
             adb wait-for-device
-            sleep 5
+            sleep 10
             flutter devices
             export SCREENSHOT_PLATFORM=android
-            flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d emulator-5554 || true
+            flutter drive --android-skip-build-dependency-validation --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d emulator-5554 || true
             if [ ! -f screenshots/android/01_dashboard.png ]; then
               adb exec-out screencapture -p > screenshots/android/01_dashboard.png || true
             fi
