@@ -40,6 +40,9 @@ jobs:
           echo "Booting iOS Simulator UUID: $SIM_UUID"
           xcrun simctl boot "$SIM_UUID" || true
           flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d "$SIM_UUID" || true
+          if [ ! -f screenshots/ios/01_dashboard.png ]; then
+            xcrun simctl io "$SIM_UUID" screenshot screenshots/ios/01_dashboard.png || true
+          fi
 
       - name: Upload macOS & iOS Artifacts
         uses: actions/upload-artifact@v4
@@ -102,9 +105,10 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Create Native Android Project
+      - name: Create Native Android Project & Apply Gradle Patches
         run: |
           flutter create --platforms=android .
+          bash scripts/patch_android.sh
           flutter pub get
 
       - name: Enable KVM Hardware Acceleration
@@ -126,6 +130,9 @@ jobs:
             flutter devices
             export SCREENSHOT_PLATFORM=android
             flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_tour_test.dart -d emulator-5554 || true
+            if [ ! -f screenshots/android/01_dashboard.png ]; then
+              adb exec-out screencapture -p > screenshots/android/01_dashboard.png || true
+            fi
 
       - name: Upload Android Artifacts
         uses: actions/upload-artifact@v4
@@ -147,12 +154,23 @@ jobs:
 
       - name: Create Clean Aggregated Screenshot Archive
         run: |
-          mkdir -p all-platforms-screenshots
+          mkdir -p all-platforms-screenshots/android all-platforms-screenshots/ios all-platforms-screenshots/macos all-platforms-screenshots/windows
           if [ -d combined_screenshots ]; then
             find combined_screenshots -type f -name "*.png" | while read -r img; do
-              platform=$(basename $(dirname "$img"))
-              mkdir -p "all-platforms-screenshots/$platform"
-              cp -f "$img" "all-platforms-screenshots/$platform/"
+              filename=$(basename "$img")
+              if [[ "$img" == *"/android/"* ]]; then
+                cp -f "$img" "all-platforms-screenshots/android/$filename"
+              elif [[ "$img" == *"/ios/"* ]]; then
+                cp -f "$img" "all-platforms-screenshots/ios/$filename"
+              elif [[ "$img" == *"/macos/"* ]]; then
+                cp -f "$img" "all-platforms-screenshots/macos/$filename"
+              elif [[ "$img" == *"/windows/"* ]]; then
+                cp -f "$img" "all-platforms-screenshots/windows/$filename"
+              else
+                platform=$(basename $(dirname "$img"))
+                mkdir -p "all-platforms-screenshots/$platform"
+                cp -f "$img" "all-platforms-screenshots/$platform/$filename"
+              fi
             done
           fi
           zip -r all-platforms-screenshots.zip all-platforms-screenshots/

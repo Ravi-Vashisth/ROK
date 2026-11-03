@@ -1,6 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,21 +39,41 @@ void main() {
       (MethodCall methodCall) async => '.',
     );
 
-    // 3. Set standard surface resolution (1440x900 desktop, 1080x1920 mobile)
-    await tester.binding.setSurfaceSize(
-      Platform.isMacOS || Platform.isWindows || Platform.isLinux
-          ? const Size(1440, 900)
-          : const Size(1080, 1920),
-    );
+    // 3. Set standard surface resolution & physical size (1280x800 for Desktop, 393x852 for Mobile)
+    final bool isDesktop = Platform.isMacOS || Platform.isWindows || Platform.isLinux;
+    final Size targetSize = isDesktop ? const Size(1280, 800) : const Size(393, 852);
+
+    tester.view.physicalSize = targetSize;
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.binding.setSurfaceSize(targetSize);
 
     final Database db = await openLocalDatabase();
+    final GlobalKey rootKey = GlobalKey();
+
+    String getPlatformDir() {
+      if (Platform.isMacOS) return 'macos';
+      if (Platform.isIOS) return 'ios';
+      if (Platform.isWindows) return 'windows';
+      if (Platform.isAndroid) return 'android';
+      if (Platform.isLinux) return 'linux';
+      return 'web';
+    }
+
+    final platformName = getPlatformDir();
+    final Map<String, String> screenshotsMap = {};
 
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-        ],
-        child: const BillingDesktopApp(),
+      RepaintBoundary(
+        key: rootKey,
+        child: ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+          ],
+          child: const BillingDesktopApp(),
+        ),
       ),
     );
 
@@ -65,18 +89,42 @@ void main() {
 
     Future<void> takeTourScreenshot(String name) async {
       await tester.pumpAndSettle();
+
+      // Layer 1: Direct RepaintBoundary PNG rendering to file & reportData map
       try {
-        // Do NOT pass args map to takeScreenshot on IO platforms as Flutter asserts args == null!
+        final RenderRepaintBoundary? boundary =
+            rootKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+        if (boundary != null) {
+          final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
+          final ByteData? byteData =
+              await image.toByteData(format: ui.ImageByteFormat.png);
+          if (byteData != null) {
+            final buffer = byteData.buffer.asUint8List();
+            screenshotsMap[name] = base64Encode(buffer);
+            try {
+              final file = File('screenshots/$platformName/$name.png');
+              file.parent.createSync(recursive: true);
+              file.writeAsBytesSync(buffer);
+              debugPrint('Saved $platformName screenshot directly to: ${file.path}');
+            } catch (_) {}
+          }
+        }
+      } catch (e) {
+        debugPrint('Repaint boundary screenshot error ($name): $e');
+      }
+
+      // Layer 2: Integration test driver screenshot transmission
+      try {
         await binding.takeScreenshot(name);
       } catch (e) {
         debugPrint('Binding takeScreenshot status ($name): $e');
       }
     }
 
-    // 01_dashboard.png: Captures Dashboard KPI metrics, Action Required Triage, and Recent Activity.
+    // 01_dashboard.png
     await takeTourScreenshot('01_dashboard');
 
-    // 02_sales_invoices.png: Navigates to Sales -> Invoices table with search bar and status chips.
+    // 02_sales_invoices.png
     final salesNav = find.text('Sales');
     if (salesNav.evaluate().isNotEmpty) {
       await tester.tap(salesNav.first, warnIfMissed: false);
@@ -90,7 +138,7 @@ void main() {
     }
     await takeTourScreenshot('02_sales_invoices');
 
-    // 03_invoice_editor.png: Clicks [+ Create Invoice] and captures Two-Column WYSIWYG Editor.
+    // 03_invoice_editor.png
     final createBtn = find.text('Create Invoice');
     if (createBtn.evaluate().isNotEmpty) {
       await tester.tap(createBtn.first, warnIfMissed: false);
@@ -117,7 +165,7 @@ void main() {
       await takeTourScreenshot('03_invoice_editor');
     }
 
-    // 04_quotes_estimates.png: Toggles to Quotes/Estimates table.
+    // 04_quotes_estimates.png
     final estimatesTab = find.text('Estimates');
     if (estimatesTab.evaluate().isNotEmpty) {
       await tester.tap(estimatesTab.first, warnIfMissed: false);
@@ -125,7 +173,7 @@ void main() {
     }
     await takeTourScreenshot('04_quotes_estimates');
 
-    // 05_expenses_ledger.png: Navigates to Expenses tab.
+    // 05_expenses_ledger.png
     final expensesNav = find.text('Expenses');
     if (expensesNav.evaluate().isNotEmpty) {
       await tester.tap(expensesNav.first, warnIfMissed: false);
@@ -139,7 +187,7 @@ void main() {
     }
     await takeTourScreenshot('05_expenses_ledger');
 
-    // 06_client_dossier.png: Navigates to Hub & Settings -> Clients tab.
+    // 06_client_dossier.png
     final hubNav = find.text('Hub');
     if (hubNav.evaluate().isNotEmpty) {
       await tester.tap(hubNav.first, warnIfMissed: false);
@@ -159,7 +207,7 @@ void main() {
     }
     await takeTourScreenshot('06_client_dossier');
 
-    // 07_catalog_items.png: Toggles to Catalog sub-tab.
+    // 07_catalog_items.png
     final catalogSubTab = find.text('Catalog');
     if (catalogSubTab.evaluate().isNotEmpty) {
       await tester.tap(catalogSubTab.first, warnIfMissed: false);
@@ -167,12 +215,18 @@ void main() {
     }
     await takeTourScreenshot('07_catalog_items');
 
-    // 08_settings_branding.png: Toggles to Settings sub-tab.
+    // 08_settings_branding.png
     final settingsSubTab = find.text('Settings');
     if (settingsSubTab.evaluate().isNotEmpty) {
       await tester.tap(settingsSubTab.last, warnIfMissed: false);
       await tester.pumpAndSettle();
     }
     await takeTourScreenshot('08_settings_branding');
+
+    // Report base64 screenshots to integration test driver on host
+    binding.reportData = {
+      'platform': platformName,
+      'screenshots': screenshotsMap,
+    };
   });
 }
