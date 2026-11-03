@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Applying Android build patches: compileSdk 36, download.flutter.io repository, and AarMetadata bypass..."
+echo "Applying Android build patches: compileSdk 36 across all subprojects and dependencies..."
 
 # 0. Remove any legacy init scripts that could conflict
 rm -f "$HOME/.gradle/init.d/01-mirrors.gradle" || true
@@ -36,17 +36,17 @@ if [ -f "android/app/build.gradle.kts" ]; then
   sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle.kts || true
 fi
 
-# 4. Disable AarMetadata task in root android/build.gradle or android/build.gradle.kts
+# 4. Force all subprojects (like file_picker) to use compileSdkVersion 36
 if [ -f "android/build.gradle" ]; then
   cat << 'EOF' >> android/build.gradle
 
-allprojects {
-    ext {
-        compileSdkVersion = 36
-        targetSdkVersion = 36
-    }
-    tasks.matching { it.name.contains("AarMetadata") }.configureEach {
-        enabled = false
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty("android")) {
+            project.android {
+                compileSdkVersion 36
+            }
+        }
     }
 }
 EOF
@@ -55,14 +55,10 @@ fi
 if [ -f "android/build.gradle.kts" ]; then
   cat << 'EOF' >> android/build.gradle.kts
 
-extra["compileSdkVersion"] = 36
-extra["targetSdkVersion"] = 36
-
-allprojects {
-    extra["compileSdkVersion"] = 36
-    extra["targetSdkVersion"] = 36
-    tasks.matching { it.name.contains("AarMetadata") }.configureEach {
-        enabled = false
+subprojects {
+    afterEvaluate {
+        val android = extensions.findByName("android") as? com.android.build.gradle.BaseExtension
+        android?.compileSdkVersion(36)
     }
 }
 EOF
