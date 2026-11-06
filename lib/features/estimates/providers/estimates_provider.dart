@@ -208,13 +208,6 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
         : getNextEstimateNumber();
     final createdAt = DateTime.now().toUtc().toIso8601String();
 
-    final subtotalCents = items.fold<int>(0, (sum, item) => sum + item.totalCents);
-    final discountCents = calculateDiscountCents(subtotalCents, discountType, discountValue);
-    final netSubtotalCents = (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
-    final itemsTaxSum = items.fold<int>(0, (sum, item) => sum + item.taxCents);
-    final taxCents = itemsTaxSum > 0 ? itemsTaxSum : calculateTaxCents(netSubtotalCents, taxPercentage);
-    final totalCents = netSubtotalCents + taxCents;
-
     _db.execute('BEGIN TRANSACTION;');
     try {
       final stmt = _db.prepare('''
