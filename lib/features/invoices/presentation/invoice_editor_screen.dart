@@ -8,6 +8,8 @@ import '../../business_profile/models/business_profile.dart';
 import '../../business_profile/providers/business_profile_provider.dart';
 import '../../clients/models/client.dart';
 import '../../clients/providers/clients_provider.dart';
+import '../../estimates/models/estimate_record.dart';
+import '../../invoices/models/invoice_record.dart';
 import '../../estimates/providers/estimates_provider.dart';
 import '../../invoices/providers/invoices_provider.dart';
 import '../../items/providers/saved_items_provider.dart';
@@ -32,8 +34,15 @@ class LineItemEntry {
 
 class InvoiceEditorScreen extends ConsumerStatefulWidget {
   final bool isQuote;
+  final InvoiceRecord? existingInvoice;
+  final EstimateRecord? existingEstimate;
 
-  const InvoiceEditorScreen({super.key, this.isQuote = false});
+  const InvoiceEditorScreen({
+    super.key,
+    this.isQuote = false,
+    this.existingInvoice,
+    this.existingEstimate,
+  });
 
   @override
   ConsumerState<InvoiceEditorScreen> createState() => _InvoiceEditorScreenState();
@@ -52,32 +61,90 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
   int? _overrideCurrencyDecimals;
   String _paymentTerms = 'Due on Receipt';
   String _discountType = 'none'; // 'none', 'percent', 'flat'
-  final TextEditingController _discountController = TextEditingController(text: '0');
+  late TextEditingController _discountController;
 
-  final List<LineItemEntry> _items = [
-    LineItemEntry(
-      description: '',
-      sacHsn: '',
-      quantity: 1,
-      unitPriceCents: 0,
-      taxSlab: 10,
-    )
-  ];
+  List<LineItemEntry> _items = [];
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _issueDateController = TextEditingController(
-      text: '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
-    );
     final profile = ref.read(businessProfileProvider);
-    _poNumberController = TextEditingController();
-    _overrideCurrencyCode = profile.currencyCode;
-    _overrideCurrencySymbol = profile.currencySymbol;
-    _overrideCurrencyDecimals = profile.currencyDecimals;
-    _termsController = TextEditingController(text: profile.defaultTerms);
-    _notesController = TextEditingController(text: profile.defaultNotes);
+
+    if (widget.existingInvoice != null) {
+      final inv = widget.existingInvoice!;
+      _selectedClientId = inv.clientId;
+      _issueDateController = TextEditingController(text: inv.issueDate);
+      _paymentTerms = inv.paymentTerms;
+      _poNumberController = TextEditingController(text: inv.poNumber);
+      _overrideCurrencyCode = inv.currencyCode.isNotEmpty ? inv.currencyCode : profile.currencyCode;
+      _overrideCurrencySymbol = inv.currencySymbol.isNotEmpty ? inv.currencySymbol : profile.currencySymbol;
+      _overrideCurrencyDecimals = inv.currencyDecimals;
+      _termsController = TextEditingController(text: inv.terms);
+      _notesController = TextEditingController(text: inv.notes);
+      _discountType = inv.discountType;
+      _discountController = TextEditingController(text: inv.discountValue.toString());
+
+      final dbItems = ref.read(invoicesProvider.notifier).getInvoiceItems(inv.id);
+      if (dbItems.isNotEmpty) {
+        _items = dbItems
+            .map((it) => LineItemEntry(
+                  description: it.description,
+                  sacHsn: it.sacHsn,
+                  quantity: it.quantity,
+                  unitPriceCents: it.unitPriceCents,
+                  taxSlab: it.taxRatePercentage,
+                ))
+            .toList();
+      } else {
+        _items = [
+          LineItemEntry(description: '', sacHsn: '', quantity: 1, unitPriceCents: 0, taxSlab: 10)
+        ];
+      }
+    } else if (widget.existingEstimate != null) {
+      final est = widget.existingEstimate!;
+      _selectedClientId = est.clientId;
+      _issueDateController = TextEditingController(text: est.issueDate);
+      _poNumberController = TextEditingController(text: est.poNumber);
+      _overrideCurrencyCode = est.currencyCode.isNotEmpty ? est.currencyCode : profile.currencyCode;
+      _overrideCurrencySymbol = est.currencySymbol.isNotEmpty ? est.currencySymbol : profile.currencySymbol;
+      _overrideCurrencyDecimals = est.currencyDecimals;
+      _termsController = TextEditingController(text: est.terms);
+      _notesController = TextEditingController(text: est.notes);
+      _discountType = est.discountType;
+      _discountController = TextEditingController(text: est.discountValue.toString());
+
+      final dbItems = ref.read(estimatesProvider.notifier).getEstimateItems(est.id);
+      if (dbItems.isNotEmpty) {
+        _items = dbItems
+            .map((it) => LineItemEntry(
+                  description: it.description,
+                  sacHsn: it.sacHsn,
+                  quantity: it.quantity,
+                  unitPriceCents: it.unitPriceCents,
+                  taxSlab: it.taxRatePercentage,
+                ))
+            .toList();
+      } else {
+        _items = [
+          LineItemEntry(description: '', sacHsn: '', quantity: 1, unitPriceCents: 0, taxSlab: 10)
+        ];
+      }
+    } else {
+      final now = DateTime.now();
+      _issueDateController = TextEditingController(
+        text: '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
+      );
+      _poNumberController = TextEditingController();
+      _overrideCurrencyCode = profile.currencyCode;
+      _overrideCurrencySymbol = profile.currencySymbol;
+      _overrideCurrencyDecimals = profile.currencyDecimals;
+      _termsController = TextEditingController(text: profile.defaultTerms);
+      _notesController = TextEditingController(text: profile.defaultNotes);
+      _discountController = TextEditingController(text: '0');
+      _items = [
+        LineItemEntry(description: '', sacHsn: '', quantity: 1, unitPriceCents: 0, taxSlab: 10)
+      ];
+    }
   }
 
   @override
@@ -198,6 +265,7 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
 
     if (widget.isQuote) {
       ref.read(estimatesProvider.notifier).saveEstimate(
+            existingEstimateId: widget.existingEstimate?.id,
             clientId: _selectedClientId!,
             items: draftItems,
             taxPercentage: avgTaxPct,
@@ -218,6 +286,7 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
       );
     } else {
       ref.read(invoicesProvider.notifier).saveInvoice(
+            existingInvoiceId: widget.existingInvoice?.id,
             clientId: _selectedClientId!,
             items: draftItems,
             taxPercentage: avgTaxPct,

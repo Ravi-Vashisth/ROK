@@ -114,8 +114,9 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     return results.map((row) => PaymentRecord.fromRow(row)).toList();
   }
 
-  /// Commits an invoice and all its line items within an atomic SQLite transaction.
+  /// Commits or updates an invoice and its line items within an atomic SQLite transaction.
   String saveInvoice({
+    String? existingInvoiceId,
     required String clientId,
     required List<DraftItem> items,
     required int taxPercentage,
@@ -163,16 +164,86 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
       }
     }
 
-    final invoiceId = generateUniqueId();
-    final invoiceNumber = getNextInvoiceNumber();
-    final createdAt = DateTime.now().toUtc().toIso8601String();
-
     final subtotalCents = items.fold<int>(0, (sum, item) => sum + item.totalCents);
     final discountCents = calculateDiscountCents(subtotalCents, discountType, discountValue);
     final netSubtotalCents = (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
     final itemsTaxSum = items.fold<int>(0, (sum, item) => sum + item.taxCents);
     final taxCents = itemsTaxSum > 0 ? itemsTaxSum : calculateTaxCents(netSubtotalCents, taxPercentage);
     final totalCents = netSubtotalCents + taxCents;
+
+    // If updating existing draft
+    if (existingInvoiceId != null && existingInvoiceId.trim().isNotEmpty) {
+      final existingRes = _db.select('SELECT invoice_number, status FROM invoices WHERE id = ?', [existingInvoiceId]);
+      if (existingRes.isNotEmpty) {
+        final currentNum = existingRes.first['invoice_number'] as String;
+        final currentStatus = existingRes.first['status'] as String;
+        String finalNum = currentNum;
+        if (currentStatus == 'DRAFT' && status != 'DRAFT') {
+          finalNum = getNextInvoiceNumber();
+        }
+
+        _db.execute('BEGIN TRANSACTION;');
+        try {
+          _db.execute('''
+            UPDATE invoices SET
+              client_id = ?, invoice_number = ?, subtotal_cents = ?, tax_cents = ?, total_cents = ?,
+              status = ?, issue_date = ?, due_date = ?, payment_terms = ?, terms = ?, notes = ?,
+              discount_type = ?, discount_value = ?, discount_cents = ?, po_number = ?, currency_code = ?,
+              currency_symbol = ?, currency_decimals = ?
+            WHERE id = ?
+          ''', [
+            clientId, finalNum, subtotalCents, taxCents, totalCents,
+            status, effectiveIssueDate, effectiveDueDate, paymentTerms, terms, notes,
+            discountType, discountValue, discountCents, poNumber, currencyCode,
+            currencySymbol, currencyDecimals, existingInvoiceId
+          ]);
+
+          _db.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [existingInvoiceId]);
+
+          final itemStmt = _db.prepare('''
+            INSERT INTO invoice_items (
+              id, invoice_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ''');
+          try {
+            final createdAt = DateTime.now().toUtc().toIso8601String();
+            for (final item in items) {
+              itemStmt.execute([
+                generateUniqueId(),
+                existingInvoiceId,
+                item.description,
+                item.sacHsn,
+                item.quantity,
+                item.unitPriceCents,
+                item.taxRatePercentage,
+                item.taxCents,
+                item.totalCents,
+                createdAt,
+              ]);
+            }
+          } finally {
+            itemStmt.dispose();
+          }
+
+          if (currentStatus == 'DRAFT' && status != 'DRAFT') {
+            _db.execute("UPDATE business_profile SET next_invoice_number = next_invoice_number + 1 WHERE id = 'default'");
+          }
+
+          _db.execute('COMMIT;');
+        } catch (e) {
+          _db.execute('ROLLBACK;');
+          rethrow;
+        }
+
+        loadInvoices();
+        return existingInvoiceId;
+      }
+    }
+
+    final invoiceId = generateUniqueId();
+    // For DRAFT status, prefix with DRAFT- so fiscal sequence number is not consumed
+    final invoiceNumber = status == 'DRAFT' ? 'DRAFT-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}' : getNextInvoiceNumber();
+    final createdAt = DateTime.now().toUtc().toIso8601String();
 
     _db.execute('BEGIN TRANSACTION;');
     try {
@@ -235,8 +306,10 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
         itemStmt.dispose();
       }
 
-      // Increment next_invoice_number in business_profile
-      _db.execute("UPDATE business_profile SET next_invoice_number = next_invoice_number + 1 WHERE id = 'default'");
+      if (status != 'DRAFT') {
+        // Increment next_invoice_number in business_profile only when official invoice is issued
+        _db.execute("UPDATE business_profile SET next_invoice_number = next_invoice_number + 1 WHERE id = 'default'");
+      }
 
       _db.execute('COMMIT;');
     } catch (e) {
@@ -247,6 +320,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     loadInvoices();
     return invoiceId;
   }
+
 
   /// Clones/Duplicates an existing invoice with today's date and a fresh sequential INV number.
   String duplicateInvoice(String sourceInvoiceId) {
@@ -438,6 +512,30 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     loadInvoices();
   }
 
+  void finalizeDraftInvoice(String invoiceId) {
+    final stmt = _db.prepare("UPDATE invoices SET status = 'PENDING' WHERE id = ? AND status = 'DRAFT'");
+    try {
+      stmt.execute([invoiceId]);
+    } finally {
+      stmt.dispose();
+    }
+    loadInvoices();
+  }
+
+  void deleteInvoice(String invoiceId) {
+    _db.execute('BEGIN TRANSACTION;');
+    try {
+      _db.execute('DELETE FROM payments WHERE invoice_id = ?', [invoiceId]);
+      _db.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [invoiceId]);
+      _db.execute('DELETE FROM invoices WHERE id = ?', [invoiceId]);
+      _db.execute('COMMIT;');
+    } catch (e) {
+      _db.execute('ROLLBACK;');
+      rethrow;
+    }
+    loadInvoices();
+  }
+
   void updateInvoiceStatus(String invoiceId, String newStatus) {
     final stmt = _db.prepare('UPDATE invoices SET status = ? WHERE id = ?');
     try {
@@ -452,3 +550,4 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
 final invoicesProvider = StateNotifierProvider<InvoicesNotifier, List<InvoiceRecord>>((ref) {
   return InvoicesNotifier(ref.watch(databaseProvider));
 });
+

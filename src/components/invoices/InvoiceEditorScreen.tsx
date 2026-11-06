@@ -4,6 +4,7 @@ import { calculateDueDate } from '../../billingRules';
 
 interface InvoiceEditorScreenProps {
   isQuote: boolean;
+  initialData?: any;
   isDarkMode: boolean;
   businessProfile: any;
   clients: any[];
@@ -18,6 +19,7 @@ interface InvoiceEditorScreenProps {
 
 export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
   isQuote,
+  initialData,
   isDarkMode,
   businessProfile,
   clients,
@@ -29,19 +31,35 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
   onCancel,
   onAddClientModal,
 }) => {
-  const [selectedClientId, setSelectedClientId] = useState<string>(clients[0]?.id || '');
+  const [selectedClientId, setSelectedClientId] = useState<string>(
+    initialData?.client_id || clients[0]?.id || ''
+  );
   const [clientSearch, setClientSearch] = useState<string>('');
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState<boolean>(false);
 
-  const [issueDate, setIssueDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [paymentTerms, setPaymentTerms] = useState<string>('Due on Receipt');
-  const [poNumber, setPoNumber] = useState<string>('');
-  const [overrideCurrencyCode, setOverrideCurrencyCode] = useState<string>(businessProfile.currency_code || 'USD');
-  const [terms, setTerms] = useState<string>(businessProfile.default_terms || 'Payment due within agreed terms. Thank you for your business!');
-  const [notes, setNotes] = useState<string>(businessProfile.default_notes || 'All work includes post-delivery support.');
+  const [issueDate, setIssueDate] = useState<string>(
+    initialData?.issue_date || new Date().toISOString().split('T')[0]
+  );
+  const [paymentTerms, setPaymentTerms] = useState<string>(
+    initialData?.payment_terms || 'Due on Receipt'
+  );
+  const [poNumber, setPoNumber] = useState<string>(initialData?.po_number || '');
+  const [overrideCurrencyCode, setOverrideCurrencyCode] = useState<string>(
+    initialData?.currency_code || businessProfile.currency_code || 'USD'
+  );
+  const [terms, setTerms] = useState<string>(
+    initialData?.terms || businessProfile.default_terms || 'Payment due within agreed terms. Thank you for your business!'
+  );
+  const [notes, setNotes] = useState<string>(
+    initialData?.notes || businessProfile.default_notes || 'All work includes post-delivery support.'
+  );
 
-  const [discountType, setDiscountType] = useState<'none' | 'percent' | 'flat'>('none');
-  const [discountValue, setDiscountValue] = useState<string>('0');
+  const [discountType, setDiscountType] = useState<'none' | 'percent' | 'flat'>(
+    initialData?.discount_type || 'none'
+  );
+  const [discountValue, setDiscountValue] = useState<string>(
+    initialData?.discount_value?.toString() || '0'
+  );
   const [saveAsPreset, setSaveAsPreset] = useState<boolean>(false);
 
   // Quick line item inputs matching Flutter InvoiceInputsCard
@@ -58,9 +76,11 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
   const [newClientTaxId, setNewClientTaxId] = useState<string>('');
   const [newClientAddress, setNewClientAddress] = useState<string>('');
 
-  const [items, setItems] = useState<any[]>([
-    { id: '1', description: 'Full Stack Web Development', sacHsn: '998314', quantity: 1, unitPriceCents: 150000, taxSlab: 10 },
-  ]);
+  const [items, setItems] = useState<any[]>(
+    initialData?.items?.length
+      ? initialData.items
+      : [{ id: '1', description: 'Full Stack Web Development', sacHsn: '998314', quantity: 1, unitPriceCents: 150000, taxSlab: 10 }]
+  );
 
   const selectedClient = clients.find((c) => c.id === selectedClientId);
 
@@ -156,6 +176,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
     }
 
     onSave({
+      existingId: initialData?.id,
       clientId: selectedClientId,
       clientName: selectedClient?.name || 'Client',
       issueDate,

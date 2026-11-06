@@ -14,6 +14,10 @@ interface SalesTabProps {
   onDeleteInvoice: (invoice: any) => void;
   onConvertEstimate: (estimate: any) => void;
   onDeleteEstimate: (estimate: any) => void;
+  onEditInvoiceDraft?: (invoice: any) => void;
+  onEditEstimateDraft?: (estimate: any) => void;
+  onFinalizeInvoice?: (invoice: any) => void;
+  onFinalizeEstimate?: (estimate: any) => void;
 }
 
 export const SalesTab: React.FC<SalesTabProps> = ({
@@ -27,6 +31,10 @@ export const SalesTab: React.FC<SalesTabProps> = ({
   onDeleteInvoice,
   onConvertEstimate,
   onDeleteEstimate,
+  onEditInvoiceDraft,
+  onEditEstimateDraft,
+  onFinalizeInvoice,
+  onFinalizeEstimate,
 }) => {
   const [subTab, setSubTab] = useState<number>(0); // 0 = Invoices, 1 = Estimates
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -146,6 +154,8 @@ export const SalesTab: React.FC<SalesTabProps> = ({
           formatMoney={formatMoney}
           onRecordPayment={onRecordPayment}
           onDeleteInvoice={onDeleteInvoice}
+          onEditDraft={onEditInvoiceDraft}
+          onFinalizeInvoice={onFinalizeInvoice}
         />
       ) : (
         <OfflineEstimatesList
@@ -157,8 +167,11 @@ export const SalesTab: React.FC<SalesTabProps> = ({
           formatMoney={formatMoney}
           onConvertEstimate={onConvertEstimate}
           onDeleteEstimate={onDeleteEstimate}
+          onEditDraft={onEditEstimateDraft}
+          onFinalizeEstimate={onFinalizeEstimate}
         />
       )}
     </div>
   );
 };
+

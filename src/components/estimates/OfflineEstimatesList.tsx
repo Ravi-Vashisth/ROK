@@ -10,6 +10,8 @@ interface OfflineEstimatesListProps {
   formatMoney: (cents: number) => string;
   onConvertEstimate: (estimate: any) => void;
   onDeleteEstimate: (estimate: any) => void;
+  onEditDraft?: (estimate: any) => void;
+  onFinalizeEstimate?: (estimate: any) => void;
 }
 
 export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
@@ -21,8 +23,18 @@ export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
   formatMoney,
   onConvertEstimate,
   onDeleteEstimate,
+  onEditDraft,
+  onFinalizeEstimate,
 }) => {
   const filteredEstimates = estimates.filter((est) => {
+    // Status filter
+    const status = (est.status || '').toUpperCase();
+    if (statusFilter !== 'All') {
+      if (statusFilter === 'Draft' && status !== 'DRAFT') return false;
+      if (statusFilter === 'Pending' && status !== 'PENDING') return false;
+      if (statusFilter === 'Converted' && status !== 'CONVERTED') return false;
+    }
+
     // Search query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
@@ -60,6 +72,7 @@ export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
           </thead>
           <tbody className={`divide-y ${isDarkMode ? 'divide-slate-800' : 'divide-slate-100'}`}>
             {filteredEstimates.map((est) => {
+              const isDraft = est.status === 'DRAFT';
               const isConverted = est.status === 'CONVERTED';
 
               return (
@@ -71,6 +84,7 @@ export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
                   <td className="p-3.5 text-right font-bold font-mono">{formatMoney(est.total_cents)}</td>
                   <td className="p-3.5 text-center">
                     <span className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-bold uppercase ${
+                      isDraft ? 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700' :
                       isConverted ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
                       'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                     }`}>
@@ -78,7 +92,25 @@ export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
                     </span>
                   </td>
                   <td className="p-3.5 text-right space-x-1">
-                    {!isConverted && (
+                    {isDraft && onEditDraft && (
+                      <button
+                        onClick={() => onEditDraft(est)}
+                        className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 text-[11px] font-bold rounded-lg inline-flex items-center gap-1 cursor-pointer transition shadow-xs"
+                        title="Edit Draft Quote"
+                      >
+                        <span>Edit Draft</span>
+                      </button>
+                    )}
+                    {isDraft && onFinalizeEstimate && (
+                      <button
+                        onClick={() => onFinalizeEstimate(est)}
+                        className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg inline-flex items-center gap-1 cursor-pointer transition shadow-xs"
+                        title="Finalize & Issue Quote"
+                      >
+                        <span>Finalize</span>
+                      </button>
+                    )}
+                    {!isConverted && !isDraft && (
                       <button
                         onClick={() => onConvertEstimate(est)}
                         className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[11px] font-bold rounded-lg flex items-center gap-1 inline-flex cursor-pointer transition"
@@ -105,3 +137,4 @@ export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
     </div>
   );
 };
+

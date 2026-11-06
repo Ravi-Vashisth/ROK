@@ -8,6 +8,7 @@ import '../../../clients/providers/clients_provider.dart';
 import '../../../invoices/models/invoice_record.dart';
 import '../../../invoices/providers/invoices_provider.dart';
 import '../../../payments/presentation/record_payment_dialog.dart';
+import '../../../invoices/presentation/invoice_editor_screen.dart';
 import '../../services/invoice_pdf_service.dart';
 import 'payment_reminder_modal.dart';
 import 'pdf_preview_dialog.dart';
@@ -373,6 +374,46 @@ class OfflineInvoicesList extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(width: 8),
+                      // Edit and Finalize Draft buttons for DRAFT status
+                      if (inv.isDraft) ...[
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.edit_outlined, size: 15),
+                          label: const Text('Edit Draft', style: TextStyle(fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => InvoiceEditorScreen(
+                                  isQuote: false,
+                                  existingInvoice: inv,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        FilledButton.icon(
+                          icon: const Icon(Icons.check_circle_outline, size: 15),
+                          label: const Text('Finalize', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.indigo,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          onPressed: () {
+                            ref.read(invoicesProvider.notifier).finalizeDraftInvoice(inv.id);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Invoice ${inv.invoiceNumber} finalized and issued!')),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                      ],
                       // 1-Click Duplicate Button
                       OutlinedButton.icon(
                         icon: const Icon(Icons.copy_outlined, size: 15),
@@ -384,8 +425,8 @@ class OfflineInvoicesList extends ConsumerWidget {
                         onPressed: () => _handleDuplicate(context, ref, inv),
                       ),
                       const SizedBox(width: 6),
-                      // Record Payment Action Button (only if balance due is greater than zero)
-                      if (inv.balanceDueCents > 0 && inv.status != 'VOID') ...[
+                      // Record Payment Action Button (only if balance due is greater than zero and not draft/void)
+                      if (inv.balanceDueCents > 0 && inv.status != 'VOID' && !inv.isDraft) ...[
                         OutlinedButton.icon(
                           icon: const Icon(Icons.add_card, size: 15),
                           label: const Text('Pay', style: TextStyle(fontSize: 12)),
@@ -408,53 +449,91 @@ class OfflineInvoicesList extends ConsumerWidget {
                         ),
                         onPressed: () => _handlePrint(context, ref, inv),
                       ),
-                      if (inv.status != 'VOID') ...[
-                        const SizedBox(width: 4),
-                        PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert, size: 18),
-                          tooltip: 'More actions',
-                          onSelected: (val) {
-                            if (val == 'reminder') {
-                              showDialog(
-                                context: context,
-                                builder: (_) => PaymentReminderModal(invoice: inv),
-                              );
-                            } else if (val == 'void') {
-                              showDialog(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: const Text('Void Invoice'),
-                                  content: Text('Are you sure you want to void invoice ${inv.invoiceNumber}? This action cannot be undone.'),
-                                  actions: [
-                                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                                    FilledButton(
-                                      style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                                      onPressed: () {
-                                        ref.read(invoicesProvider.notifier).voidInvoice(inv.id);
-                                        Navigator.pop(ctx);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Invoice ${inv.invoiceNumber} marked as VOID.')),
-                                        );
-                                      },
-                                      child: const Text('Void Invoice'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-                          },
-                          itemBuilder: (_) => [
-                            if (inv.balanceDueCents > 0)
-                              const PopupMenuItem(
-                                value: 'reminder',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.send_outlined, size: 16, color: Colors.amber),
-                                    SizedBox(width: 8),
-                                    Text('Send Reminder', style: TextStyle(fontSize: 13)),
-                                  ],
-                                ),
+                      const SizedBox(width: 4),
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, size: 18),
+                        tooltip: 'More actions',
+                        onSelected: (val) {
+                          if (val == 'finalize') {
+                            ref.read(invoicesProvider.notifier).finalizeDraftInvoice(inv.id);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Invoice ${inv.invoiceNumber} finalized and issued!')),
+                            );
+                          } else if (val == 'reminder') {
+                            showDialog(
+                              context: context,
+                              builder: (_) => PaymentReminderModal(invoice: inv),
+                            );
+                          } else if (val == 'delete') {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Delete Invoice'),
+                                content: Text('Are you sure you want to delete invoice ${inv.invoiceNumber}?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                                  FilledButton(
+                                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                    onPressed: () {
+                                      ref.read(invoicesProvider.notifier).deleteInvoice(inv.id);
+                                      Navigator.pop(ctx);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Invoice ${inv.invoiceNumber} deleted.')),
+                                      );
+                                    },
+                                    child: const Text('Delete'),
+                                  ),
+                                ],
                               ),
+                            );
+                          } else if (val == 'void') {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Void Invoice'),
+                                content: Text('Are you sure you want to void invoice ${inv.invoiceNumber}? This action cannot be undone.'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                                  FilledButton(
+                                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                    onPressed: () {
+                                      ref.read(invoicesProvider.notifier).voidInvoice(inv.id);
+                                      Navigator.pop(ctx);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Invoice ${inv.invoiceNumber} marked as VOID.')),
+                                      );
+                                    },
+                                    child: const Text('Void Invoice'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        },
+                        itemBuilder: (_) => [
+                          if (inv.isDraft)
+                            const PopupMenuItem(
+                              value: 'finalize',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.check_circle_outline, size: 16, color: Colors.indigo),
+                                  SizedBox(width: 8),
+                                  Text('Finalize & Issue', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.indigo)),
+                                ],
+                              ),
+                            ),
+                          if (inv.balanceDueCents > 0 && !inv.isDraft && inv.status != 'VOID')
+                            const PopupMenuItem(
+                              value: 'reminder',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.send_outlined, size: 16, color: Colors.amber),
+                                  SizedBox(width: 8),
+                                  Text('Send Reminder', style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                          if (inv.status != 'VOID' && !inv.isDraft)
                             const PopupMenuItem(
                               value: 'void',
                               child: Row(
@@ -465,9 +544,18 @@ class OfflineInvoicesList extends ConsumerWidget {
                                 ],
                               ),
                             ),
-                          ],
-                        ),
-                      ],
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                                SizedBox(width: 8),
+                                Text('Delete Invoice', style: TextStyle(color: Colors.red, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                   children: [
@@ -476,6 +564,14 @@ class OfflineInvoicesList extends ConsumerWidget {
                       onPrint: () => _handlePrint(context, ref, inv),
                       onRecordPayment: () => _openRecordPayment(context, inv),
                       onDuplicate: () => _handleDuplicate(context, ref, inv),
+                      onFinalize: inv.isDraft
+                          ? () {
+                              ref.read(invoicesProvider.notifier).finalizeDraftInvoice(inv.id);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Invoice ${inv.invoiceNumber} finalized and issued!')),
+                              );
+                            }
+                          : null,
                     ),
                   ],
                 );
@@ -492,12 +588,14 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
   final VoidCallback onPrint;
   final VoidCallback onRecordPayment;
   final VoidCallback onDuplicate;
+  final VoidCallback? onFinalize;
 
   const _InvoiceItemsBreakdown({
     required this.invoice,
     required this.onPrint,
     required this.onRecordPayment,
     required this.onDuplicate,
+    this.onFinalize,
   });
 
   @override
@@ -528,6 +626,20 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (invoice.isDraft && onFinalize != null) ...[
+                    FilledButton.icon(
+                      icon: const Icon(Icons.check_circle_outline, size: 15),
+                      label: const Text('Finalize Draft', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.indigo,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onPressed: onFinalize,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   OutlinedButton.icon(
                     onPressed: onDuplicate,
                     icon: const Icon(Icons.copy_outlined, size: 15),
@@ -538,7 +650,7 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  if (invoice.balanceDueCents > 0) ...[
+                  if (invoice.balanceDueCents > 0 && !invoice.isDraft) ...[
                     FilledButton.icon(
                       icon: const Icon(Icons.payment, size: 15),
                       label: const Text('Record Payment', style: TextStyle(fontSize: 12)),

@@ -7,6 +7,7 @@ import '../../billing/services/invoice_pdf_service.dart';
 import '../../business_profile/providers/business_profile_provider.dart';
 import '../../clients/models/client.dart';
 import '../../clients/providers/clients_provider.dart';
+import '../../invoices/presentation/invoice_editor_screen.dart';
 import '../../invoices/providers/invoices_provider.dart';
 import '../models/estimate_record.dart';
 import '../providers/estimates_provider.dart';
@@ -185,7 +186,36 @@ class OfflineEstimatesList extends ConsumerWidget {
                           Text('Total: ${formatCents(est.totalCents, symbol: sym)}', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.indigo.shade800)),
                           Row(
                             children: [
-                              if (!isConverted)
+                              if (est.status == 'DRAFT') ...[
+                                OutlinedButton.icon(
+                                  icon: const Icon(Icons.edit_outlined, size: 16),
+                                  label: const Text('Edit Draft', style: TextStyle(fontSize: 12)),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => InvoiceEditorScreen(
+                                          isQuote: true,
+                                          existingEstimate: est,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                FilledButton.icon(
+                                  style: FilledButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
+                                  icon: const Icon(Icons.check_circle_outline, size: 16),
+                                  label: const Text('Finalize Quote', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                  onPressed: () {
+                                    ref.read(estimatesProvider.notifier).finalizeDraftEstimate(est.id);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Quote ${est.estimateNumber} finalized and issued!')),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                              ] else if (!isConverted) ...[
                                 FilledButton.icon(
                                   style: FilledButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
                                   icon: const Icon(Icons.receipt_long, size: 16),
@@ -197,7 +227,8 @@ class OfflineEstimatesList extends ConsumerWidget {
                                     );
                                   },
                                 ),
-                              const SizedBox(width: 8),
+                                const SizedBox(width: 8),
+                              ],
                               OutlinedButton.icon(
                                 icon: const Icon(Icons.picture_as_pdf, size: 16),
                                 label: const Text('PDF / Print', style: TextStyle(fontSize: 12)),
@@ -217,6 +248,34 @@ class OfflineEstimatesList extends ConsumerWidget {
                                         client: client,
                                         businessProfile: businessProfile,
                                       ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 6),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                                tooltip: 'Delete Quote',
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Delete Quote'),
+                                      content: Text('Are you sure you want to delete quote ${est.estimateNumber}?'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                                        FilledButton(
+                                          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                          onPressed: () {
+                                            ref.read(estimatesProvider.notifier).deleteEstimate(est.id);
+                                            Navigator.pop(ctx);
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Quote ${est.estimateNumber} deleted.')),
+                                            );
+                                          },
+                                          child: const Text('Delete'),
+                                        ),
+                                      ],
                                     ),
                                   );
                                 },

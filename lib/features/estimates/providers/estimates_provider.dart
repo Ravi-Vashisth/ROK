@@ -71,6 +71,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
   }
 
   String saveEstimate({
+    String? existingEstimateId,
     required String clientId,
     required List<DraftItem> items,
     required int taxPercentage,
@@ -113,8 +114,98 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
       }
     }
 
+    final subtotalCents = items.fold<int>(0, (sum, item) => sum + item.totalCents);
+    final discountCents = calculateDiscountCents(subtotalCents, discountType, discountValue);
+    final netSubtotalCents = (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
+    final itemsTaxSum = items.fold<int>(0, (sum, item) => sum + item.taxCents);
+    final taxCents = itemsTaxSum > 0 ? itemsTaxSum : calculateTaxCents(netSubtotalCents, taxPercentage);
+    final totalCents = netSubtotalCents + taxCents;
+
+    // In-place edit for existing draft estimate
+    if (existingEstimateId != null && existingEstimateId.trim().isNotEmpty) {
+      final existingRes = _db.select('SELECT estimate_number, status FROM estimates WHERE id = ?', [existingEstimateId]);
+      if (existingRes.isNotEmpty) {
+        var estNumber = existingRes.first['estimate_number'] as String;
+        if (status != 'DRAFT' && estNumber.startsWith('DRAFT-')) {
+          estNumber = getNextEstimateNumber();
+        }
+
+        _db.execute('BEGIN TRANSACTION;');
+        try {
+          final updStmt = _db.prepare('''
+            UPDATE estimates SET
+              client_id = ?, estimate_number = ?, subtotal_cents = ?, tax_cents = ?, total_cents = ?,
+              status = ?, issue_date = ?, expiry_date = ?, terms = ?, notes = ?,
+              discount_type = ?, discount_value = ?, discount_cents = ?, po_number = ?,
+              currency_code = ?, currency_symbol = ?, currency_decimals = ?
+            WHERE id = ?
+          ''');
+          try {
+            updStmt.execute([
+              clientId,
+              estNumber,
+              subtotalCents,
+              taxCents,
+              totalCents,
+              status,
+              effectiveIssueDate,
+              effectiveExpiryDate,
+              terms,
+              notes,
+              discountType,
+              discountValue,
+              discountCents,
+              poNumber,
+              currencyCode,
+              currencySymbol,
+              currencyDecimals,
+              existingEstimateId,
+            ]);
+          } finally {
+            updStmt.dispose();
+          }
+
+          _db.execute('DELETE FROM estimate_items WHERE estimate_id = ?', [existingEstimateId]);
+          final itemStmt = _db.prepare('''
+            INSERT INTO estimate_items (
+              id, estimate_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ''');
+          try {
+            for (final item in items) {
+              final itemId = generateUniqueId();
+              itemStmt.execute([
+                itemId,
+                existingEstimateId,
+                item.description,
+                item.sacHsn,
+                item.quantity,
+                item.unitPriceCents,
+                item.taxRatePercentage,
+                item.taxCents,
+                item.totalCents,
+                DateTime.now().toUtc().toIso8601String(),
+              ]);
+            }
+          } finally {
+            itemStmt.dispose();
+          }
+
+          _db.execute('COMMIT;');
+        } catch (e) {
+          _db.execute('ROLLBACK;');
+          rethrow;
+        }
+
+        loadEstimates();
+        return existingEstimateId;
+      }
+    }
+
     final estimateId = generateUniqueId();
-    final estimateNumber = getNextEstimateNumber();
+    final estimateNumber = (status == 'DRAFT')
+        ? 'DRAFT-${generateUniqueId().substring(0, 6).toUpperCase()}'
+        : getNextEstimateNumber();
     final createdAt = DateTime.now().toUtc().toIso8601String();
 
     final subtotalCents = items.fold<int>(0, (sum, item) => sum + item.totalCents);
@@ -313,6 +404,33 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     loadEstimates();
   }
 
+  void finalizeDraftEstimate(String estimateId) {
+    final res = _db.select('SELECT estimate_number FROM estimates WHERE id = ? AND status = \'DRAFT\'', [estimateId]);
+    if (res.isNotEmpty) {
+      final currentNum = res.first['estimate_number'] as String;
+      if (currentNum.startsWith('DRAFT-')) {
+        final officialNum = getNextEstimateNumber();
+        _db.execute("UPDATE estimates SET status = 'PENDING', estimate_number = ? WHERE id = ?", [officialNum, estimateId]);
+      } else {
+        _db.execute("UPDATE estimates SET status = 'PENDING' WHERE id = ?", [estimateId]);
+      }
+      loadEstimates();
+    }
+  }
+
+  void deleteEstimate(String estimateId) {
+    _db.execute('BEGIN TRANSACTION;');
+    try {
+      _db.execute('DELETE FROM estimate_items WHERE estimate_id = ?', [estimateId]);
+      _db.execute('DELETE FROM estimates WHERE id = ?', [estimateId]);
+      _db.execute('COMMIT;');
+    } catch (e) {
+      _db.execute('ROLLBACK;');
+      rethrow;
+    }
+    loadEstimates();
+  }
+
   void updateEstimateStatus(String estimateId, String newStatus) {
     _db.execute('UPDATE estimates SET status = ? WHERE id = ?', [newStatus, estimateId]);
     loadEstimates();
@@ -322,3 +440,4 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
 final estimatesProvider = StateNotifierProvider<EstimatesNotifier, List<EstimateRecord>>((ref) {
   return EstimatesNotifier(ref.watch(databaseProvider), ref);
 });
+

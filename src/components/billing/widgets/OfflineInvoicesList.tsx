@@ -10,6 +10,9 @@ interface OfflineInvoicesListProps {
   formatMoney: (cents: number) => string;
   onRecordPayment: (invoice: any) => void;
   onDeleteInvoice: (invoice: any) => void;
+  onEditDraft?: (invoice: any) => void;
+  onFinalizeInvoice?: (invoice: any) => void;
+  onDuplicateInvoice?: (invoice: any) => void;
 }
 
 export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
@@ -21,6 +24,9 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
   formatMoney,
   onRecordPayment,
   onDeleteInvoice,
+  onEditDraft,
+  onFinalizeInvoice,
+  onDuplicateInvoice,
 }) => {
   const filteredInvoices = invoices.filter((inv) => {
     // Status filter
@@ -74,6 +80,7 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
           <tbody className={`divide-y ${isDarkMode ? 'divide-slate-800' : 'divide-slate-100'}`}>
             {filteredInvoices.map((inv) => {
               const status = inv.computed_status || inv.status;
+              const isDraft = status === 'DRAFT';
               const isPaid = status === 'PAID';
               const isOverdue = status === 'OVERDUE';
 
@@ -87,6 +94,7 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
                   <td className="p-3.5 text-right font-bold font-mono text-amber-600">{formatMoney(inv.balance_due_cents ?? inv.total_cents)}</td>
                   <td className="p-3.5 text-center">
                     <span className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-bold uppercase ${
+                      isDraft ? 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700' :
                       isPaid ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
                       isOverdue ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
                       'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
@@ -95,7 +103,26 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
                     </span>
                   </td>
                   <td className="p-3.5 text-right space-x-1">
-                    {!isPaid && (
+                    {isDraft && onEditDraft && (
+                      <button
+                        onClick={() => onEditDraft(inv)}
+                        className="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[11px] transition cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                        title="Edit Draft Invoice"
+                      >
+                        <span>Edit Draft</span>
+                      </button>
+                    )}
+                    {isDraft && onFinalizeInvoice && (
+                      <button
+                        onClick={() => onFinalizeInvoice(inv)}
+                        className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] transition cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                        title="Finalize & Issue Invoice"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Finalize</span>
+                      </button>
+                    )}
+                    {!isPaid && !isDraft && (
                       <button
                         onClick={() => onRecordPayment(inv)}
                         className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 transition cursor-pointer"
@@ -121,3 +148,4 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
     </div>
   );
 };
+

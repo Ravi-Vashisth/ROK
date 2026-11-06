@@ -23,6 +23,7 @@ import { HubSettingsTab } from './components/hub/HubSettingsTab';
 import { ClientsTab } from './components/clients/ClientsTab';
 import { ItemsCatalogTab } from './components/items/ItemsCatalogTab';
 import { BusinessProfileDialog } from './components/business_profile/BusinessProfileDialog';
+import { RecordPaymentModal } from './components/payments/RecordPaymentModal';
 
 export interface Client {
   id: string;
@@ -88,10 +89,12 @@ export const App: React.FC = () => {
   // Sub-screens under Hub / Sales
   const [hubSubScreen, setHubSubScreen] = useState<'main' | 'clients' | 'items'>('main');
   const [editorMode, setEditorMode] = useState<'none' | 'invoice' | 'estimate'>('none');
+  const [editingDraftData, setEditingDraftData] = useState<any>(null);
 
   // Modals
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState<boolean>(false);
+  const [paymentModalInvoice, setPaymentModalInvoice] = useState<InvoiceRecord | null>(null);
 
   // Persistent State
   const [clients, setClients] = useState<Client[]>(() => {
@@ -166,68 +169,147 @@ export const App: React.FC = () => {
 
   // State Handlers
   const handleCreateInvoice = () => {
+    setEditingDraftData(null);
     setActiveTab(1);
     setEditorMode('invoice');
   };
 
   const handleCreateQuote = () => {
+    setEditingDraftData(null);
+    setActiveTab(1);
+    setEditorMode('estimate');
+  };
+
+  const handleEditInvoiceDraft = (inv: InvoiceRecord) => {
+    setEditingDraftData(inv);
+    setActiveTab(1);
+    setEditorMode('invoice');
+  };
+
+  const handleEditEstimateDraft = (est: StoredEstimateRecord) => {
+    setEditingDraftData(est);
     setActiveTab(1);
     setEditorMode('estimate');
   };
 
   const handleSaveDocFromEditor = (docData: any) => {
     if (editorMode === 'invoice') {
-      const newInv: InvoiceRecord = {
-        id: `inv-${Date.now()}`,
-        client_id: docData.clientId,
-        client_name: docData.clientName,
-        invoice_number: `INV-${(invoices.length + 1).toString().padStart(4, '0')}`,
-        subtotal_cents: docData.subtotalCents,
-        tax_cents: docData.taxCents,
-        total_cents: docData.totalCents,
-        status: docData.isDraft ? 'DRAFT' : 'PENDING',
-        computed_status: docData.isDraft ? 'DRAFT' : 'PENDING',
-        issue_date: docData.issueDate,
-        due_date: calculateDueDate(docData.issueDate, docData.paymentTerms),
-        payment_terms: docData.paymentTerms,
-        paid_cents: 0,
-        balance_due_cents: docData.totalCents,
-        created_at: new Date().toISOString(),
-      };
-      setInvoices((prev) => [newInv, ...prev]);
+      if (docData.existingId) {
+        setInvoices((prev) =>
+          prev.map((i) => {
+            if (i.id !== docData.existingId) return i;
+            let invNum = i.invoice_number;
+            if (!docData.isDraft && invNum.startsWith('DRAFT-')) {
+              const count = prev.filter((x) => !x.invoice_number.startsWith('DRAFT-')).length + 1;
+              invNum = `INV-${count.toString().padStart(4, '0')}`;
+            }
+            return {
+              ...i,
+              client_id: docData.clientId,
+              client_name: docData.clientName,
+              invoice_number: invNum,
+              subtotal_cents: docData.subtotalCents,
+              tax_cents: docData.taxCents,
+              total_cents: docData.totalCents,
+              status: docData.isDraft ? 'DRAFT' : 'PENDING',
+              computed_status: docData.isDraft ? 'DRAFT' : 'PENDING',
+              issue_date: docData.issueDate,
+              due_date: calculateDueDate(docData.issueDate, docData.paymentTerms),
+              payment_terms: docData.paymentTerms,
+              balance_due_cents: Math.max(0, docData.totalCents - (i.paid_cents || 0)),
+            };
+          })
+        );
+      } else {
+        const invNumber = docData.isDraft
+          ? `DRAFT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+          : `INV-${(invoices.filter((x) => !x.invoice_number.startsWith('DRAFT-')).length + 1).toString().padStart(4, '0')}`;
+        const newInv: InvoiceRecord = {
+          id: `inv-${Date.now()}`,
+          client_id: docData.clientId,
+          client_name: docData.clientName,
+          invoice_number: invNumber,
+          subtotal_cents: docData.subtotalCents,
+          tax_cents: docData.taxCents,
+          total_cents: docData.totalCents,
+          status: docData.isDraft ? 'DRAFT' : 'PENDING',
+          computed_status: docData.isDraft ? 'DRAFT' : 'PENDING',
+          issue_date: docData.issueDate,
+          due_date: calculateDueDate(docData.issueDate, docData.paymentTerms),
+          payment_terms: docData.paymentTerms,
+          paid_cents: 0,
+          balance_due_cents: docData.totalCents,
+          created_at: new Date().toISOString(),
+        };
+        setInvoices((prev) => [newInv, ...prev]);
+      }
     } else {
-      const newEst: StoredEstimateRecord = {
-        id: `est-${Date.now()}`,
-        client_id: docData.clientId,
-        client_name: docData.clientName,
-        estimate_number: `EST-${(estimates.length + 1).toString().padStart(4, '0')}`,
-        subtotal_cents: docData.subtotalCents,
-        tax_cents: docData.taxCents,
-        total_cents: docData.totalCents,
-        status: docData.isDraft ? 'DRAFT' : 'PENDING',
-        issue_date: docData.issueDate,
-        expiry_date: calculateDueDate(docData.issueDate, 'Net 30 Days'),
-        created_at: new Date().toISOString(),
-      };
-      setEstimates((prev) => [newEst, ...prev]);
+      if (docData.existingId) {
+        setEstimates((prev) =>
+          prev.map((e) => {
+            if (e.id !== docData.existingId) return e;
+            let estNum = e.estimate_number;
+            if (!docData.isDraft && estNum.startsWith('DRAFT-')) {
+              const count = prev.filter((x) => !x.estimate_number.startsWith('DRAFT-')).length + 1;
+              estNum = `EST-${count.toString().padStart(4, '0')}`;
+            }
+            return {
+              ...e,
+              client_id: docData.clientId,
+              client_name: docData.clientName,
+              estimate_number: estNum,
+              subtotal_cents: docData.subtotalCents,
+              tax_cents: docData.taxCents,
+              total_cents: docData.totalCents,
+              status: docData.isDraft ? 'DRAFT' : 'PENDING',
+              issue_date: docData.issueDate,
+              expiry_date: calculateDueDate(docData.issueDate, 'Net 30 Days'),
+            };
+          })
+        );
+      } else {
+        const estNumber = docData.isDraft
+          ? `DRAFT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+          : `EST-${(estimates.filter((x) => !x.estimate_number.startsWith('DRAFT-')).length + 1).toString().padStart(4, '0')}`;
+        const newEst: StoredEstimateRecord = {
+          id: `est-${Date.now()}`,
+          client_id: docData.clientId,
+          client_name: docData.clientName,
+          estimate_number: estNumber,
+          subtotal_cents: docData.subtotalCents,
+          tax_cents: docData.taxCents,
+          total_cents: docData.totalCents,
+          status: docData.isDraft ? 'DRAFT' : 'PENDING',
+          issue_date: docData.issueDate,
+          expiry_date: calculateDueDate(docData.issueDate, 'Net 30 Days'),
+          created_at: new Date().toISOString(),
+        };
+        setEstimates((prev) => [newEst, ...prev]);
+      }
     }
+    setEditingDraftData(null);
     setEditorMode('none');
   };
 
   const handleRecordPayment = (inv: InvoiceRecord) => {
-    const amountStr = prompt(`Record payment for invoice ${inv.invoice_number} (Balance Due: ${formatMoney(inv.balance_due_cents ?? inv.total_cents)}):`, ((inv.balance_due_cents ?? inv.total_cents) / 100).toFixed(2));
-    if (!amountStr) return;
-    const paidCents = parsePriceToCents(amountStr);
-    if (paidCents <= 0) return;
+    setPaymentModalInvoice(inv);
+  };
 
+  const handlePaymentSubmit = (paymentData: any) => {
     setInvoices((prev) =>
       prev.map((i) => {
-        if (i.id !== inv.id) return i;
+        if (i.id !== paymentData.invoiceId) return i;
         const currentPaid = i.paid_cents || 0;
-        const newPaid = currentPaid + paidCents;
+        const newPaid = currentPaid + paymentData.totalCreditCents;
         const newBalance = Math.max(0, i.total_cents - newPaid);
         const newStatus = newBalance === 0 ? 'PAID' : 'PARTIALLY_PAID';
-        return { ...i, paid_cents: newPaid, balance_due_cents: newBalance, status: newStatus, computed_status: newStatus };
+        return {
+          ...i,
+          paid_cents: newPaid,
+          balance_due_cents: newBalance,
+          status: newStatus,
+          computed_status: newStatus,
+        };
       })
     );
   };
@@ -236,6 +318,34 @@ export const App: React.FC = () => {
     if (confirm(`Are you sure you want to delete invoice ${inv.invoice_number}?`)) {
       setInvoices((prev) => prev.filter((i) => i.id !== inv.id));
     }
+  };
+
+  const handleFinalizeInvoice = (inv: InvoiceRecord) => {
+    setInvoices((prev) =>
+      prev.map((i) => {
+        if (i.id !== inv.id) return i;
+        let num = i.invoice_number;
+        if (num.startsWith('DRAFT-')) {
+          const count = prev.filter((x) => !x.invoice_number.startsWith('DRAFT-')).length + 1;
+          num = `INV-${count.toString().padStart(4, '0')}`;
+        }
+        return { ...i, invoice_number: num, status: 'PENDING', computed_status: 'PENDING' };
+      })
+    );
+  };
+
+  const handleFinalizeEstimate = (est: StoredEstimateRecord) => {
+    setEstimates((prev) =>
+      prev.map((e) => {
+        if (e.id !== est.id) return e;
+        let num = e.estimate_number;
+        if (num.startsWith('DRAFT-')) {
+          const count = prev.filter((x) => !x.estimate_number.startsWith('DRAFT-')).length + 1;
+          num = `EST-${count.toString().padStart(4, '0')}`;
+        }
+        return { ...e, estimate_number: num, status: 'PENDING' };
+      })
+    );
   };
 
   const handleConvertEstimate = (est: StoredEstimateRecord) => {
@@ -307,6 +417,11 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteClient = (client: Client) => {
+    const hasInvoices = invoices.some((i) => i.client_id === client.id);
+    if (hasInvoices) {
+      alert(`Cannot delete client "${client.name}" because active invoices exist for this client. Foreign key integrity and statutory accounting rules prevent deleting clients with financial records.`);
+      return;
+    }
     if (confirm(`Delete client "${client.name}"?`)) {
       setClients((prev) => prev.filter((c) => c.id !== client.id));
     }
@@ -470,6 +585,7 @@ export const App: React.FC = () => {
           {editorMode !== 'none' ? (
             <InvoiceEditorScreen
               isQuote={editorMode === 'estimate'}
+              initialData={editingDraftData}
               isDarkMode={isDarkMode}
               businessProfile={businessProfile}
               clients={clients}
@@ -478,7 +594,10 @@ export const App: React.FC = () => {
               formatMoney={formatMoney}
               parsePriceToCents={parsePriceToCents}
               onSave={handleSaveDocFromEditor}
-              onCancel={() => setEditorMode('none')}
+              onCancel={() => {
+                setEditingDraftData(null);
+                setEditorMode('none');
+              }}
               onAddClientModal={(cData) => handleAddClient(cData)}
             />
           ) : activeTab === 0 ? (
@@ -505,6 +624,10 @@ export const App: React.FC = () => {
               onDeleteInvoice={handleDeleteInvoice}
               onConvertEstimate={handleConvertEstimate}
               onDeleteEstimate={handleDeleteEstimate}
+              onEditInvoiceDraft={handleEditInvoiceDraft}
+              onEditEstimateDraft={handleEditEstimateDraft}
+              onFinalizeInvoice={handleFinalizeInvoice}
+              onFinalizeEstimate={handleFinalizeEstimate}
             />
           ) : activeTab === 2 ? (
             <ExpensesTab
@@ -609,6 +732,20 @@ export const App: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Rich Payment Modal */}
+      {paymentModalInvoice && (
+        <RecordPaymentModal
+          invoice={paymentModalInvoice}
+          isOpen={!!paymentModalInvoice}
+          isDarkMode={isDarkMode}
+          currencySymbol={sym}
+          formatMoney={formatMoney}
+          parsePriceToCents={parsePriceToCents}
+          onClose={() => setPaymentModalInvoice(null)}
+          onSubmit={handlePaymentSubmit}
+        />
       )}
     </div>
   );
