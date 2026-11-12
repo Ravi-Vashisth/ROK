@@ -46,7 +46,7 @@ class MoreTab extends StatelessWidget {
         ListTile(
           leading: const CircleAvatar(
             backgroundColor: Color(0xFFECFDF5),
-            child: Icon(Icons.file_spreadsheet_outlined, color: Colors.emerald, size: 20),
+            child: Icon(Icons.table_chart_outlined, color: Color(0xFF10B981), size: 20),
           ),
           title: const Text('Reports & Export CSV', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
           subtitle: const Text('Single-table accountant CSV export for Invoices and Expenses', style: TextStyle(fontSize: 11)),

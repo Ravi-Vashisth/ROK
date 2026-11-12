@@ -1,0 +1,415 @@
+﻿2026-11-12T05:19:09.3929530Z Current runner version: '2.338.2'
+2026-11-12T05:19:09.3944770Z ##[group]Runner Image Provisioner
+2026-11-12T05:19:09.3945480Z Hosted Compute Agent
+2026-11-12T05:19:09.3945860Z Version: 20261028.624
+2026-11-12T05:19:09.3946270Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-12T05:19:09.3946730Z Build Date: 2026-10-28T21:51:42Z
+2026-11-12T05:19:09.3947170Z Worker ID: {ce4936d6-8966-454e-8ab8-c2a60bd297e4}
+2026-11-12T05:19:09.3947610Z Region: westus
+2026-11-12T05:19:09.3947950Z Cloud: MacCloud
+2026-11-12T05:19:09.3948300Z ##[endgroup]
+2026-11-12T05:19:09.3949150Z ##[group]Operating System
+2026-11-12T05:19:09.3949530Z macOS
+2026-11-12T05:19:09.3949840Z 26.7.2
+2026-11-12T05:19:09.3950160Z 25G332
+2026-11-12T05:19:09.3950480Z ##[endgroup]
+2026-11-12T05:19:09.3950830Z ##[group]Runner Image
+2026-11-12T05:19:09.3951220Z Image: macos-26-arm64
+2026-11-12T05:19:09.3951610Z Version: 20261102.0473.1
+2026-11-12T05:19:09.3952440Z Included Software: https://github.com/actions/runner-images/blob/macos-26-arm64/20261102.0473/images/macos/macos-26-arm64-Readme.md
+2026-11-12T05:19:09.3953480Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-26-arm64%2F20261102.0473
+2026-11-12T05:19:09.3954150Z ##[endgroup]
+2026-11-12T05:19:09.3954890Z ##[group]GITHUB_TOKEN Permissions
+2026-11-12T05:19:09.3955990Z Contents: write
+2026-11-12T05:19:09.3956370Z Metadata: read
+2026-11-12T05:19:09.3956730Z ##[endgroup]
+2026-11-12T05:19:09.3958350Z Secret source: Actions
+2026-11-12T05:19:09.3958920Z Cache mode: write
+2026-11-12T05:19:09.3959360Z Prepare workflow directory
+2026-11-12T05:19:09.4275180Z Prepare all required actions
+2026-11-12T05:19:09.4310160Z Getting action download info
+2026-11-12T05:19:09.7037760Z Download action repository 'actions/checkout@v4.2.2' (SHA:11bd71901bbe5b1630ceea73d27597364c9af683)
+2026-11-12T05:19:10.0635990Z Download action repository 'subosito/flutter-action@v2.18.0' (SHA:f2c4f6686ca8e8d6e6d0f28410eeef506ed66aff)
+2026-11-12T05:19:10.4858310Z Download action repository 'actions/upload-artifact@v4.4.3' (SHA:b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882)
+2026-11-12T05:19:10.6916240Z Getting action download info
+2026-11-12T05:19:10.7825660Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-11-12T05:19:10.9729540Z Complete job name: Build iOS (Simulator / Unsigned)
+2026-11-12T05:19:11.0551090Z ##[group]Run actions/checkout@v4.2.2
+2026-11-12T05:19:11.0551930Z with:
+2026-11-12T05:19:11.0552400Z   repository: Ravi-Vashisth/ROK
+2026-11-12T05:19:11.0558310Z   token: ***
+2026-11-12T05:19:11.0558760Z   ssh-strict: true
+2026-11-12T05:19:11.0559230Z   ssh-user: git
+2026-11-12T05:19:11.0559710Z   persist-credentials: true
+2026-11-12T05:19:11.0560230Z   clean: true
+2026-11-12T05:19:11.0560700Z   sparse-checkout-cone-mode: true
+2026-11-12T05:19:11.0561260Z   fetch-depth: 1
+2026-11-12T05:19:11.0561720Z   fetch-tags: false
+2026-11-12T05:19:11.0562190Z   show-progress: true
+2026-11-12T05:19:11.0562670Z   lfs: false
+2026-11-12T05:19:11.0563120Z   submodules: false
+2026-11-12T05:19:11.0563740Z   set-safe-directory: true
+2026-11-12T05:19:11.0564680Z ##[endgroup]
+2026-11-12T05:19:11.6648750Z Syncing repository: Ravi-Vashisth/ROK
+2026-11-12T05:19:11.6651040Z ##[group]Getting Git version info
+2026-11-12T05:19:11.6652010Z Working directory is '/Users/runner/work/ROK/ROK'
+2026-11-12T05:19:11.6653560Z [command]/opt/homebrew/bin/git version
+2026-11-12T05:19:11.7306340Z git version 2.56.0
+2026-11-12T05:19:11.7331470Z ##[endgroup]
+2026-11-12T05:19:11.7348860Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/b435ca76-ba6e-4f8d-8cec-5e6d8bff39e3/.gitconfig'
+2026-11-12T05:19:11.7367100Z Temporarily overriding HOME='/Users/runner/work/_temp/b435ca76-ba6e-4f8d-8cec-5e6d8bff39e3' before making global git config changes
+2026-11-12T05:19:11.7372500Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-12T05:19:11.7374310Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/ROK/ROK
+2026-11-12T05:19:11.7572870Z Deleting the contents of '/Users/runner/work/ROK/ROK'
+2026-11-12T05:19:11.7585720Z ##[group]Initializing the repository
+2026-11-12T05:19:11.7592240Z [command]/opt/homebrew/bin/git init /Users/runner/work/ROK/ROK
+2026-11-12T05:19:11.8175780Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-12T05:19:11.8177380Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-12T05:19:11.8178730Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-12T05:19:11.8179810Z hint: call:
+2026-11-12T05:19:11.8185190Z hint:
+2026-11-12T05:19:11.8186070Z hint: 	git config --global init.defaultBranch <name>
+2026-11-12T05:19:11.8188280Z hint:
+2026-11-12T05:19:11.8189270Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-12T05:19:11.8190530Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-12T05:19:11.8211810Z hint:
+2026-11-12T05:19:11.8212710Z hint: 	git branch -m <name>
+2026-11-12T05:19:11.8213380Z hint:
+2026-11-12T05:19:11.8214150Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-12T05:19:11.8218920Z Initialized empty Git repository in /Users/runner/work/ROK/ROK/.git/
+2026-11-12T05:19:11.8229280Z [command]/opt/homebrew/bin/git remote add origin https://github.com/Ravi-Vashisth/ROK
+2026-11-12T05:19:11.8348100Z ##[endgroup]
+2026-11-12T05:19:11.8349150Z ##[group]Disabling automatic garbage collection
+2026-11-12T05:19:11.8357450Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2026-11-12T05:19:11.8447820Z ##[endgroup]
+2026-11-12T05:19:11.8452290Z ##[group]Setting up auth
+2026-11-12T05:19:11.8453840Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-12T05:19:11.8558520Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-12T05:19:12.0381690Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-12T05:19:12.0465070Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-12T05:19:12.2071570Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-12T05:19:12.2488960Z ##[endgroup]
+2026-11-12T05:19:12.2588940Z ##[group]Fetching the repository
+2026-11-12T05:19:12.2597820Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +edf1bbdc2e93a3c3b812bc6b8de712aa4b79e6a3:refs/remotes/origin/main
+2026-11-12T05:19:12.9578650Z From https://github.com/Ravi-Vashisth/ROK
+2026-11-12T05:19:12.9582000Z  * [new ref]         edf1bbdc2e93a3c3b812bc6b8de712aa4b79e6a3 -> origin/main
+2026-11-12T05:19:12.9587970Z ##[endgroup]
+2026-11-12T05:19:12.9589010Z ##[group]Determining the checkout info
+2026-11-12T05:19:12.9589940Z ##[endgroup]
+2026-11-12T05:19:12.9590720Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2026-11-12T05:19:12.9696970Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-12T05:19:12.9786600Z ##[group]Checking out the ref
+2026-11-12T05:19:12.9790260Z [command]/opt/homebrew/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-12T05:19:13.1162310Z Switched to a new branch 'main'
+2026-11-12T05:19:13.1265800Z branch 'main' set up to track 'origin/main'.
+2026-11-12T05:19:13.1522490Z ##[endgroup]
+2026-11-12T05:19:13.1751710Z [command]/opt/homebrew/bin/git log -1 --format=%H
+2026-11-12T05:19:13.1802230Z edf1bbdc2e93a3c3b812bc6b8de712aa4b79e6a3
+2026-11-12T05:19:13.2256830Z ##[group]Run subosito/flutter-action@v2.18.0
+2026-11-12T05:19:13.2257410Z with:
+2026-11-12T05:19:13.2257930Z   channel: stable
+2026-11-12T05:19:13.2258570Z   cache: true
+2026-11-12T05:19:13.2258920Z   architecture: ARM64
+2026-11-12T05:19:13.2259310Z   pub-cache-path: default
+2026-11-12T05:19:13.2259690Z   dry-run: false
+2026-11-12T05:19:13.2260120Z   git-source: https://github.com/flutter/flutter.git
+2026-11-12T05:19:13.2260600Z ##[endgroup]
+2026-11-12T05:19:13.2330210Z ##[start-action display=Make yq tool available on Windows runners;id=__subosito_flutter-action.__run]
+2026-11-12T05:19:13.2348250Z ##[end-action id=__subosito_flutter-action.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-12T05:19:13.2351720Z ##[start-action display=Make setup script executable;id=__subosito_flutter-action.__run_2]
+2026-11-12T05:19:13.2415690Z ##[group]Run chmod +x "$GITHUB_ACTION_PATH/setup.sh"
+2026-11-12T05:19:13.2417260Z [36;1mchmod +x "$GITHUB_ACTION_PATH/setup.sh"[0m
+2026-11-12T05:19:13.2560920Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-12T05:19:13.2561590Z ##[endgroup]
+2026-11-12T05:19:13.3261040Z ##[end-action id=__subosito_flutter-action.__run_2;outcome=success;conclusion=success;duration_ms=90]
+2026-11-12T05:19:13.3273600Z ##[start-action display=Set action inputs;id=__subosito_flutter-action.flutter-action]
+2026-11-12T05:19:13.3396000Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh -p \
+2026-11-12T05:19:13.3397480Z [36;1m$GITHUB_ACTION_PATH/setup.sh -p \[0m
+2026-11-12T05:19:13.3398690Z [36;1m  -n '' \[0m
+2026-11-12T05:19:13.3399800Z [36;1m  -f '' \[0m
+2026-11-12T05:19:13.3400950Z [36;1m  -a 'ARM64' \[0m
+2026-11-12T05:19:13.3401400Z [36;1m  -k '' \[0m
+2026-11-12T05:19:13.3401750Z [36;1m  -c '' \[0m
+2026-11-12T05:19:13.3402110Z [36;1m  -l '' \[0m
+2026-11-12T05:19:13.3402470Z [36;1m  -d 'default' \[0m
+2026-11-12T05:19:13.3403010Z [36;1m  -g 'https://github.com/flutter/flutter.git' \[0m
+2026-11-12T05:19:13.3403480Z [36;1m  stable[0m
+2026-11-12T05:19:13.3450540Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-12T05:19:13.3452710Z ##[endgroup]
+2026-11-12T05:19:13.9279270Z ##[end-action id=__subosito_flutter-action.flutter-action;outcome=success;conclusion=success;duration_ms=600]
+2026-11-12T05:19:13.9339600Z ##[start-action display=Cache Flutter;id=__subosito_flutter-action.__actions_cache]
+2026-11-12T05:19:13.9805640Z ##[group]Run actions/cache@v4
+2026-11-12T05:19:13.9806100Z with:
+2026-11-12T05:19:13.9806660Z   path: /Users/runner/hostedtoolcache/flutter/stable-3.50.0-arm64
+2026-11-12T05:19:13.9808700Z   key: flutter-macos-stable-3.50.0-arm64-ab2912035e160d9cad6306df307576da6128ebdb
+2026-11-12T05:19:13.9811770Z   restore-keys: flutter-macos-stable-3.50.0-arm64-ab2912035e160d9cad6306df307576da6128ebdb
+
+2026-11-12T05:19:13.9813530Z   enableCrossOsArchive: false
+2026-11-12T05:19:13.9814640Z   fail-on-cache-miss: false
+2026-11-12T05:19:13.9815680Z   lookup-only: false
+2026-11-12T05:19:13.9816670Z   save-always: false
+2026-11-12T05:19:13.9817790Z ##[endgroup]
+2026-11-12T05:19:14.1821550Z (node:3466) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-12T05:19:14.1931180Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-12T05:19:14.4425530Z Cache not found for input keys: flutter-macos-stable-3.50.0-arm64-ab2912035e160d9cad6306df307576da6128ebdb, flutter-macos-stable-3.50.0-arm64-ab2912035e160d9cad6306df307576da6128ebdb
+2026-11-12T05:19:14.4463750Z ##[end-action id=__subosito_flutter-action.__actions_cache;outcome=success;conclusion=success;duration_ms=512]
+2026-11-12T05:19:14.4513060Z ##[start-action display=Cache pub dependencies;id=__subosito_flutter-action.__actions_cache_2]
+2026-11-12T05:19:14.7132770Z ##[group]Run actions/cache@v4
+2026-11-12T05:19:14.7133130Z with:
+2026-11-12T05:19:14.7133350Z   path: /Users/runner/.pub-cache
+2026-11-12T05:19:14.7134460Z   key: flutter-pub-macos-stable-3.50.0-arm64-ab2912035e160d9cad6306df307576da6128ebdb-
+2026-11-12T05:19:14.7135360Z   restore-keys: flutter-pub-macos-stable-3.50.0-arm64-ab2912035e160d9cad6306df307576da6128ebdb-
+flutter-pub-macos-stable-3.50.0-arm64-ab2912035e160d9cad6306df307576da6128ebdb
+
+2026-11-12T05:19:14.7136270Z   enableCrossOsArchive: false
+2026-11-12T05:19:14.7136490Z   fail-on-cache-miss: false
+2026-11-12T05:19:14.7136670Z   lookup-only: false
+2026-11-12T05:19:14.7136860Z   save-always: false
+2026-11-12T05:19:14.7137040Z ##[endgroup]
+2026-11-12T05:19:14.9005260Z (node:3496) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-12T05:19:14.9107140Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-12T05:19:15.0470040Z Cache not found for input keys: flutter-pub-macos-stable-3.50.0-arm64-ab2912035e160d9cad6306df307576da6128ebdb-, flutter-pub-macos-stable-3.50.0-arm64-ab2912035e160d9cad6306df307576da6128ebdb-, flutter-pub-macos-stable-3.50.0-arm64-ab2912035e160d9cad6306df307576da6128ebdb
+2026-11-12T05:19:15.0500840Z ##[end-action id=__subosito_flutter-action.__actions_cache_2;outcome=success;conclusion=success;duration_ms=598]
+2026-11-12T05:19:15.0503100Z ##[start-action display=Run setup script;id=__subosito_flutter-action.__run_3]
+2026-11-12T05:19:15.0542820Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh \
+2026-11-12T05:19:15.0543150Z [36;1m$GITHUB_ACTION_PATH/setup.sh \[0m
+2026-11-12T05:19:15.0543370Z [36;1m  -n '3.50.0' \[0m
+2026-11-12T05:19:15.0543570Z [36;1m  -a 'arm64' \[0m
+2026-11-12T05:19:15.0543850Z [36;1m  -c '/Users/runner/hostedtoolcache/flutter/stable-3.50.0-arm64' \[0m
+2026-11-12T05:19:15.0544170Z [36;1m  stable[0m
+2026-11-12T05:19:15.0578290Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-12T05:19:15.0578590Z ##[endgroup]
+2026-11-12T05:19:15.4974510Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+2026-11-12T05:19:15.5018950Z                                  Dload  Upload   Total   Spent    Left  Speed
+2026-11-12T05:19:15.5046010Z 
+2026-11-12T05:19:16.4119150Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+2026-11-12T05:19:17.4144530Z   2 2045M    2 48.5M    0     0  52.9M      0  0:00:38 --:--:--  0:00:38 52.9M
+2026-11-12T05:19:18.4123500Z   5 2045M    5  119M    0     0  62.1M      0  0:00:32  0:00:01  0:00:31 62.1M
+2026-11-12T05:19:19.4123010Z   9 2045M    9  190M    0     0  65.3M      0  0:00:31  0:00:02  0:00:29 65.3M
+2026-11-12T05:19:20.4120900Z  13 2045M   13  269M    0     0  68.7M      0  0:00:29  0:00:03  0:00:26 68.7M
+2026-11-12T05:19:21.4121340Z  17 2045M   17  352M    0     0  71.7M      0  0:00:28  0:00:04  0:00:24 71.7M
+2026-11-12T05:19:22.4119050Z  21 2045M   21  432M    0     0  73.0M      0  0:00:28  0:00:05  0:00:23 76.7M
+2026-11-12T05:19:23.4128160Z  25 2045M   25  520M    0     0  75.2M      0  0:00:27  0:00:06  0:00:21 80.2M
+2026-11-12T05:19:24.4121780Z  29 2045M   29  609M    0     0  76.9M      0  0:00:26  0:00:07  0:00:19 83.7M
+2026-11-12T05:19:25.4137750Z  34 2045M   34  696M    0     0  78.0M      0  0:00:26  0:00:08  0:00:18 85.3M
+2026-11-12T05:19:26.4169220Z  37 2045M   37  772M    0     0  77.9M      0  0:00:26  0:00:09  0:00:17 84.0M
+2026-11-12T05:19:27.4227810Z  41 2045M   41  843M    0     0  77.2M      0  0:00:26  0:00:10  0:00:16 82.3M
+2026-11-12T05:19:28.4125890Z  44 2045M   44  913M    0     0  76.5M      0  0:00:26  0:00:11  0:00:15 78.4M
+2026-11-12T05:19:29.4132060Z  48 2045M   48  982M    0     0  76.0M      0  0:00:26  0:00:12  0:00:14 74.4M
+2026-11-12T05:19:30.4118720Z  50 2045M   50 1041M    0     0  74.8M      0  0:00:27  0:00:13  0:00:14 68.9M
+2026-11-12T05:19:31.4117480Z  53 2045M   53 1093M    0     0  73.3M      0  0:00:27  0:00:14  0:00:13 64.1M
+2026-11-12T05:19:32.4112880Z  57 2045M   57 1183M    0     0  74.3M      0  0:00:27  0:00:15  0:00:12 67.10
+2026-11-12T05:19:33.4119570Z  62 2045M   62 1274M    0     0  75.3M      0  0:00:27  0:00:16  0:00:11 72.3M
+2026-11-12T05:19:34.4171570Z  66 2045M   66 1365M    0     0  76.2M      0  0:00:26  0:00:17  0:00:09 76.6M
+2026-11-12T05:19:35.4117600Z  71 2045M   71 1456M    0     0  76.9M      0  0:00:26  0:00:18  0:00:08 83.0M
+2026-11-12T05:19:36.4124290Z  75 2045M   75 1543M    0     0  77.5M      0  0:00:26  0:00:19  0:00:07 90.0M
+2026-11-12T05:19:37.4121340Z  79 2045M   79 1620M    0     0  77.4M      0  0:00:26  0:00:20  0:00:06 87.3M
+2026-11-12T05:19:38.4133040Z  82 2045M   82 1692M    0     0  77.2M      0  0:00:26  0:00:21  0:00:05 83.6M
+2026-11-12T05:19:39.4123540Z  86 2045M   86 1762M    0     0  76.8M      0  0:00:26  0:00:22  0:00:04 79.3M
+2026-11-12T05:19:40.4124320Z  89 2045M   89 1837M    0     0  76.8M      0  0:00:26  0:00:23  0:00:03 76.1M
+2026-11-12T05:19:41.4125160Z  93 2045M   93 1913M    0     0  76.8M      0  0:00:26  0:00:24  0:00:02 73.10
+2026-11-12T05:19:42.1828640Z  96 2045M   96 1983M    0     0  76.5M      0  0:00:26  0:00:25  0:00:01 72.5M
+2026-11-12T05:19:42.1830540Z 100 2045M  100 2045M    0     0  76.6M      0  0:00:26  0:00:26 --:--:-- 74.0M
+2026-11-12T05:20:27.7102760Z ##[end-action id=__subosito_flutter-action.__run_3;outcome=success;conclusion=success;duration_ms=72659]
+2026-11-12T05:20:27.7243700Z ##[group]Run flutter create --platforms=ios .
+2026-11-12T05:20:27.7244280Z [36;1mflutter create --platforms=ios .[0m
+2026-11-12T05:20:27.7514230Z shell: /bin/bash -e {0}
+2026-11-12T05:20:27.7514860Z env:
+2026-11-12T05:20:27.7515220Z   FLUTTER_ROOT: /Users/runner/hostedtoolcache/flutter/stable-3.50.0-arm64
+2026-11-12T05:20:27.7515760Z   PUB_CACHE: /Users/runner/.pub-cache
+2026-11-12T05:20:27.7516050Z ##[endgroup]
+2026-11-12T05:20:34.2981510Z Recreating project ....
+2026-11-12T05:20:34.3398970Z   ios/Runner.xcworkspace/contents.xcworkspacedata (created)
+2026-11-12T05:20:34.3415710Z   ios/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist (created)
+2026-11-12T05:20:34.3425190Z   ios/Runner.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings (created)
+2026-11-12T05:20:34.3437040Z   ios/RunnerTests/RunnerTests.swift (created)
+2026-11-12T05:20:34.3510820Z   ios/Runner/Info.plist (created)
+2026-11-12T05:20:34.3537550Z   ios/Runner/Runner-Bridging-Header.h (created)
+2026-11-12T05:20:34.3546890Z   ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@2x.png (created)
+2026-11-12T05:20:34.3560490Z   ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md (created)
+2026-11-12T05:20:34.3580030Z   ios/Runner/Assets.xcassets/LaunchImage.imageset/Contents.json (created)
+2026-11-12T05:20:34.3615550Z   ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@3x.png (created)
+2026-11-12T05:20:34.3619720Z   ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png (created)
+2026-11-12T05:20:34.3638520Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png (created)
+2026-11-12T05:20:34.3655320Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png (created)
+2026-11-12T05:20:34.3681200Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png (created)
+2026-11-12T05:20:34.3692830Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png (created)
+2026-11-12T05:20:34.3707400Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png (created)
+2026-11-12T05:20:34.3719170Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png (created)
+2026-11-12T05:20:34.3733610Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png (created)
+2026-11-12T05:20:34.3745270Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png (created)
+2026-11-12T05:20:34.3749670Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png (created)
+2026-11-12T05:20:34.3780480Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json (created)
+2026-11-12T05:20:34.3794670Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png (created)
+2026-11-12T05:20:34.3807520Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png (created)
+2026-11-12T05:20:34.3821770Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png (created)
+2026-11-12T05:20:34.3834360Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png (created)
+2026-11-12T05:20:34.3847120Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png (created)
+2026-11-12T05:20:34.3858830Z   ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png (created)
+2026-11-12T05:20:34.3921060Z   ios/Runner/Base.lproj/LaunchScreen.storyboard (created)
+2026-11-12T05:20:34.3932790Z   ios/Runner/Base.lproj/Main.storyboard (created)
+2026-11-12T05:20:34.3933980Z   ios/Runner/AppDelegate.swift (created)
+2026-11-12T05:20:34.3934800Z   ios/Runner/SceneDelegate.swift (created)
+2026-11-12T05:20:34.3935400Z   ios/Runner.xcodeproj/project.xcworkspace/contents.xcworkspacedata (created)
+2026-11-12T05:20:34.3939600Z   ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist (created)
+2026-11-12T05:20:34.3947400Z   ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings (created)
+2026-11-12T05:20:34.3955790Z   ios/Runner.xcodeproj/project.pbxproj (created)
+2026-11-12T05:20:34.4023200Z   ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme (created)
+2026-11-12T05:20:34.4042230Z   ios/Flutter/Debug.xcconfig (created)
+2026-11-12T05:20:34.4048600Z   ios/Flutter/Release.xcconfig (created)
+2026-11-12T05:20:34.4056180Z   ios/Flutter/AppFrameworkInfo.plist (created)
+2026-11-12T05:20:34.4062930Z   ios/.gitignore (created)
+2026-11-12T05:20:34.4068850Z   billing_app.iml (created)
+2026-11-12T05:20:34.4077390Z   README.md (created)
+2026-11-12T05:20:34.4085510Z   analysis_options.yaml (created)
+2026-11-12T05:20:34.4100420Z   .idea/runConfigurations/main_dart.xml (created)
+2026-11-12T05:20:34.4109170Z   .idea/libraries/Dart_SDK.xml (created)
+2026-11-12T05:20:34.4124250Z   .idea/libraries/KotlinJavaRuntime.xml (created)
+2026-11-12T05:20:34.4130140Z   .idea/modules.xml (created)
+2026-11-12T05:20:34.4136390Z   .idea/workspace.xml (created)
+2026-11-12T05:20:34.4147810Z   test/widget_test.dart (created)
+2026-11-12T05:20:39.0539510Z Got dependencies.
+2026-11-12T05:20:40.0076730Z Wrote 49 files.
+2026-11-12T05:20:40.0177010Z 
+2026-11-12T05:20:40.0233260Z All done!
+2026-11-12T05:20:40.0241530Z You can find general documentation for Flutter at: https://docs.flutter.dev/
+2026-11-12T05:20:40.0242590Z Detailed API documentation is available at: https://api.flutter.dev/
+2026-11-12T05:20:40.0244290Z If you prefer video documentation, consider: https://www.youtube.com/c/flutterdev
+2026-11-12T05:20:40.0244750Z 
+2026-11-12T05:20:40.0245270Z In order to run your application, type:
+2026-11-12T05:20:40.0245670Z 
+2026-11-12T05:20:40.0246090Z   $ flutter run
+2026-11-12T05:20:40.0246250Z 
+2026-11-12T05:20:40.0246530Z Your application code is in ./lib/main.dart.
+2026-11-12T05:20:40.0246860Z 
+2026-11-12T05:20:40.0330940Z ##[group]Run flutter pub get
+2026-11-12T05:20:40.0331510Z [36;1mflutter pub get[0m
+2026-11-12T05:20:40.0401620Z shell: /bin/bash -e {0}
+2026-11-12T05:20:40.0403760Z env:
+2026-11-12T05:20:40.0404690Z   FLUTTER_ROOT: /Users/runner/hostedtoolcache/flutter/stable-3.50.0-arm64
+2026-11-12T05:20:40.0406080Z   PUB_CACHE: /Users/runner/.pub-cache
+2026-11-12T05:20:40.0407430Z ##[endgroup]
+2026-11-12T05:20:41.0346330Z Resolving dependencies...
+2026-11-12T05:20:41.2581690Z Downloading packages...
+2026-11-12T05:20:41.2696260Z   cross_file 0.3.5+5 (0.4.0 available)
+2026-11-12T05:20:41.2803060Z   file_picker 8.3.7 (13.3.3 available)
+2026-11-12T05:20:41.2904730Z   flutter_lints 4.0.0 (6.0.0 available)
+2026-11-12T05:20:41.3022900Z   flutter_riverpod 2.6.1 (3.5.0 available)
+2026-11-12T05:20:41.3128940Z   intl 0.19.0 (0.20.3 available)
+2026-11-12T05:20:41.3233010Z   lints 4.0.0 (6.1.0 available)
+2026-11-12T05:20:41.3334120Z   material_color_utilities 0.13.0 (0.13.1 available)
+2026-11-12T05:20:41.3438510Z   qr 3.0.3 (4.0.1 available)
+2026-11-12T05:20:41.3553130Z   riverpod 2.6.1 (3.5.0 available)
+2026-11-12T05:20:41.3654630Z   sqlite3 2.9.4 (3.9.1 available)
+2026-11-12T05:20:41.3764290Z   sqlite3_flutter_libs 0.5.42 (0.6.0+eol available)
+2026-11-12T05:20:41.3872500Z   test_api 0.7.14 (0.7.15 available)
+2026-11-12T05:20:41.3973960Z   vector_math 2.4.3 (2.4.4 available)
+2026-11-12T05:20:41.4094220Z   win32 5.15.0 (6.4.0 available)
+2026-11-12T05:20:41.4201980Z Got dependencies!
+2026-11-12T05:20:41.4317420Z 14 packages have newer versions incompatible with dependency constraints.
+2026-11-12T05:20:41.4318010Z Try `flutter pub outdated` for more information.
+2026-11-12T05:20:41.7680180Z ##[group]Run flutter test test/financial_math_test.dart
+2026-11-12T05:20:41.7680630Z [36;1mflutter test test/financial_math_test.dart[0m
+2026-11-12T05:20:41.7739730Z shell: /bin/bash -e {0}
+2026-11-12T05:20:41.7739960Z env:
+2026-11-12T05:20:41.7740250Z   FLUTTER_ROOT: /Users/runner/hostedtoolcache/flutter/stable-3.50.0-arm64
+2026-11-12T05:20:41.7740580Z   PUB_CACHE: /Users/runner/.pub-cache
+2026-11-12T05:20:41.7740800Z ##[endgroup]
+2026-11-12T05:20:59.2529290Z 
+2026-11-12T05:21:09.8923740Z ##[group]✅ Passing tests
+2026-11-12T05:21:09.8925400Z ✅ Group 1: MoneyUtils & Integer Cents Math parsePriceToCents converts string prices into exact integer cents without float imprecision
+2026-11-12T05:21:09.9175040Z ✅ Group 1: MoneyUtils & Integer Cents Math USD 2-decimal parsing and formatting ($15.50 -> 1550 -> "$15.50")
+2026-11-12T05:21:09.9321630Z ✅ Group 1: MoneyUtils & Integer Cents Math JPY 0-decimal parsing and formatting (¥50000 -> 50000 -> "¥50,000")
+2026-11-12T05:21:09.9343490Z ✅ Group 1: MoneyUtils & Integer Cents Math JPY 0-decimal 10% tax calculation (¥50,000 subtotal @ 10% tax yields exactly ¥5,000 tax)
+2026-11-12T05:21:09.9346920Z ✅ Group 1: MoneyUtils & Integer Cents Math calculateTaxCents applies strict round-half-up integer arithmetic
+2026-11-12T05:21:09.9392360Z ✅ Group 1: MoneyUtils & Integer Cents Math calculateDiscountCents clamps flat discounts to subtotal
+2026-11-12T05:21:09.9427100Z ✅ Group 2: Tax Compliance & International Rules Indian Intra-state CGST + SGST 50/50 split math
+2026-11-12T05:21:09.9429140Z ✅ Group 2: Tax Compliance & International Rules Indian Inter-state IGST calculation
+2026-11-12T05:21:09.9431180Z ✅ Group 2: Tax Compliance & International Rules Export under LUT zero-rating and mandatory statutory notice text
+2026-11-12T05:21:09.9447310Z ✅ Group 2: Tax Compliance & International Rules EU B2B Reverse Charge zero-rating with VAT note
+2026-11-12T05:21:09.9485560Z ✅ Group 3: Database Sequence, Foreign Keys & Disaster Recovery Dynamic sequence offset extraction using prefix.length + 1
+2026-11-12T05:21:09.9536990Z ✅ Group 3: Database Sequence, Foreign Keys & Disaster Recovery Pre-flight backup schema validation throws FormatException on invalid payload
+2026-11-12T05:21:09.9576290Z ✅ Group 3: Database Sequence, Foreign Keys & Disaster Recovery Client deletion is guarded when linked invoices or estimates exist
+2026-11-12T05:21:09.9618400Z ✅ Group 3: Database Sequence, Foreign Keys & Disaster Recovery Void invoices are excluded from client statement of account calculations
+2026-11-12T05:21:09.9677950Z ✅ Group 4: Dynamic Settlement QR & Draft Invoices generateDynamicQrPayload creates valid UPI URL with amount and invoice ref
+2026-11-12T05:21:09.9679310Z ✅ Group 4: Dynamic Settlement QR & Draft Invoices generateDynamicQrPayload formats zero-decimal currencies without fractional cents
+2026-11-12T05:21:09.9820840Z ✅ Group 4: Dynamic Settlement QR & Draft Invoices Draft invoice record returns isDraft true and isOverdue false
+2026-11-12T05:21:10.0212620Z ##[endgroup]
+2026-11-12T05:21:10.0253220Z 
+2026-11-12T05:21:10.0254340Z 🎉 17 tests passed.
+2026-11-12T05:21:10.0960790Z ##[group]Run if [ -n "$IOS_DEV_TEAM" ]; then
+2026-11-12T05:21:10.0963920Z [36;1mif [ -n "$IOS_DEV_TEAM" ]; then[0m
+2026-11-12T05:21:10.0965460Z [36;1m  echo "Building iOS Release for device with Development Team..."[0m
+2026-11-12T05:21:10.0967380Z [36;1m  flutter build ios --release --no-codesign[0m
+2026-11-12T05:21:10.0968530Z [36;1m  ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app billing_app_ios_unsigned.zip[0m
+2026-11-12T05:21:10.0970030Z [36;1melse[0m
+2026-11-12T05:21:10.0971360Z [36;1m  echo "No Development Team secret found; compiling iOS Simulator build (no codesigning required)..."[0m
+2026-11-12T05:21:10.0971830Z [36;1m  flutter build ios --simulator[0m
+2026-11-12T05:21:10.0986730Z [36;1m  ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app billing_app_ios_unsigned.zip[0m
+2026-11-12T05:21:10.0987860Z [36;1mfi[0m
+2026-11-12T05:21:10.2379680Z shell: /bin/bash -e {0}
+2026-11-12T05:21:10.2380450Z env:
+2026-11-12T05:21:10.2381580Z   FLUTTER_ROOT: /Users/runner/hostedtoolcache/flutter/stable-3.50.0-arm64
+2026-11-12T05:21:10.2382600Z   PUB_CACHE: /Users/runner/.pub-cache
+2026-11-12T05:21:10.2383390Z   IOS_DEV_TEAM: 
+2026-11-12T05:21:10.2383930Z ##[endgroup]
+2026-11-12T05:21:10.3431780Z No Development Team secret found; compiling iOS Simulator build (no codesigning required)...
+2026-11-12T05:21:58.2790400Z Xcode is fetching Swift Package Manager dependencies. This may take several minutes...
+2026-11-12T05:22:00.2850960Z   Fetching from https://github.com/zhangao0086/DKImagePickerController...     
+2026-11-12T05:22:03.0870990Z   Fetching from https://github.com/simolus3/CSQLite.git...      
+2026-11-12T05:22:04.1171150Z   Fetching from https://github.com/zhangao0086/DKCamera...      
+2026-11-12T05:22:05.5024820Z   Fetching from https://github.com/zhangao0086/DKPhotoGallery...     
+2026-11-12T05:22:11.0316240Z   Fetching from https://github.com/SDWebImage/SDWebImage...     
+2026-11-12T05:22:11.0471310Z   Fetching from https://github.com/kirualex/SwiftyGif.git...     
+2026-11-12T05:22:17.5474390Z   Fetching from https://github.com/TimOliver/TOCropViewController...     
+2026-11-12T05:22:23.5865560Z Building com.example.billingApp for simulator (ios)...
+2026-11-12T05:24:16.2048590Z Running Xcode build...                                          
+2026-11-12T05:24:16.2092810Z Xcode build done.                                           110.2s
+2026-11-12T05:24:17.5127310Z Failed to build iOS app
+2026-11-12T05:24:17.5218750Z Error output from Xcode build:
+2026-11-12T05:24:17.5233870Z ↳
+2026-11-12T05:24:17.5235240Z     ** BUILD FAILED **
+2026-11-12T05:24:17.5235430Z 
+2026-11-12T05:24:17.5235430Z 
+2026-11-12T05:24:17.5236110Z Xcode's output:
+2026-11-12T05:24:17.5237590Z ↳
+2026-11-12T05:24:17.5238270Z     Writing result bundle at path:
+2026-11-12T05:24:17.5239150Z     	/var/folders/h5/t85nd63d71x27_8gl5gw3l_w0000gn/T/flutter_tools.fAibsZ/flutter_ios_build_temp_dirrjwgdM/temporary_xcresult_bundle
+2026-11-12T05:24:17.5239730Z 
+2026-11-12T05:24:17.5240190Z     lib/features/billing/presentation/more_tab.dart:49:31: Error: Member not found: 'file_spreadsheet_outlined'.
+2026-11-12T05:24:17.5241100Z                 child: Icon(Icons.file_spreadsheet_outlined, color: Colors.emerald, size: 20),
+2026-11-12T05:24:17.5241710Z                                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-12T05:24:17.5242560Z     lib/features/billing/presentation/more_tab.dart:49:72: Error: Member not found: 'emerald'.
+2026-11-12T05:24:17.5243430Z                 child: Icon(Icons.file_spreadsheet_outlined, color: Colors.emerald, size: 20),
+2026-11-12T05:24:17.5244020Z                                                                            ^^^^^^^
+2026-11-12T05:24:17.5244840Z     Target kernel_snapshot_program failed: Exception
+2026-11-12T05:24:17.5245290Z     Failed to package /Users/runner/work/ROK/ROK.
+2026-11-12T05:24:17.5246050Z     Command PhaseScriptExecution failed with a nonzero exit code
+2026-11-12T05:24:17.5252340Z     note: Run script build phase 'Run Script' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+2026-11-12T05:24:17.5254020Z     note: Run script build phase 'Thin Binary' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+2026-11-12T05:24:17.5254910Z 
+2026-11-12T05:24:17.5315370Z Encountered error while building for simulator.
+2026-11-12T05:24:17.5478190Z ##[error]Process completed with exit code 1.
+2026-11-12T05:24:17.5964200Z Post job cleanup.
+2026-11-12T05:24:17.5974480Z ##[start-action display=Cache pub dependencies;id=__59d88bfe-d455-4755-9462-e58adb0a4077.__actions_cache_2]
+2026-11-12T05:24:17.5986640Z ##[end-action id=__59d88bfe-d455-4755-9462-e58adb0a4077.__actions_cache_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-12T05:24:17.5989360Z ##[start-action display=Cache Flutter;id=__59d88bfe-d455-4755-9462-e58adb0a4077.__actions_cache]
+2026-11-12T05:24:17.6062290Z ##[end-action id=__59d88bfe-d455-4755-9462-e58adb0a4077.__actions_cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-12T05:24:17.6197670Z Post job cleanup.
+2026-11-12T05:24:18.1766360Z [command]/opt/homebrew/bin/git version
+2026-11-12T05:24:18.2351780Z git version 2.56.0
+2026-11-12T05:24:18.2390350Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/706eab1b-3b04-4331-87d2-615518b60350/.gitconfig'
+2026-11-12T05:24:18.2401650Z Temporarily overriding HOME='/Users/runner/work/_temp/706eab1b-3b04-4331-87d2-615518b60350' before making global git config changes
+2026-11-12T05:24:18.2402570Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-12T05:24:18.2410770Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/ROK/ROK
+2026-11-12T05:24:18.2585520Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-12T05:24:18.2689790Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-12T05:24:18.4302060Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-12T05:24:18.4397420Z http.https://github.com/.extraheader
+2026-11-12T05:24:18.4410140Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-12T05:24:18.4505470Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-12T05:24:18.5900590Z Cleaning up orphan processes
+2026-11-12T05:24:18.8654000Z Terminate orphan process: pid (8970) (ibtoold)
+2026-11-12T05:24:18.9240920Z Terminate orphan process: pid (8967) (ibtoold)
+2026-11-12T05:24:18.9977390Z Terminate orphan process: pid (8958) (ibtoold)
+2026-11-12T05:24:20.1863450Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, actions/checkout@v4.2.2. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
