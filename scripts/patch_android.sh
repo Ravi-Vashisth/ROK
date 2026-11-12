@@ -55,13 +55,13 @@ android {
 EOF
 fi
 
-# 4. Force all subprojects (like file_picker, url_launcher_android) to use compileSdkVersion 36 and disable lintVital tasks
+# 4. Force all subprojects (like file_picker, url_launcher_android) to use compileSdkVersion 36 and disable lintVital tasks safely
 if [ -f "android/build.gradle" ]; then
   cat << 'EOF' >> android/build.gradle
 
 allprojects {
     tasks.configureEach { task ->
-        if (task.name.contains("lintVital") || task.name.contains("LintVital")) {
+        if (task.name.toLowerCase().contains("lintvital")) {
             task.enabled = false
         }
     }
@@ -94,27 +94,21 @@ if [ -f "android/build.gradle.kts" ]; then
   cat << 'EOF' >> android/build.gradle.kts
 
 allprojects {
-    tasks.configureEach { task ->
-        if (task.name.contains("lintVital") || task.name.contains("LintVital")) {
-            task.enabled = false
+    tasks.configureEach {
+        if (name.contains("lintVital", ignoreCase = true)) {
+            enabled = false
         }
     }
 }
 
 subprojects {
-    val configProject: Project.() -> Unit = {
-        val android = extensions.findByName("android") as? com.android.build.gradle.BaseExtension
-        android?.compileSdkVersion(36)
-        android?.lintOptions {
-            isCheckReleaseBuilds = false
-            isAbortOnError = false
-        }
-    }
-    if (state.executed) {
-        configProject()
-    } else {
-        afterEvaluate {
-            configProject()
+    afterEvaluate {
+        val androidExt = extensions.findByName("android")
+        if (androidExt != null) {
+            try {
+                val method = androidExt.javaClass.getMethod("compileSdkVersion", Int::class.javaPrimitiveType)
+                method.invoke(androidExt, 36)
+            } catch (_: Exception) {}
         }
     }
 }
