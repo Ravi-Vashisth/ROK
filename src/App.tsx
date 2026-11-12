@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   ReceiptText,
   Wallet,
-  Users,
   Settings,
-  MoreHorizontal,
   Sun,
   Moon,
   Download,
@@ -21,9 +19,7 @@ import { DashboardTab } from './components/dashboard/DashboardTab';
 import { SalesTab } from './components/billing/SalesTab';
 import { InvoiceEditorScreen } from './components/invoices/InvoiceEditorScreen';
 import { ExpensesTab } from './components/expenses/ExpensesTab';
-import { ClientsTab } from './components/clients/ClientsTab';
 import { SettingsTab } from './components/settings/SettingsTab';
-import { MoreTab } from './components/more/MoreTab';
 import { BusinessProfileDialog } from './components/business_profile/BusinessProfileDialog';
 import { RecordPaymentModal } from './components/payments/RecordPaymentModal';
 
@@ -95,11 +91,11 @@ export const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [accentColor, setAccentColor] = useState<string>('indigo');
 
-  // Active Tab: 0 = Dashboard, 1 = Sales, 2 = Expenses, 3 = Clients, 4 = Settings
+  // Active Primary Tab: 0 = Dashboard, 1 = Sales & Clients, 2 = Expenses, 3 = Settings
   const [activeTab, setActiveTab] = useState<number>(0);
+  const [salesSubTab, setSalesSubTab] = useState<number>(0); // 0=Invoices, 1=Quotes, 2=Clients
 
-  // Sub-navigation state for mobile & settings subtabs
-  const [moreSubScreen, setMoreSubScreen] = useState<'menu' | 'clients' | 'settings'>('menu');
+  // Settings subtab state
   const [settingsSubTab, setSettingsSubTab] = useState<number>(0);
 
   const [editorMode, setEditorMode] = useState<'none' | 'invoice' | 'estimate'>('none');
@@ -167,6 +163,14 @@ export const App: React.FC = () => {
   });
 
   // LocalStorage Sync Effects
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
   useEffect(() => { localStorage.setItem('freelance_clients', JSON.stringify(clients)); }, [clients]);
   useEffect(() => { localStorage.setItem('freelance_invoices', JSON.stringify(invoices)); }, [invoices]);
   useEffect(() => { localStorage.setItem('freelance_estimates', JSON.stringify(estimates)); }, [estimates]);
@@ -185,24 +189,28 @@ export const App: React.FC = () => {
   const handleCreateInvoice = () => {
     setEditingDraftData(null);
     setActiveTab(1);
+    setSalesSubTab(0);
     setEditorMode('invoice');
   };
 
   const handleCreateQuote = () => {
     setEditingDraftData(null);
     setActiveTab(1);
+    setSalesSubTab(1);
     setEditorMode('estimate');
   };
 
   const handleEditInvoiceDraft = (inv: InvoiceRecord) => {
     setEditingDraftData(inv);
     setActiveTab(1);
+    setSalesSubTab(0);
     setEditorMode('invoice');
   };
 
   const handleEditEstimateDraft = (est: StoredEstimateRecord) => {
     setEditingDraftData(est);
     setActiveTab(1);
+    setSalesSubTab(1);
     setEditorMode('estimate');
   };
 
@@ -549,7 +557,7 @@ export const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen font-sans flex antialiased ${isDarkMode ? 'bg-[#0B0F19] text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      {/* 1. MASTER SIDEBAR NAVIGATION (5 First-Class Desktop Tabs) */}
+      {/* 1. MASTER SIDEBAR NAVIGATION (4 First-Class Desktop Tabs) */}
       <aside className={`hidden md:flex flex-col w-[220px] border-r select-none sticky top-0 h-screen shrink-0 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
         <div className={`p-5 border-b flex flex-col items-center text-center gap-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
           <div className={`w-12 h-12 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-xs shrink-0 ${accentColors[accentColor]?.bg || 'bg-indigo-600'}`}>
@@ -565,10 +573,9 @@ export const App: React.FC = () => {
         <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
           {[
             { id: 0, label: 'Dashboard', icon: LayoutDashboard },
-            { id: 1, label: 'Sales', icon: ReceiptText },
+            { id: 1, label: 'Sales & Clients', icon: ReceiptText },
             { id: 2, label: 'Expenses', icon: Wallet },
-            { id: 3, label: 'Clients', icon: Users },
-            { id: 4, label: 'Settings', icon: Settings },
+            { id: 3, label: 'Settings', icon: Settings },
           ].map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id && editorMode === 'none';
@@ -578,7 +585,7 @@ export const App: React.FC = () => {
                 onClick={() => {
                   setEditorMode('none');
                   setActiveTab(item.id);
-                  if (item.id === 4) setSettingsSubTab(0);
+                  if (item.id === 3) setSettingsSubTab(0);
                 }}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                   isActive
@@ -691,8 +698,10 @@ export const App: React.FC = () => {
             <SalesTab
               invoices={invoices}
               estimates={estimates}
+              clients={clients}
               isDarkMode={isDarkMode}
               formatMoney={formatMoney}
+              initialSubTab={salesSubTab}
               onCreateInvoice={handleCreateInvoice}
               onCreateQuote={handleCreateQuote}
               onRecordPayment={handleRecordPayment}
@@ -703,6 +712,9 @@ export const App: React.FC = () => {
               onEditEstimateDraft={handleEditEstimateDraft}
               onFinalizeInvoice={handleFinalizeInvoice}
               onFinalizeEstimate={handleFinalizeEstimate}
+              onAddClient={handleAddClient}
+              onUpdateClient={handleUpdateClient}
+              onDeleteClient={handleDeleteClient}
             />
           ) : activeTab === 2 ? (
             <ExpensesTab
@@ -712,18 +724,7 @@ export const App: React.FC = () => {
               onAddExpense={handleAddExpense}
               onDeleteExpense={handleDeleteExpense}
             />
-          ) : activeTab === 3 ? (
-            <ClientsTab
-              clients={clients}
-              invoices={invoices}
-              isDarkMode={isDarkMode}
-              formatMoney={formatMoney}
-              onBack={() => setActiveTab(0)}
-              onAddClient={handleAddClient}
-              onUpdateClient={handleUpdateClient}
-              onDeleteClient={handleDeleteClient}
-            />
-          ) : activeTab === 4 ? (
+          ) : (
             <SettingsTab
               isDarkMode={isDarkMode}
               businessProfile={businessProfile}
@@ -739,95 +740,26 @@ export const App: React.FC = () => {
               onExportDatabase={handleExportDatabase}
               onRestoreDatabase={handleRestoreDatabase}
             />
-          ) : (
-            /* Mobile More Screen handler */
-            moreSubScreen === 'clients' ? (
-              <div>
-                <button
-                  onClick={() => setMoreSubScreen('menu')}
-                  className="mb-4 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-                >
-                  ← Back to More
-                </button>
-                <ClientsTab
-                  clients={clients}
-                  invoices={invoices}
-                  isDarkMode={isDarkMode}
-                  formatMoney={formatMoney}
-                  onBack={() => setMoreSubScreen('menu')}
-                  onAddClient={handleAddClient}
-                  onUpdateClient={handleUpdateClient}
-                  onDeleteClient={handleDeleteClient}
-                />
-              </div>
-            ) : moreSubScreen === 'settings' ? (
-              <div>
-                <button
-                  onClick={() => setMoreSubScreen('menu')}
-                  className="mb-4 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-                >
-                  ← Back to More
-                </button>
-                <SettingsTab
-                  isDarkMode={isDarkMode}
-                  businessProfile={businessProfile}
-                  savedItems={savedItems}
-                  currencySymbol={sym}
-                  formatMoney={formatMoney}
-                  parsePriceToCents={parsePriceToCents}
-                  initialSubTab={settingsSubTab}
-                  onSaveProfile={(profData) => setBusinessProfile(profData)}
-                  onAddItem={handleAddItem}
-                  onUpdateItem={handleUpdateItem}
-                  onDeleteItem={handleDeleteItem}
-                  onExportDatabase={handleExportDatabase}
-                  onRestoreDatabase={handleRestoreDatabase}
-                />
-              </div>
-            ) : (
-              <MoreTab
-                isDarkMode={isDarkMode}
-                onNavigateToClients={() => setMoreSubScreen('clients')}
-                onNavigateToCatalog={() => {
-                  setSettingsSubTab(1);
-                  setMoreSubScreen('settings');
-                }}
-                onOpenCsvModal={() => setIsCsvModalOpen(true)}
-                onNavigateToSettings={() => {
-                  setSettingsSubTab(0);
-                  setMoreSubScreen('settings');
-                }}
-                onNavigateToBackup={() => {
-                  setSettingsSubTab(3);
-                  setMoreSubScreen('settings');
-                }}
-              />
-            )
           )}
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (4 destinations: Dashboard, Sales, Expenses, More) */}
+      {/* Mobile Bottom Navigation Bar (STRICTLY 4 DESTINATIONS) */}
       <div className={`md:hidden fixed bottom-0 left-0 right-0 border-t flex items-center justify-around py-2 px-4 z-40 ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-600'}`}>
         {[
           { id: 0, label: 'Dashboard', icon: LayoutDashboard },
-          { id: 1, label: 'Sales', icon: ReceiptText },
+          { id: 1, label: 'Sales & Clients', icon: ReceiptText },
           { id: 2, label: 'Expenses', icon: Wallet },
-          { id: 5, label: 'More', icon: MoreHorizontal },
+          { id: 3, label: 'Settings', icon: Settings },
         ].map((item) => {
           const Icon = item.icon;
-          const isActive = (activeTab === item.id || (item.id === 5 && activeTab >= 3)) && editorMode === 'none';
+          const isActive = activeTab === item.id && editorMode === 'none';
           return (
             <button
               key={item.id}
               onClick={() => {
                 setEditorMode('none');
-                if (item.id === 5) {
-                  setActiveTab(5);
-                  setMoreSubScreen('menu');
-                } else {
-                  setActiveTab(item.id);
-                }
+                setActiveTab(item.id);
               }}
               className={`flex flex-col items-center gap-1 text-[10px] font-bold cursor-pointer ${isActive ? 'text-indigo-600' : ''}`}
             >

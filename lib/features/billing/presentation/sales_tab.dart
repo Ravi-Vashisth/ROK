@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../clients/presentation/clients_tab.dart';
+import '../../clients/providers/clients_provider.dart';
 import '../../estimates/presentation/offline_estimates_list.dart';
 import '../../estimates/providers/estimates_provider.dart';
 import '../../invoices/presentation/invoice_editor_screen.dart';
@@ -16,7 +18,7 @@ class SalesTab extends ConsumerStatefulWidget {
 }
 
 class _SalesTabState extends ConsumerState<SalesTab> {
-  late int _subTab = widget.initialSubTab; // 0 = Invoices, 1 = Estimates
+  late int _subTab = widget.initialSubTab; // 0 = Invoices, 1 = Estimates, 2 = Clients CRM
 
   // Filter & Search state
   final TextEditingController _searchController = TextEditingController();
@@ -33,6 +35,7 @@ class _SalesTabState extends ConsumerState<SalesTab> {
   Widget build(BuildContext context) {
     ref.watch(invoicesProvider);
     ref.watch(estimatesProvider);
+    final clients = ref.watch(clientsProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,11 +50,11 @@ class _SalesTabState extends ConsumerState<SalesTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Sales & Proposals Overview',
+                  'Sales & Clients CRM',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  'Manage client invoices, proposals, and track receivables',
+                  'Manage client invoices, proposals, and customer dossiers in one place',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
                 ),
               ],
@@ -61,7 +64,7 @@ class _SalesTabState extends ConsumerState<SalesTab> {
               runSpacing: 8,
               children: [
                 ToggleButtons(
-                  isSelected: [_subTab == 0, _subTab == 1],
+                  isSelected: [_subTab == 0, _subTab == 1, _subTab == 2],
                   onPressed: (index) {
                     setState(() {
                       _subTab = index;
@@ -69,25 +72,35 @@ class _SalesTabState extends ConsumerState<SalesTab> {
                     });
                   },
                   borderRadius: BorderRadius.circular(8),
-                  constraints: const BoxConstraints(minHeight: 36, minWidth: 100),
-                  children: const [
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
+                  constraints: const BoxConstraints(minHeight: 36, minWidth: 90),
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
                       child: Row(
                         children: [
                           Icon(Icons.receipt_outlined, size: 16),
                           SizedBox(width: 6),
-                          Text('Invoices', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text('Invoices', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                         ],
                       ),
                     ),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
                       child: Row(
                         children: [
                           Icon(Icons.request_quote_outlined, size: 16),
                           SizedBox(width: 6),
-                          Text('Estimates', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text('Quotes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.people_outline, size: 16),
+                          const SizedBox(width: 6),
+                          Text('Clients (${clients.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                         ],
                       ),
                     ),
@@ -107,7 +120,7 @@ class _SalesTabState extends ConsumerState<SalesTab> {
                       );
                     },
                   )
-                else
+                else if (_subTab == 1)
                   FilledButton.icon(
                     icon: const Icon(Icons.add, size: 16),
                     label: const Text('New Quote'),
@@ -125,26 +138,30 @@ class _SalesTabState extends ConsumerState<SalesTab> {
           ],
         ),
         const SizedBox(height: 20),
-        _buildFilterHeader(),
-        const SizedBox(height: 16),
-        if (_subTab == 0)
-          OfflineInvoicesList(
-            searchQuery: _searchController.text,
-            statusFilter: _statusFilter,
-            dateFilter: _dateFilter,
-          )
-        else
-          OfflineEstimatesList(
-            searchQuery: _searchController.text,
-            statusFilter: _statusFilter,
-            dateFilter: _dateFilter,
-            onViewInvoice: (invNum) {
-              setState(() {
-                _subTab = 0;
-                _searchController.text = invNum;
-              });
-            },
-          ),
+        if (_subTab == 2)
+          const ClientsTab()
+        else ...[
+          _buildFilterHeader(),
+          const SizedBox(height: 16),
+          if (_subTab == 0)
+            OfflineInvoicesList(
+              searchQuery: _searchController.text,
+              statusFilter: _statusFilter,
+              dateFilter: _dateFilter,
+            )
+          else
+            OfflineEstimatesList(
+              searchQuery: _searchController.text,
+              statusFilter: _statusFilter,
+              dateFilter: _dateFilter,
+              onViewInvoice: (invNum) {
+                setState(() {
+                  _subTab = 0;
+                  _searchController.text = invNum;
+                });
+              },
+            ),
+        ],
       ],
     );
   }

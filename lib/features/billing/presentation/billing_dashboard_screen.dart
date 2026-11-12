@@ -6,14 +6,12 @@ import '../../../core/theme/theme_provider.dart';
 import '../../../core/utils/csv_export_service.dart';
 import '../../business_profile/presentation/business_profile_dialog.dart';
 import '../../business_profile/providers/business_profile_provider.dart';
-import '../../clients/presentation/clients_tab.dart';
 import '../../clients/providers/clients_provider.dart';
 import '../../dashboard/presentation/dashboard_tab.dart';
 import '../../expenses/presentation/expenses_tab.dart';
 import '../../expenses/providers/expenses_provider.dart';
 import '../../invoices/providers/invoices_provider.dart';
 import '../../settings/presentation/directory_settings_tab.dart';
-import 'more_tab.dart';
 import 'sales_tab.dart';
 
 class BillingDashboardScreen extends ConsumerStatefulWidget {
@@ -24,10 +22,9 @@ class BillingDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen> {
-  int _selectedTab = 0; // 0=Dashboard, 1=Sales, 2=Expenses, 3=Clients, 4=Settings
-  int _moreSubScreen = 0; // For mobile: 0=MoreMenu, 1=Clients, 2=SettingsWithSubtab
-
-  int _settingsSubTab = 0; // Subtab inside DirectorySettingsTab (0=Profile, 1=Catalog, 2=Banking, 3=Backup)
+  int _selectedTab = 0; // 0=Dashboard, 1=Sales & Clients, 2=Expenses, 3=Settings
+  int _salesSubTab = 0; // Inside SalesTab: 0=Invoices, 1=Estimates, 2=Clients
+  int _settingsSubTab = 0; // Inside DirectorySettingsTab: 0=Profile, 1=Catalog, 2=Banking, 3=Backup
 
   void _handleExportCsv() {
     final invoices = ref.read(invoicesProvider);
@@ -72,33 +69,43 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
     final currentAccent = ref.watch(accentColorProvider);
     final profile = ref.watch(businessProfileProvider);
 
+    final desktopTabs = [
+      DashboardTab(
+        onNavigateToInvoices: () {
+          setState(() {
+            _selectedTab = 1;
+            _salesSubTab = 0;
+          });
+        },
+        onNavigateToEstimates: () {
+          setState(() {
+            _selectedTab = 1;
+            _salesSubTab = 1;
+          });
+        },
+        onNavigateToExpenses: () => setState(() => _selectedTab = 2),
+      ),
+      SalesTab(initialSubTab: _salesSubTab),
+      const ExpensesTab(),
+      DirectorySettingsTab(initialSubTab: _settingsSubTab),
+    ];
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 800;
 
         if (isWide) {
-          // Desktop (width >= 800px) with 5 first-class NavigationRail destinations
-          final desktopTabs = [
-            DashboardTab(
-              onNavigateToInvoices: () => setState(() => _selectedTab = 1),
-              onNavigateToEstimates: () => setState(() => _selectedTab = 1),
-              onNavigateToExpenses: () => setState(() => _selectedTab = 2),
-            ),
-            const SalesTab(initialSubTab: 0),
-            const ExpensesTab(),
-            const ClientsTab(),
-            DirectorySettingsTab(initialSubTab: _settingsSubTab),
-          ];
-
+          // Desktop (width >= 800px) with 4 first-class NavigationRail destinations
           return Scaffold(
             body: Row(
               children: [
                 NavigationRail(
-                  selectedIndex: _selectedTab < 5 ? _selectedTab : 0,
+                  selectedIndex: _selectedTab < 4 ? _selectedTab : 0,
                   onDestinationSelected: (index) {
                     setState(() {
                       _selectedTab = index;
-                      if (index == 4) _settingsSubTab = 0;
+                      if (index == 1) _salesSubTab = 0;
+                      if (index == 3) _settingsSubTab = 0;
                     });
                   },
                   labelType: NavigationRailLabelType.all,
@@ -138,11 +145,6 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                       icon: Icon(Icons.account_balance_wallet_outlined),
                       selectedIcon: Icon(Icons.account_balance_wallet),
                       label: Text('Expenses'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.people_outline),
-                      selectedIcon: Icon(Icons.people),
-                      label: Text('Clients'),
                     ),
                     NavigationRailDestination(
                       icon: Icon(Icons.settings_outlined),
@@ -216,7 +218,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                     ),
                     body: SingleChildScrollView(
                       padding: const EdgeInsets.all(24.0),
-                      child: desktopTabs[_selectedTab < 5 ? _selectedTab : 0],
+                      child: desktopTabs[_selectedTab < 4 ? _selectedTab : 0],
                     ),
                   ),
                 ),
@@ -224,73 +226,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
             ),
           );
         } else {
-          // Mobile / Compact (< 800px) with 4 NavigationBar destinations: Dashboard, Sales, Expenses, More
-          Widget mobileBody;
-          if (_selectedTab == 0) {
-            mobileBody = DashboardTab(
-              onNavigateToInvoices: () => setState(() => _selectedTab = 1),
-              onNavigateToEstimates: () => setState(() => _selectedTab = 1),
-              onNavigateToExpenses: () => setState(() => _selectedTab = 2),
-            );
-          } else if (_selectedTab == 1) {
-            mobileBody = const SalesTab(initialSubTab: 0);
-          } else if (_selectedTab == 2) {
-            mobileBody = const ExpensesTab();
-          } else {
-            if (_moreSubScreen == 1) {
-              mobileBody = Column(
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      icon: const Icon(Icons.arrow_back, size: 16),
-                      label: const Text('Back to More'),
-                      onPressed: () => setState(() => _moreSubScreen = 0),
-                    ),
-                  ),
-                  const ClientsTab(),
-                ],
-              );
-            } else if (_moreSubScreen == 2) {
-              mobileBody = Column(
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      icon: const Icon(Icons.arrow_back, size: 16),
-                      label: const Text('Back to More'),
-                      onPressed: () => setState(() => _moreSubScreen = 0),
-                    ),
-                  ),
-                  DirectorySettingsTab(initialSubTab: _settingsSubTab),
-                ],
-              );
-            } else {
-              mobileBody = MoreTab(
-                onNavigateToClients: () => setState(() => _moreSubScreen = 1),
-                onNavigateToCatalog: () {
-                  setState(() {
-                    _settingsSubTab = 1;
-                    _moreSubScreen = 2;
-                  });
-                },
-                onNavigateToReports: _handleExportCsv,
-                onNavigateToSettings: () {
-                  setState(() {
-                    _settingsSubTab = 0;
-                    _moreSubScreen = 2;
-                  });
-                },
-                onNavigateToBackup: () {
-                  setState(() {
-                    _settingsSubTab = 3;
-                    _moreSubScreen = 2;
-                  });
-                },
-              );
-            }
-          }
-
+          // Mobile / Compact (< 800px) with STRICTLY 4 NavigationBar destinations
           return Scaffold(
             appBar: AppBar(
               title: const SizedBox.shrink(),
@@ -320,21 +256,22 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
             ),
             body: SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
-              child: mobileBody,
+              child: desktopTabs[_selectedTab < 4 ? _selectedTab : 0],
             ),
             bottomNavigationBar: NavigationBar(
-              selectedIndex: _selectedTab < 4 ? _selectedTab : 3,
+              selectedIndex: _selectedTab < 4 ? _selectedTab : 0,
               onDestinationSelected: (index) {
                 setState(() {
                   _selectedTab = index;
-                  if (index == 3) _moreSubScreen = 0;
+                  if (index == 1) _salesSubTab = 0;
+                  if (index == 3) _settingsSubTab = 0;
                 });
               },
               destinations: const [
                 NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
                 NavigationDestination(icon: Icon(Icons.work_outline), label: 'Sales'),
                 NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), label: 'Expenses'),
-                NavigationDestination(icon: Icon(Icons.more_horiz), label: 'More'),
+                NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
               ],
             ),
           );
