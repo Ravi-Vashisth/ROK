@@ -28,7 +28,7 @@ class DashboardTab extends ConsumerWidget {
     final formatCurrency = ref.watch(currencyFormatterProvider);
 
     // Triage items: Overdue invoices, pending/accepted estimates, invoices due soon
-    final overdueInvoices = invoices.where((i) => i.isOverdue && i.balanceDueCents > 0).toList();
+    final overdueInvoices = invoices.where((i) => i.isOverdue && i.balanceDueCents > 0 && !i.isDraft && !i.isVoid).toList();
     final acceptedEstimates = estimates.where((e) => !e.isConverted).toList();
 
     return Column(
@@ -112,7 +112,7 @@ class DashboardTab extends ConsumerWidget {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Invoice ${inv.invoiceNumber} for ${inv.clientName} is ${inv.daysOverdue} days overdue (${formatCurrency(inv.balanceDueCents)} balance due).',
+                                'Invoice ${inv.invoiceNumber} for ${inv.clientName} is ${inv.daysOverdue} ${inv.daysOverdue == 1 ? 'day' : 'days'} overdue (${formatCurrency(inv.balanceDueCents)} balance due).',
                                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                               ),
                             ),

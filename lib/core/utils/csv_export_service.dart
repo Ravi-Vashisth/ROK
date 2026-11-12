@@ -22,22 +22,16 @@ class CsvExportService {
     // Row 1: Headers
     buffer.writeln('Invoice Number,Issue Date,Due Date,Currency Code,Client Name,Client Tax ID,Subtotal,Tax,Total,Amount Paid,Balance Due,Status');
 
-    // Rows 2..N: Data
+    // Rows 2..N: Data (Finalized/issued invoices only - drafts excluded)
     for (final inv in invoices) {
+      if (inv.isDraft || inv.status.toUpperCase() == 'DRAFT') continue;
+
+      final isVoid = inv.isVoid || inv.status.toUpperCase() == 'VOID';
       final paid = inv.paidCents;
       final total = inv.totalCents;
-      final due = total - paid;
-
-      String status;
-      if (due <= 0) {
-        status = 'PAID';
-      } else if (paid > 0) {
-        status = 'PARTIALLY_PAID';
-      } else if (DateTime.now().isAfter(DateTime.parse(inv.dueDate))) {
-        status = 'OVERDUE';
-      } else {
-        status = 'PENDING';
-      }
+      final due = isVoid ? 0 : ((total - paid) > 0 ? (total - paid) : 0);
+      final status = isVoid ? 'VOID' : inv.computedStatus;
+      final isoCode = inv.currencyCode.isNotEmpty ? inv.currencyCode : currencyCode;
 
       final client = clients.firstWhere(
         (c) => c.id == inv.clientId,
@@ -48,7 +42,7 @@ class CsvExportService {
         quote(inv.invoiceNumber),
         quote(inv.issueDate),
         quote(inv.dueDate),
-        quote(currencyCode),
+        quote(isoCode),
         quote(inv.clientName),
         quote(client.taxId),
         formatDecimal(inv.subtotalCents),
@@ -156,7 +150,7 @@ class CsvExportService {
                 child: Icon(Icons.receipt_long, color: Colors.indigo, size: 20),
               ),
               title: const Text('Invoices CSV', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('${invoices.length} invoices • headers on row 1 (invoices_export.csv)', style: const TextStyle(fontSize: 11)),
+              subtitle: Text('${invoices.where((i) => !i.isDraft && i.status.toUpperCase() != "DRAFT").length} finalized invoices • headers on row 1 (invoices_export.csv)', style: const TextStyle(fontSize: 11)),
               trailing: const Icon(Icons.download, size: 18),
               onTap: () async {
                 Navigator.of(dialogCtx).pop();

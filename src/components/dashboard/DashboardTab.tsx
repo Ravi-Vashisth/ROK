@@ -24,19 +24,33 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onNavigateToExpenses,
   onCreateInvoice,
 }) => {
-  // Cash flow metrics
-  const totalInvoicedCents = invoices.reduce((sum, inv) => sum + (inv.total_cents || 0), 0);
-  const totalCollectedCents = invoices.reduce((sum, inv) => sum + (inv.paid_cents || 0), 0);
-  const pendingBalanceCents = invoices.reduce((sum, inv) => sum + (inv.balance_due_cents || 0), 0);
-  const overdueAmountCents = invoices.reduce((sum, inv) => {
-    const isOverdue = inv.due_date && new Date(inv.due_date) < new Date() && inv.balance_due_cents > 0;
-    return sum + (isOverdue ? inv.balance_due_cents : 0);
-  }, 0);
+  // Cash flow metrics (exclude DRAFT and VOID invoices)
+  const activeInvoices = invoices.filter(
+    (inv) => inv.status !== 'DRAFT' && inv.status !== 'VOID'
+  );
+  const totalInvoicedCents = activeInvoices.reduce((sum, inv) => sum + (inv.total_cents || 0), 0);
+  const totalCollectedCents = activeInvoices.reduce((sum, inv) => sum + (inv.paid_cents || 0), 0);
+  const pendingBalanceCents = activeInvoices.reduce((sum, inv) => sum + (inv.balance_due_cents || 0), 0);
+  
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+
+  const overdueInvoices = activeInvoices.filter((inv) => {
+    if (!inv.due_date || (inv.balance_due_cents || 0) <= 0) return false;
+    const due = new Date(inv.due_date);
+    due.setHours(0, 0, 0, 0);
+    return todayDate > due;
+  });
+
+  const overdueAmountCents = overdueInvoices.reduce(
+    (sum, inv) => sum + (inv.balance_due_cents || 0),
+    0
+  );
 
   const totalExpenseCents = expenses.reduce((sum, exp) => sum + (exp.total_cents || 0), 0);
   const netProfitCents = totalCollectedCents - totalExpenseCents;
 
-  const recentInvoices = invoices.slice(0, 5);
+  const recentInvoices = invoices.filter((i) => i.status !== 'DRAFT').slice(0, 5);
   const recentExpenses = expenses.slice(0, 5);
 
   return (
@@ -121,6 +135,38 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             View Expenses
           </button>
         </div>
+      </div>
+
+      {/* Action Required Triage Inbox */}
+      <div className={`p-4 rounded-xl border space-y-3 ${isDarkMode ? 'bg-amber-950/20 border-amber-900/50' : 'bg-amber-50/50 border-amber-300'}`}>
+        <div className="flex items-center gap-2 text-xs font-bold text-amber-600 dark:text-amber-400">
+          <AlertTriangle className="w-4 h-4" />
+          <span>Action Required Triage ({overdueInvoices.length} Pending)</span>
+        </div>
+        {overdueInvoices.length === 0 ? (
+          <p className="text-xs text-emerald-600 font-semibold">All client balances are up to date. No urgent action required.</p>
+        ) : (
+          <div className="space-y-2">
+            {overdueInvoices.map((inv) => {
+              const due = new Date(inv.due_date);
+              const diffMs = todayDate.getTime() - due.getTime();
+              const days = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+              return (
+                <div key={inv.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                  <span className="text-slate-700 dark:text-slate-300">
+                    Invoice <strong className="text-indigo-600">{inv.invoice_number}</strong> for {inv.client_name || 'Client'} is {days} {days === 1 ? 'day' : 'days'} overdue ({formatMoney(inv.balance_due_cents || 0)} balance due).
+                  </span>
+                  <button
+                    onClick={onNavigateToSales}
+                    className="px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-[11px] text-indigo-600 cursor-pointer hover:bg-slate-50 shrink-0"
+                  >
+                    View in Sales
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Two Column Grid: Recent Invoices & Recent Expenses */}

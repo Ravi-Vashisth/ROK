@@ -1,26 +1,33 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 
 import '../../../core/database/database_provider.dart';
 import '../../../core/utils/backup_service.dart';
 import '../../business_profile/presentation/business_profile_dialog.dart';
 import '../../business_profile/providers/business_profile_provider.dart';
-import '../../clients/presentation/clients_tab.dart';
 import '../../estimates/providers/estimates_provider.dart';
 import '../../expenses/providers/expenses_provider.dart';
 import '../../invoices/providers/invoices_provider.dart';
 import '../../items/presentation/items_catalog_tab.dart';
 
 class DirectorySettingsTab extends ConsumerStatefulWidget {
-  const DirectorySettingsTab({super.key});
+  final int initialSubTab;
+  const DirectorySettingsTab({super.key, this.initialSubTab = 0});
 
   @override
   ConsumerState<DirectorySettingsTab> createState() => _DirectorySettingsTabState();
 }
 
 class _DirectorySettingsTabState extends ConsumerState<DirectorySettingsTab> {
-  int _subTab = 0; // 0 = Clients, 1 = Items Catalog, 2 = Branding & Prefs, 3 = Backup & Recovery
+  late int _subTab;
+
+  @override
+  void initState() {
+    super.initState();
+    _subTab = widget.initialSubTab;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +38,7 @@ class _DirectorySettingsTabState extends ConsumerState<DirectorySettingsTab> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Directory, Settings & Backup',
+              'Application Settings & System Preferences',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             SingleChildScrollView(
@@ -41,46 +48,46 @@ class _DirectorySettingsTabState extends ConsumerState<DirectorySettingsTab> {
                 onPressed: (index) {
                   setState(() => _subTab = index);
                 },
-                borderRadius: BorderRadius.circular(8),
-                constraints: const BoxConstraints(minHeight: 36, minWidth: 80),
+                borderRadius: BorderRadius.circular(12),
+                constraints: const BoxConstraints(minHeight: 38, minWidth: 100),
                 children: const [
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Row(
-                      children: [
-                        Icon(Icons.people_outline, size: 16),
-                        SizedBox(width: 4),
-                        Text('Clients', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Row(
-                      children: [
-                        Icon(Icons.inventory_2_outlined, size: 16),
-                        SizedBox(width: 4),
-                        Text('Catalog', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    padding: EdgeInsets.symmetric(horizontal: 10),
                     child: Row(
                       children: [
                         Icon(Icons.business_outlined, size: 16),
-                        SizedBox(width: 4),
-                        Text('Branding', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        SizedBox(width: 6),
+                        Text('Profile & Branding', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                       ],
                     ),
                   ),
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    child: Row(
+                      children: [
+                        Icon(Icons.inventory_2_outlined, size: 16),
+                        SizedBox(width: 6),
+                        Text('Catalog & Services', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    child: Row(
+                      children: [
+                        Icon(Icons.account_balance_outlined, size: 16),
+                        SizedBox(width: 6),
+                        Text('Payment & Banking', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
                     child: Row(
                       children: [
                         Icon(Icons.settings_backup_restore, size: 16),
-                        SizedBox(width: 4),
-                        Text('Backup', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        SizedBox(width: 6),
+                        Text('Data Backup', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                       ],
                     ),
                   ),
@@ -89,17 +96,103 @@ class _DirectorySettingsTabState extends ConsumerState<DirectorySettingsTab> {
             ),
           ],
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
         if (_subTab == 0) ...[
-          const ClientsTab(),
+          _BusinessProfileSettingsCard(),
         ] else if (_subTab == 1) ...[
           const ItemsCatalogTab(),
         ] else if (_subTab == 2) ...[
-          _BusinessProfileSettingsCard(),
+          _PaymentBankingSettingsCard(),
         ] else ...[
           _BackupRecoveryCard(),
         ],
       ],
+    );
+  }
+}
+
+class _PaymentBankingSettingsCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(businessProfileProvider);
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.account_balance, color: Theme.of(context).colorScheme.primary, size: 28),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Payment Methods & Remittance Instructions',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Configure bank wire transfer accounts, UPI VPA, and online payment links.',
+                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                FilledButton.icon(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => const BusinessProfileDialog(),
+                    );
+                  },
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Edit Payment Instructions'),
+                ),
+              ],
+            ),
+            const Divider(height: 32),
+            const Text('Bank Account & Wire Transfer Instructions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Theme.of(context).dividerColor),
+              ),
+              child: Text(
+                profile.paymentDetails.isNotEmpty ? profile.paymentDetails : 'No remittance details specified.',
+                style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text('Default Invoice Terms & Legal Notice', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Theme.of(context).dividerColor),
+              ),
+              child: Text(
+                profile.defaultTerms.isNotEmpty ? profile.defaultTerms : 'Payment due within agreed terms. Thank you for your business!',
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -110,44 +203,24 @@ class _BackupRecoveryCard extends ConsumerWidget {
     final db = ref.watch(databaseProvider);
     final importController = TextEditingController();
 
-    void handleExport() {
+    void handleExport() async {
       try {
         final jsonStr = BackupService.exportToJsonString(db);
-        Clipboard.setData(ClipboardData(text: jsonStr));
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Database Backup Exported'),
-            content: SizedBox(
-              width: 500,
-              height: 300,
-              child: Column(
-                children: [
-                  const Text('Your complete SQLite database has been exported to JSON and copied to your clipboard! You can paste it into a file to store safely.'),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: TextEditingController(text: jsonStr),
-                      maxLines: null,
-                      readOnly: true,
-                      decoration: const InputDecoration(border: OutlineInputBorder()),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Done'),
-              ),
-            ],
-          ),
-        );
+        final bytes = utf8.encode(jsonStr);
+        final now = DateTime.now();
+        final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+        await Printing.sharePdf(bytes: bytes, filename: 'freelance_ledger_backup_$dateStr.json');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Database backup file saved successfully!')),
+          );
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error exporting database: $e')),
-        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error exporting database: $e')),
+          );
+        }
       }
     }
 
@@ -232,7 +305,7 @@ class _BackupRecoveryCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Disaster Recovery & SQLite Backup',
+                        'Disaster Recovery & Data Management',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       Text(
@@ -258,7 +331,7 @@ class _BackupRecoveryCard extends ConsumerWidget {
             FilledButton.icon(
               onPressed: handleExport,
               icon: const Icon(Icons.download_outlined, size: 16),
-              label: const Text('Export JSON Backup (Copy to Clipboard)'),
+              label: const Text('Export Database File (JSON Backup)'),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -338,9 +411,8 @@ class _BusinessProfileSettingsCard extends ConsumerWidget {
             _infoRow(context, 'Phone', profile.phone.isNotEmpty ? profile.phone : 'Not specified'),
             _infoRow(context, 'Address', profile.address.isNotEmpty ? profile.address : 'Not specified'),
             _infoRow(context, 'Tax ID / EIN / VAT', profile.taxId.isNotEmpty ? profile.taxId : 'Not specified'),
-            _infoRow(context, 'Default Payment Terms', profile.defaultTerms),
-            _infoRow(context, 'Company Logo / QR Payload', profile.logoBase64.isNotEmpty ? 'Configured' : 'Not configured'),
-            _infoRow(context, 'Digital Signature', profile.signatureBase64.isNotEmpty ? '${profile.signatureLabel} (${profile.signatureBase64})' : 'Not configured'),
+            _infoRow(context, 'Company Logo', profile.logoBase64.isNotEmpty ? '✔ Configured' : 'Not configured'),
+            _infoRow(context, 'Digital Signature', profile.signatureBase64.isNotEmpty ? '✔ Digital Signature Configured' : 'Not configured'),
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(12),

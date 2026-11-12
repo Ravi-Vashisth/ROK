@@ -47,7 +47,7 @@ class _SalesTabState extends ConsumerState<SalesTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Sales & Proposals Hub',
+                  'Sales & Proposals Overview',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 Text(
@@ -63,7 +63,10 @@ class _SalesTabState extends ConsumerState<SalesTab> {
                 ToggleButtons(
                   isSelected: [_subTab == 0, _subTab == 1],
                   onPressed: (index) {
-                    setState(() => _subTab = index);
+                    setState(() {
+                      _subTab = index;
+                      _statusFilter = 'All';
+                    });
                   },
                   borderRadius: BorderRadius.circular(8),
                   constraints: const BoxConstraints(minHeight: 36, minWidth: 100),
@@ -192,7 +195,10 @@ class _SalesTabState extends ConsumerState<SalesTab> {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: ['All', 'Draft', 'Pending', 'Partially Paid', 'Paid', 'Overdue', 'Void'].map((status) {
+                children: (_subTab == 0
+                        ? ['All', 'Draft', 'Pending', 'Partially Paid', 'Paid', 'Overdue', 'Void']
+                        : ['All', 'Draft', 'Pending', 'Accepted', 'Declined', 'Converted'])
+                    .map((status) {
                   final isSelected = _statusFilter == status;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8.0),

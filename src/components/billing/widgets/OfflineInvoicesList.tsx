@@ -79,27 +79,33 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
           </thead>
           <tbody className={`divide-y ${isDarkMode ? 'divide-slate-800' : 'divide-slate-100'}`}>
             {filteredInvoices.map((inv) => {
-              const status = inv.computed_status || inv.status;
+              const status = (inv.computed_status || inv.status || '').toUpperCase();
               const isDraft = status === 'DRAFT';
               const isPaid = status === 'PAID';
               const isOverdue = status === 'OVERDUE';
+              const isVoid = status === 'VOID';
+              const isPartiallyPaid = status === 'PARTIALLY_PAID';
 
               return (
-                <tr key={inv.id} className={`hover:bg-indigo-50/20 transition ${isDarkMode ? 'hover:bg-slate-800/40' : ''}`}>
+                <tr key={inv.id} className={`hover:bg-indigo-50/20 transition ${isDarkMode ? 'hover:bg-slate-800/40' : ''} ${isVoid ? 'opacity-60' : ''}`}>
                   <td className="p-3.5 font-bold font-mono text-indigo-500">{inv.invoice_number}</td>
                   <td className="p-3.5 font-semibold">{inv.client_name || 'Client'}</td>
                   <td className="p-3.5 text-slate-500">{inv.issue_date}</td>
                   <td className="p-3.5 text-slate-500">{inv.due_date}</td>
                   <td className="p-3.5 text-right font-bold font-mono">{formatMoney(inv.total_cents)}</td>
-                  <td className="p-3.5 text-right font-bold font-mono text-amber-600">{formatMoney(inv.balance_due_cents ?? inv.total_cents)}</td>
+                  <td className={`p-3.5 text-right font-bold font-mono ${isVoid ? 'text-slate-400 line-through' : isPaid ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {isVoid ? formatMoney(0) : formatMoney(inv.balance_due_cents ?? inv.total_cents)}
+                  </td>
                   <td className="p-3.5 text-center">
                     <span className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-bold uppercase ${
+                      isVoid ? 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400 border border-slate-300 dark:border-slate-700' :
                       isDraft ? 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700' :
                       isPaid ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
                       isOverdue ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
+                      isPartiallyPaid ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
                       'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
                     }`}>
-                      {status}
+                      {status === 'PARTIALLY_PAID' ? 'PARTIAL' : status}
                     </span>
                   </td>
                   <td className="p-3.5 text-right space-x-1">
@@ -122,7 +128,7 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
                         <span>Finalize</span>
                       </button>
                     )}
-                    {!isPaid && !isDraft && (
+                    {!isPaid && !isDraft && !isVoid && (
                       <button
                         onClick={() => onRecordPayment(inv)}
                         className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 transition cursor-pointer"

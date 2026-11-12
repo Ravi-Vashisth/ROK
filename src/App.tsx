@@ -3,7 +3,9 @@ import {
   LayoutDashboard,
   ReceiptText,
   Wallet,
+  Users,
   Settings,
+  MoreHorizontal,
   Sun,
   Moon,
   Download,
@@ -19,9 +21,9 @@ import { DashboardTab } from './components/dashboard/DashboardTab';
 import { SalesTab } from './components/billing/SalesTab';
 import { InvoiceEditorScreen } from './components/invoices/InvoiceEditorScreen';
 import { ExpensesTab } from './components/expenses/ExpensesTab';
-import { HubSettingsTab } from './components/hub/HubSettingsTab';
 import { ClientsTab } from './components/clients/ClientsTab';
-import { ItemsCatalogTab } from './components/items/ItemsCatalogTab';
+import { SettingsTab } from './components/settings/SettingsTab';
+import { MoreTab } from './components/more/MoreTab';
 import { BusinessProfileDialog } from './components/business_profile/BusinessProfileDialog';
 import { RecordPaymentModal } from './components/payments/RecordPaymentModal';
 
@@ -78,16 +80,28 @@ export interface ExpenseRecord {
   created_at: string;
 }
 
+export interface StoredItem {
+  id: string;
+  title: string;
+  defaultPriceCents?: number;
+  default_price_cents?: number;
+  sacHsn?: string;
+  sac_hsn?: string;
+  description?: string;
+}
+
 export const App: React.FC = () => {
   // Theme state
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [accentColor, setAccentColor] = useState<string>('indigo');
 
-  // Active Tab: 0 = Dashboard, 1 = Sales, 2 = Expenses, 3 = Hub
+  // Active Tab: 0 = Dashboard, 1 = Sales, 2 = Expenses, 3 = Clients, 4 = Settings
   const [activeTab, setActiveTab] = useState<number>(0);
 
-  // Sub-screens under Hub / Sales
-  const [hubSubScreen, setHubSubScreen] = useState<'main' | 'clients' | 'items'>('main');
+  // Sub-navigation state for mobile & settings subtabs
+  const [moreSubScreen, setMoreSubScreen] = useState<'menu' | 'clients' | 'settings'>('menu');
+  const [settingsSubTab, setSettingsSubTab] = useState<number>(0);
+
   const [editorMode, setEditorMode] = useState<'none' | 'invoice' | 'estimate'>('none');
   const [editingDraftData, setEditingDraftData] = useState<any>(null);
 
@@ -416,10 +430,27 @@ export const App: React.FC = () => {
     setClients((prev) => [...prev, newC]);
   };
 
+  const handleUpdateClient = (id: string, updatedData: any) => {
+    setClients((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              name: updatedData.name,
+              email: updatedData.email || '',
+              phone: updatedData.phone || '',
+              address: updatedData.address || '',
+              tax_id: updatedData.taxId || '',
+            }
+          : c
+      )
+    );
+  };
+
   const handleDeleteClient = (client: Client) => {
     const hasInvoices = invoices.some((i) => i.client_id === client.id);
     if (hasInvoices) {
-      alert(`Cannot delete client "${client.name}" because active invoices exist for this client. Foreign key integrity and statutory accounting rules prevent deleting clients with financial records.`);
+      alert(`Cannot delete client "${client.name}" because active invoices exist for this client. Foreign key integrity prevents deleting clients with financial records.`);
       return;
     }
     if (confirm(`Delete client "${client.name}"?`)) {
@@ -433,14 +464,57 @@ export const App: React.FC = () => {
       title: iData.title,
       defaultPriceCents: iData.default_price_cents,
       sacHsn: iData.sac_hsn || '',
+      description: iData.description || '',
     };
     setSavedItems((prev) => [...prev, newI]);
+  };
+
+  const handleUpdateItem = (id: string, updatedData: any) => {
+    setSavedItems((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              title: updatedData.title,
+              defaultPriceCents: updatedData.default_price_cents,
+              default_price_cents: updatedData.default_price_cents,
+              sacHsn: updatedData.sac_hsn,
+              sac_hsn: updatedData.sac_hsn,
+              description: updatedData.description,
+            }
+          : item
+      )
+    );
   };
 
   const handleDeleteItem = (item: any) => {
     if (confirm(`Delete preset service "${item.title}"?`)) {
       setSavedItems((prev) => prev.filter((i) => i.id !== item.id));
     }
+  };
+
+  const handleExportDatabase = () => {
+    const backupData = {
+      clients,
+      invoices,
+      estimates,
+      expenses,
+      savedItems,
+      businessProfile,
+      version: 1,
+      exported_at: new Date().toISOString(),
+    };
+    const jsonString = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `freelance_ledger_backup_${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleRestoreDatabase = (file: File) => {
@@ -475,11 +549,11 @@ export const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen font-sans flex antialiased ${isDarkMode ? 'bg-[#0B0F19] text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-      {/* 1. MASTER SIDEBAR NAVIGATION (NavigationRail parity) */}
+      {/* 1. MASTER SIDEBAR NAVIGATION (5 First-Class Desktop Tabs) */}
       <aside className={`hidden md:flex flex-col w-[220px] border-r select-none sticky top-0 h-screen shrink-0 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
         <div className={`p-5 border-b flex flex-col items-center text-center gap-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-          <div className={`w-12 h-12 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0 ${accentColors[accentColor]?.bg || 'bg-indigo-600'}`}>
-            {businessProfile.business_name ? businessProfile.business_name[0].toUpperCase() : 'B'}
+          <div className={`w-12 h-12 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-xs shrink-0 ${accentColors[accentColor]?.bg || 'bg-indigo-600'}`}>
+            {businessProfile.business_name ? businessProfile.business_name[0].toUpperCase() : 'F'}
           </div>
           <div className="min-w-0 w-full px-1">
             <h1 className={`font-bold text-xs whitespace-normal break-words leading-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
@@ -493,7 +567,8 @@ export const App: React.FC = () => {
             { id: 0, label: 'Dashboard', icon: LayoutDashboard },
             { id: 1, label: 'Sales', icon: ReceiptText },
             { id: 2, label: 'Expenses', icon: Wallet },
-            { id: 3, label: 'Hub', icon: Settings },
+            { id: 3, label: 'Clients', icon: Users },
+            { id: 4, label: 'Settings', icon: Settings },
           ].map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id && editorMode === 'none';
@@ -502,8 +577,8 @@ export const App: React.FC = () => {
                 key={item.id}
                 onClick={() => {
                   setEditorMode('none');
-                  setHubSubScreen('main');
                   setActiveTab(item.id);
+                  if (item.id === 4) setSettingsSubTab(0);
                 }}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                   isActive
@@ -522,7 +597,7 @@ export const App: React.FC = () => {
       {/* 2. MAIN VIEWPORT */}
       <div className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
         <main className="flex-1 p-6 overflow-y-auto max-w-7xl mx-auto w-full space-y-6">
-          {/* Top Utility Bar - 1:1 Flutter AppBar parity */}
+          {/* Top Utility Bar */}
           <div className="flex flex-wrap items-center justify-end gap-2 mb-2">
             <button
               onClick={() => setIsCsvModalOpen(true)}
@@ -637,55 +712,122 @@ export const App: React.FC = () => {
               onAddExpense={handleAddExpense}
               onDeleteExpense={handleDeleteExpense}
             />
-          ) : activeTab === 3 && hubSubScreen === 'clients' ? (
+          ) : activeTab === 3 ? (
             <ClientsTab
               clients={clients}
+              invoices={invoices}
               isDarkMode={isDarkMode}
-              onBack={() => setHubSubScreen('main')}
+              formatMoney={formatMoney}
+              onBack={() => setActiveTab(0)}
               onAddClient={handleAddClient}
+              onUpdateClient={handleUpdateClient}
               onDeleteClient={handleDeleteClient}
             />
-          ) : activeTab === 3 && hubSubScreen === 'items' ? (
-            <ItemsCatalogTab
-              savedItems={savedItems}
+          ) : activeTab === 4 ? (
+            <SettingsTab
               isDarkMode={isDarkMode}
+              businessProfile={businessProfile}
+              savedItems={savedItems}
               currencySymbol={sym}
               formatMoney={formatMoney}
               parsePriceToCents={parsePriceToCents}
-              onBack={() => setHubSubScreen('main')}
+              initialSubTab={settingsSubTab}
+              onSaveProfile={(profData) => setBusinessProfile(profData)}
               onAddItem={handleAddItem}
+              onUpdateItem={handleUpdateItem}
               onDeleteItem={handleDeleteItem}
-            />
-          ) : (
-            <HubSettingsTab
-              isDarkMode={isDarkMode}
-              onOpenClients={() => setHubSubScreen('clients')}
-              onOpenItems={() => setHubSubScreen('items')}
-              onOpenProfile={() => setIsProfileModalOpen(true)}
-              onOpenCsvModal={() => setIsCsvModalOpen(true)}
+              onExportDatabase={handleExportDatabase}
               onRestoreDatabase={handleRestoreDatabase}
             />
+          ) : (
+            /* Mobile More Screen handler */
+            moreSubScreen === 'clients' ? (
+              <div>
+                <button
+                  onClick={() => setMoreSubScreen('menu')}
+                  className="mb-4 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                >
+                  ← Back to More
+                </button>
+                <ClientsTab
+                  clients={clients}
+                  invoices={invoices}
+                  isDarkMode={isDarkMode}
+                  formatMoney={formatMoney}
+                  onBack={() => setMoreSubScreen('menu')}
+                  onAddClient={handleAddClient}
+                  onUpdateClient={handleUpdateClient}
+                  onDeleteClient={handleDeleteClient}
+                />
+              </div>
+            ) : moreSubScreen === 'settings' ? (
+              <div>
+                <button
+                  onClick={() => setMoreSubScreen('menu')}
+                  className="mb-4 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                >
+                  ← Back to More
+                </button>
+                <SettingsTab
+                  isDarkMode={isDarkMode}
+                  businessProfile={businessProfile}
+                  savedItems={savedItems}
+                  currencySymbol={sym}
+                  formatMoney={formatMoney}
+                  parsePriceToCents={parsePriceToCents}
+                  initialSubTab={settingsSubTab}
+                  onSaveProfile={(profData) => setBusinessProfile(profData)}
+                  onAddItem={handleAddItem}
+                  onUpdateItem={handleUpdateItem}
+                  onDeleteItem={handleDeleteItem}
+                  onExportDatabase={handleExportDatabase}
+                  onRestoreDatabase={handleRestoreDatabase}
+                />
+              </div>
+            ) : (
+              <MoreTab
+                isDarkMode={isDarkMode}
+                onNavigateToClients={() => setMoreSubScreen('clients')}
+                onNavigateToCatalog={() => {
+                  setSettingsSubTab(1);
+                  setMoreSubScreen('settings');
+                }}
+                onOpenCsvModal={() => setIsCsvModalOpen(true)}
+                onNavigateToSettings={() => {
+                  setSettingsSubTab(0);
+                  setMoreSubScreen('settings');
+                }}
+                onNavigateToBackup={() => {
+                  setSettingsSubTab(3);
+                  setMoreSubScreen('settings');
+                }}
+              />
+            )
           )}
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (4 destinations) */}
+      {/* Mobile Bottom Navigation Bar (4 destinations: Dashboard, Sales, Expenses, More) */}
       <div className={`md:hidden fixed bottom-0 left-0 right-0 border-t flex items-center justify-around py-2 px-4 z-40 ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-600'}`}>
         {[
           { id: 0, label: 'Dashboard', icon: LayoutDashboard },
           { id: 1, label: 'Sales', icon: ReceiptText },
           { id: 2, label: 'Expenses', icon: Wallet },
-          { id: 3, label: 'Hub', icon: Settings },
+          { id: 5, label: 'More', icon: MoreHorizontal },
         ].map((item) => {
           const Icon = item.icon;
-          const isActive = activeTab === item.id && editorMode === 'none';
+          const isActive = (activeTab === item.id || (item.id === 5 && activeTab >= 3)) && editorMode === 'none';
           return (
             <button
               key={item.id}
               onClick={() => {
                 setEditorMode('none');
-                setHubSubScreen('main');
-                setActiveTab(item.id);
+                if (item.id === 5) {
+                  setActiveTab(5);
+                  setMoreSubScreen('menu');
+                } else {
+                  setActiveTab(item.id);
+                }
               }}
               className={`flex flex-col items-center gap-1 text-[10px] font-bold cursor-pointer ${isActive ? 'text-indigo-600' : ''}`}
             >
@@ -711,23 +853,75 @@ export const App: React.FC = () => {
           <div className={`w-full max-w-md rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm">Export Financial CSV Data</h3>
-              <button onClick={() => setIsCsvModalOpen(false)}><X className="w-4 h-4" /></button>
+              <button onClick={() => setIsCsvModalOpen(false)} className="cursor-pointer text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
             </div>
-            <p className="text-xs text-slate-500">Download formatted accounting CSV spreadsheet files.</p>
-            <div className="space-y-2">
+            <p className="text-xs text-slate-500">Download formatted accounting CSV spreadsheet files compliant with Excel, QuickBooks, and tax software.</p>
+            <div className="space-y-3">
+              {/* Invoices CSV (Finalized only) */}
               <button
                 onClick={() => {
-                  const lines = ['Invoice Number,Issue Date,Due Date,Client Name,Total,Status'];
-                  invoices.forEach((i) => lines.push(`${i.invoice_number},${i.issue_date},${i.due_date},"${i.client_name}",${(i.total_cents / 100).toFixed(2)},${i.computed_status || i.status}`));
-                  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+                  const finalizedInvoices = invoices.filter((i) => {
+                    const s = (i.computed_status || i.status || '').toUpperCase();
+                    return s !== 'DRAFT';
+                  });
+                  const lines = ['Invoice Number,Issue Date,Due Date,Currency Code,Client Name,Client Tax ID,Subtotal,Tax,Total,Amount Paid,Balance Due,Status'];
+                  finalizedInvoices.forEach((i) => {
+                    const status = (i.computed_status || i.status || '').toUpperCase();
+                    const isVoid = status === 'VOID';
+                    const paid = (i.paid_cents || 0) / 100;
+                    const total = (i.total_cents || 0) / 100;
+                    const due = isVoid ? 0 : Math.max(0, total - paid);
+                    const client = clients.find((c) => c.id === i.client_id);
+                    const taxId = client?.tax_id || '';
+                    const isoCode = businessProfile.currency_code || 'USD';
+                    lines.push(
+                      `"${i.invoice_number}","${i.issue_date}","${i.due_date}","${isoCode}","${(i.client_name || '').replace(/"/g, '""')}","${taxId}",${((i.subtotal_cents || 0) / 100).toFixed(2)},${((i.tax_cents || 0) / 100).toFixed(2)},${total.toFixed(2)},${paid.toFixed(2)},${due.toFixed(2)},"${isVoid ? 'VOID' : status}"`
+                    );
+                  });
+                  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
                   const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a'); a.href = url; a.download = 'invoices.csv'; a.click();
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'invoices_export.csv';
+                  a.click();
+                  URL.revokeObjectURL(url);
                   setIsCsvModalOpen(false);
                 }}
-                className="w-full p-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl flex items-center justify-between transition"
+                className="w-full p-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl flex items-center justify-between transition cursor-pointer"
               >
-                <span>Export Invoices CSV ({invoices.length})</span>
-                <FileSpreadsheet className="w-4 h-4" />
+                <div className="text-left">
+                  <div>Invoices CSV ({invoices.filter((i) => (i.computed_status || i.status || '').toUpperCase() !== 'DRAFT').length})</div>
+                  <div className="text-[10px] opacity-75 font-normal">Finalized invoices only • headers on row 1 (invoices_export.csv)</div>
+                </div>
+                <FileSpreadsheet className="w-4 h-4 shrink-0" />
+              </button>
+
+              {/* Expenses CSV */}
+              <button
+                onClick={() => {
+                  const lines = ['Expense ID,Date,Category,Vendor,Currency Code,Amount,Tax,Total,Notes'];
+                  const isoCode = businessProfile.currency_code || 'USD';
+                  expenses.forEach((e) => {
+                    lines.push(
+                      `"${e.id}","${e.expense_date}","${e.category}","${(e.vendor || '').replace(/"/g, '""')}","${isoCode}",${((e.amount_cents || 0) / 100).toFixed(2)},${((e.tax_cents || 0) / 100).toFixed(2)},${((e.total_cents || 0) / 100).toFixed(2)},""`
+                    );
+                  });
+                  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'expenses_export.csv';
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  setIsCsvModalOpen(false);
+                }}
+                className="w-full p-3 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-xs rounded-xl flex items-center justify-between transition cursor-pointer"
+              >
+                <div className="text-left">
+                  <div>Expenses CSV ({expenses.length})</div>
+                  <div className="text-[10px] opacity-75 font-normal">All operating expenses • headers on row 1 (expenses_export.csv)</div>
+                </div>
+                <FileSpreadsheet className="w-4 h-4 shrink-0" />
               </button>
             </div>
           </div>

@@ -174,7 +174,11 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
     setState(() => _items.removeAt(index));
   }
 
-  int get _subtotalCents => _items.fold(0, (sum, i) => sum + i.totalCents);
+  List<LineItemEntry> get _validItems => _items
+      .where((i) => !(i.description.trim().isEmpty && i.unitPriceCents == 0))
+      .toList();
+
+  int get _subtotalCents => _validItems.fold(0, (sum, i) => sum + i.totalCents);
 
   int get _discountCents {
     if (_discountType == 'none') return 0;
@@ -187,7 +191,7 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
 
   int get _taxCents {
     final subAfterDisc = (_subtotalCents - _discountCents).clamp(0, _subtotalCents);
-    return _items.fold(0, (sum, i) {
+    return _validItems.fold(0, (sum, i) {
       if (_subtotalCents <= 0) return sum;
       final lineShare = (i.totalCents * subAfterDisc) ~/ _subtotalCents;
       return sum + (lineShare * i.taxSlab ~/ 100);
@@ -530,13 +534,20 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
                       if (itemId == null) return;
                       final item = catalog.firstWhere((it) => it.id == itemId);
                       setState(() {
-                        _items.add(LineItemEntry(
+                        final newEntry = LineItemEntry(
                           description: item.title,
                           sacHsn: item.sacHsn,
                           quantity: 1,
                           unitPriceCents: item.defaultPriceCents,
                           taxSlab: 10,
-                        ));
+                        );
+                        if (_items.length == 1 &&
+                            _items.first.description.trim().isEmpty &&
+                            _items.first.unitPriceCents == 0) {
+                          _items[0] = newEntry;
+                        } else {
+                          _items.add(newEntry);
+                        }
                       });
                     },
                   ),

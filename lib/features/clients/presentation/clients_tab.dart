@@ -365,7 +365,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
       itemBuilder: (_, i) {
         final c = clients[i];
         final isSelected = _selectedClientId == c.id;
-        final clientInvoices = invoices.where((inv) => inv.clientId == c.id).toList();
+        final clientInvoices = invoices.where((inv) => inv.clientId == c.id && !inv.isVoid && !inv.isDraft).toList();
         final balanceDue = clientInvoices.fold(0, (sum, inv) => sum + inv.balanceDueCents);
 
         return ListTile(
@@ -403,12 +403,13 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
       return const Center(child: Text('Client not found.'));
     }
 
-    final invoices = ref.watch(invoicesProvider).where((i) => i.clientId == client.id).toList();
+    final allClientInvoices = ref.watch(invoicesProvider).where((i) => i.clientId == client.id).toList();
+    final activeInvoices = allClientInvoices.where((i) => !i.isVoid && !i.isDraft).toList();
     final formatCurrency = ref.watch(currencyFormatterProvider);
 
     int totalBilled = 0;
     int totalPaid = 0;
-    for (final inv in invoices) {
+    for (final inv in activeInvoices) {
       totalBilled += inv.totalCents;
       totalPaid += inv.paidCents;
     }
@@ -542,42 +543,76 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
             height: 380,
             child: TabBarView(
               children: [
-                // Invoices List
-                invoices.isEmpty
-                    ? const Center(child: Text('No invoices issued to this client yet.', style: TextStyle(color: Colors.grey)))
-                    : ListView.separated(
-                        itemCount: invoices.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, i) {
-                          final inv = invoices[i];
-                          return ListTile(
-                            leading: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: inv.isFullyPaid ? Colors.green.shade50 : Colors.amber.shade50,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: inv.isFullyPaid ? Colors.green.shade300 : Colors.amber.shade300),
+                // Invoices List (Finalized/Issued Invoices only - No Drafts)
+                (() {
+                  final nonDraftInvoices = allClientInvoices.where((i) => !i.isDraft).toList();
+                  if (nonDraftInvoices.isEmpty) {
+                    return const Center(child: Text('No finalized invoices issued to this client yet.', style: TextStyle(color: Colors.grey)));
+                  }
+                  return ListView.separated(
+                    itemCount: nonDraftInvoices.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, i) {
+                      final inv = nonDraftInvoices[i];
+                      final isVoid = inv.isVoid;
+                      return ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isVoid
+                                ? Colors.grey.shade100
+                                : (inv.isFullyPaid ? Colors.green.shade50 : Colors.amber.shade50),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: isVoid
+                                  ? Colors.grey.shade400
+                                  : (inv.isFullyPaid ? Colors.green.shade300 : Colors.amber.shade300),
+                            ),
+                          ),
+                          child: Text(
+                            isVoid ? 'VOID' : inv.invoiceNumber,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isVoid
+                                  ? Colors.grey.shade800
+                                  : (inv.isFullyPaid ? Colors.green.shade800 : Colors.amber.shade900),
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          isVoid ? '${inv.invoiceNumber} (VOID)' : inv.issueDate,
+                          style: TextStyle(
+                            fontSize: 12,
+                            decoration: isVoid ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
+                        subtitle: Text('Terms: ${inv.paymentTerms} • Due: ${inv.dueDate}', style: const TextStyle(fontSize: 11)),
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(formatCurrency(inv.totalCents), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text(
+                              isVoid
+                                  ? 'Voided'
+                                  : (inv.balanceDueCents > 0 ? 'Bal: ${formatCurrency(inv.balanceDueCents)}' : '✓ Paid'),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isVoid
+                                    ? Colors.grey.shade600
+                                    : (inv.balanceDueCents > 0 ? Colors.red.shade700 : Colors.green.shade700),
+                                fontWeight: FontWeight.bold,
                               ),
-                              child: Text(inv.invoiceNumber, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: inv.isFullyPaid ? Colors.green.shade800 : Colors.amber.shade900)),
                             ),
-                            title: Text(inv.issueDate, style: const TextStyle(fontSize: 12)),
-                            subtitle: Text('Terms: ${inv.paymentTerms} • Due: ${inv.dueDate}', style: const TextStyle(fontSize: 11)),
-                            trailing: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(formatCurrency(inv.totalCents), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                Text(
-                                  inv.balanceDueCents > 0 ? 'Bal: ${formatCurrency(inv.balanceDueCents)}' : '✓ Paid',
-                                  style: TextStyle(fontSize: 11, color: inv.balanceDueCents > 0 ? Colors.red.shade700 : Colors.green.shade700, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                })(),
 
-                // Statement of Account View
+                // Statement of Account View (Excludes Drafts and Voided)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -599,13 +634,13 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                     ),
                     const SizedBox(height: 12),
                     Expanded(
-                      child: invoices.isEmpty
-                          ? const Center(child: Text('No transactions to show.', style: TextStyle(color: Colors.grey)))
+                      child: activeInvoices.isEmpty
+                          ? const Center(child: Text('No active transactions to show.', style: TextStyle(color: Colors.grey)))
                           : ListView.separated(
-                              itemCount: invoices.length,
+                              itemCount: activeInvoices.length,
                               separatorBuilder: (_, __) => const Divider(height: 1),
                               itemBuilder: (context, i) {
-                                final inv = invoices[i];
+                                final inv = activeInvoices[i];
                                 return ListTile(
                                   dense: true,
                                   leading: const Icon(Icons.receipt_long, size: 18),

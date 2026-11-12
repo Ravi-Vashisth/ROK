@@ -207,22 +207,26 @@ class OfflineInvoicesList extends ConsumerWidget {
                   leading: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: isPaid
-                          ? Colors.green.shade50
-                          : (isOverdue
-                              ? Colors.red.shade100
-                              : (isPartial
-                                  ? Colors.amber.shade100
-                                  : Theme.of(context).colorScheme.primaryContainer)),
+                      color: (inv.isVoid || inv.status == 'VOID')
+                          ? Colors.grey.shade100
+                          : (isPaid
+                              ? Colors.green.shade50
+                              : (isOverdue
+                                  ? Colors.red.shade100
+                                  : (isPartial
+                                      ? Colors.amber.shade100
+                                      : Theme.of(context).colorScheme.primaryContainer))),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: isPaid
-                            ? Colors.green.shade300
-                            : (isOverdue
-                                ? Colors.red.shade300
-                                : (isPartial
-                                    ? Colors.amber.shade400
-                                    : Colors.transparent)),
+                        color: (inv.isVoid || inv.status == 'VOID')
+                            ? Colors.grey.shade400
+                            : (isPaid
+                                ? Colors.green.shade300
+                                : (isOverdue
+                                    ? Colors.red.shade300
+                                    : (isPartial
+                                        ? Colors.amber.shade400
+                                        : Colors.transparent))),
                       ),
                     ),
                     child: Text(
@@ -230,13 +234,15 @@ class OfflineInvoicesList extends ConsumerWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
-                        color: isPaid
-                            ? Colors.green.shade900
-                            : (isOverdue
-                                ? Colors.red.shade900
-                                : (isPartial
-                                    ? Colors.amber.shade900
-                                    : Theme.of(context).colorScheme.onPrimaryContainer)),
+                        color: (inv.isVoid || inv.status == 'VOID')
+                            ? Colors.grey.shade700
+                            : (isPaid
+                                ? Colors.green.shade900
+                                : (isOverdue
+                                    ? Colors.red.shade900
+                                    : (isPartial
+                                        ? Colors.amber.shade900
+                                        : Theme.of(context).colorScheme.onPrimaryContainer))),
                       ),
                     ),
                   ),
@@ -250,8 +256,25 @@ class OfflineInvoicesList extends ConsumerWidget {
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(width: 8),
-                        // Status Badge (DRAFT / PAID / PARTIALLY PAID / OVERDUE / PENDING)
-                        if (inv.isDraft)
+                        // Status Badge (VOID / DRAFT / PAID / PARTIALLY PAID / OVERDUE / PENDING)
+                        if (inv.isVoid || inv.status == 'VOID')
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.grey.shade400),
+                            ),
+                            child: Text(
+                              'VOID',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade800,
+                              ),
+                            ),
+                          )
+                        else if (inv.isDraft)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
@@ -360,15 +383,19 @@ class OfflineInvoicesList extends ConsumerWidget {
                                 ),
                           ),
                           Text(
-                            inv.balanceDueCents > 0
-                                ? 'Bal: ${formatCents(inv.balanceDueCents, symbol: inv.currencySymbol.isNotEmpty ? inv.currencySymbol : sym, decimals: inv.currencyCode.isNotEmpty ? inv.currencyDecimals : profile.currencyDecimals)}'
-                                : '✓ Settled',
+                            (inv.isVoid || inv.status == 'VOID')
+                                ? 'Voided'
+                                : (inv.balanceDueCents > 0
+                                    ? 'Bal: ${formatCents(inv.balanceDueCents, symbol: inv.currencySymbol.isNotEmpty ? inv.currencySymbol : sym, decimals: inv.currencyCode.isNotEmpty ? inv.currencyDecimals : profile.currencyDecimals)}'
+                                    : '✓ Settled'),
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: inv.balanceDueCents > 0
-                                   ? (isOverdue ? Colors.red.shade700 : Colors.indigo.shade700)
-                                   : Colors.green.shade700,
+                              color: (inv.isVoid || inv.status == 'VOID')
+                                  ? Colors.grey.shade600
+                                  : (inv.balanceDueCents > 0
+                                      ? (isOverdue ? Colors.red.shade700 : Colors.indigo.shade700)
+                                      : Colors.green.shade700),
                             ),
                           ),
                         ],

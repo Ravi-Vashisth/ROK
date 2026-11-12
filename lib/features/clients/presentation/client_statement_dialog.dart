@@ -17,7 +17,10 @@ class ClientStatementDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final invoices = ref.watch(invoicesProvider).where((i) => i.clientId == client.id).toList();
+    final invoices = ref
+        .watch(invoicesProvider)
+        .where((i) => i.clientId == client.id && !i.isDraft && !i.isVoid)
+        .toList();
     final formatCurrency = ref.watch(currencyFormatterProvider);
 
     int totalInvoiced = 0;

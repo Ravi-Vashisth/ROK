@@ -412,7 +412,12 @@ class InvoicePdfService {
                       _buildHeaderCell('Total', align: pw.TextAlign.right),
                     ],
                   ),
-                  ...items.asMap().entries.map((entry) {
+                  ...items
+                      .where((item) => !(item.description.trim().isEmpty && item.unitPriceCents == 0))
+                      .toList()
+                      .asMap()
+                      .entries
+                      .map((entry) {
                     final index = entry.key;
                     final item = entry.value;
                     final isEven = index % 2 == 0;
@@ -962,7 +967,12 @@ class InvoicePdfService {
                       _buildHeaderCell('Total', align: pw.TextAlign.right),
                     ],
                   ),
-                  ...items.asMap().entries.map((entry) {
+                  ...items
+                      .where((item) => !(item.description.trim().isEmpty && item.unitPriceCents == 0))
+                      .toList()
+                      .asMap()
+                      .entries
+                      .map((entry) {
                     final item = entry.value;
                     return pw.TableRow(
                       decoration: pw.BoxDecoration(
@@ -1044,10 +1054,38 @@ class InvoicePdfService {
                 pw.SizedBox(height: 6),
               ],
 
-              if (signatureBytes != null || businessProfile.signatureLabel.isNotEmpty) ...[
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.end,
-                  children: [
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'This estimate is valid until ${estimate.expiryDate}.',
+                        style: pw.TextStyle(
+                          fontSize: 9,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColor.fromHex('#475569'),
+                        ),
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        'Upon acceptance, this estimate can be converted directly into a formal invoice.',
+                        style: pw.TextStyle(fontSize: 8, color: PdfColor.fromHex('#64748B')),
+                      ),
+                      pw.SizedBox(height: 14),
+                      pw.Container(width: 160, height: 1, color: PdfColor.fromHex('#94A3B8')),
+                      pw.SizedBox(height: 3),
+                      pw.Text(
+                        'Client Acceptance Signature',
+                        style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#64748B')),
+                      ),
+                      pw.SizedBox(height: 1),
+                      pw.Text('Date: ____________________', style: pw.TextStyle(fontSize: 7.5, color: PdfColor.fromHex('#94A3B8'))),
+                    ],
+                  ),
+                  if (signatureBytes != null || businessProfile.signatureLabel.isNotEmpty) ...[
                     pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.center,
                       children: [
@@ -1069,23 +1107,7 @@ class InvoicePdfService {
                       ],
                     ),
                   ],
-                ),
-                pw.SizedBox(height: 6),
-              ],
-
-              pw.Container(
-                width: double.infinity,
-                padding: const pw.EdgeInsets.all(8),
-                decoration: pw.BoxDecoration(
-                  color: PdfColor.fromHex('#F8FAFC'),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-                  border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0'), width: 1),
-                ),
-                child: pw.Text(
-                  'This quote is valid for 30 days from issue date. Upon acceptance, this quote can be converted directly into a formal invoice.',
-                  style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#64748B')),
-                  textAlign: pw.TextAlign.center,
-                ),
+                ],
               ),
             ],
           );
@@ -1240,7 +1262,7 @@ class InvoicePdfService {
                     _buildHeaderCell('Balance Due', align: pw.TextAlign.right),
                   ],
                 ),
-                ...invoices.where((inv) => !inv.isVoid).map((inv) {
+                ...invoices.where((inv) => !inv.isVoid && !inv.isDraft).map((inv) {
                   final invSym = inv.currencySymbol.isNotEmpty ? inv.currencySymbol : sym;
                   final invDec = inv.currencyCode.isNotEmpty ? inv.currencyDecimals : dec;
                   return pw.TableRow(

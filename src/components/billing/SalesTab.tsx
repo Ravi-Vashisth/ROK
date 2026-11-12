@@ -46,7 +46,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
       {/* Sales Header & Action Bar */}
       <div className={`p-6 rounded-xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
         <div>
-          <h2 className="text-xl font-bold tracking-tight">Sales & Proposals Hub</h2>
+          <h2 className="text-xl font-bold tracking-tight">Sales & Proposals Overview</h2>
           <p className="text-xs text-slate-500 mt-1">Manage client invoices, proposals, and track receivables</p>
         </div>
 
@@ -54,7 +54,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
           {/* SubTab Toggles */}
           <div className={`p-1 rounded-xl border flex items-center gap-1 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
             <button
-              onClick={() => setSubTab(0)}
+              onClick={() => { setSubTab(0); setStatusFilter('All'); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
                 subTab === 0
                   ? isDarkMode ? 'bg-indigo-600 text-white' : 'bg-white text-slate-900 shadow-sm'
@@ -65,7 +65,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
               <span>Invoices ({invoices.length})</span>
             </button>
             <button
-              onClick={() => setSubTab(1)}
+              onClick={() => { setSubTab(1); setStatusFilter('All'); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
                 subTab === 1
                   ? isDarkMode ? 'bg-indigo-600 text-white' : 'bg-white text-slate-900 shadow-sm'
@@ -124,7 +124,10 @@ export const SalesTab: React.FC<SalesTabProps> = ({
 
         {/* Filter Chips */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          {['All', 'Draft', 'Pending', 'Partially Paid', 'Paid', 'Overdue', 'Void'].map((st) => {
+          {(subTab === 0
+            ? ['All', 'Draft', 'Pending', 'Partially Paid', 'Paid', 'Overdue', 'Void']
+            : ['All', 'Draft', 'Pending', 'Accepted', 'Declined', 'Converted']
+          ).map((st) => {
             const isSelected = statusFilter === st;
             return (
               <button

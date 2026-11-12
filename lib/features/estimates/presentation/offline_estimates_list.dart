@@ -44,8 +44,13 @@ class OfflineEstimatesList extends ConsumerWidget {
       }
 
       if (statusFilter != 'All') {
-        if (statusFilter.toUpperCase() == 'CONVERTED' && !est.isConverted) return false;
-        if (statusFilter.toUpperCase() == 'PENDING' && est.isConverted) return false;
+        final filterUpper = statusFilter.toUpperCase();
+        final estStatusUpper = est.status.toUpperCase();
+        if (filterUpper == 'DRAFT' && estStatusUpper != 'DRAFT') return false;
+        if (filterUpper == 'PENDING' && (estStatusUpper != 'PENDING' || est.isConverted)) return false;
+        if (filterUpper == 'ACCEPTED' && estStatusUpper != 'ACCEPTED') return false;
+        if (filterUpper == 'DECLINED' && estStatusUpper != 'DECLINED') return false;
+        if (filterUpper == 'CONVERTED' && !est.isConverted && estStatusUpper != 'CONVERTED') return false;
       }
       return true;
     }).toList();

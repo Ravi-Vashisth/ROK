@@ -88,7 +88,11 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
     return calculateDueDate(issueDate, paymentTerms);
   }, [issueDate, paymentTerms]);
 
-  const subtotalCents = items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
+  const activeItems = useMemo(() => {
+    return items.filter((it) => !(it.description.trim() === '' && it.unitPriceCents === 0));
+  }, [items]);
+
+  const subtotalCents = activeItems.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
 
   const discountCents = useMemo(() => {
     if (discountType === 'none') return 0;
@@ -101,13 +105,13 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
 
   const taxCents = useMemo(() => {
     const subAfterDisc = Math.max(0, subtotalCents - discountCents);
-    return items.reduce((sum, item) => {
+    return activeItems.reduce((sum, item) => {
       if (subtotalCents <= 0) return sum;
       const lineTotal = item.quantity * item.unitPriceCents;
       const lineNet = Math.floor((lineTotal * subAfterDisc) / subtotalCents);
-      return sum + Math.floor((lineNet * item.taxSlab) / 100);
+      return sum + Math.floor((lineNet * (item.taxSlab ?? 10)) / 100);
     }, 0);
-  }, [items, subtotalCents, discountCents]);
+  }, [activeItems, subtotalCents, discountCents]);
 
   const totalCents = Math.max(0, subtotalCents - discountCents) + taxCents;
 
@@ -122,10 +126,20 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
       return;
     }
     const q = parseInt(itemQty) || 1;
-    setItems((prev) => [
-      ...prev,
-      { id: Date.now().toString(), description: itemDesc.trim(), sacHsn: itemSacHsn.trim(), quantity: q, unitPriceCents: cents, taxSlab: 10 },
-    ]);
+    const newItem = {
+      id: Date.now().toString(),
+      description: itemDesc.trim(),
+      sacHsn: itemSacHsn.trim(),
+      quantity: q,
+      unitPriceCents: cents,
+      taxSlab: 10,
+    };
+    setItems((prev) => {
+      if (prev.length === 1 && (!prev[0].description?.trim() || prev[0].description === '—') && prev[0].unitPriceCents === 0) {
+        return [newItem];
+      }
+      return [...prev, newItem];
+    });
     setItemDesc('');
     setItemSacHsn('');
     setItemPrice('');
@@ -140,9 +154,20 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
   const handleSelectPresetItem = (itemId: string) => {
     const preset = savedItems.find((it) => it.id === itemId);
     if (!preset) return;
-    setItemDesc(preset.title);
-    setItemSacHsn(preset.sacHsn || '');
-    setItemPrice(((preset.defaultPriceCents || 0) / 100).toFixed(2));
+    const newItem = {
+      id: Date.now().toString(),
+      description: preset.title,
+      sacHsn: preset.sacHsn || '',
+      quantity: 1,
+      unitPriceCents: preset.defaultPriceCents || 0,
+      taxSlab: preset.taxSlab ?? 10,
+    };
+    setItems((prev) => {
+      if (prev.length === 1 && (!prev[0].description?.trim() || prev[0].description === '—') && prev[0].unitPriceCents === 0) {
+        return [newItem];
+      }
+      return [...prev, newItem];
+    });
   };
 
   const handleSaveNewClientModal = () => {
@@ -581,14 +606,20 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="py-2 font-medium">{item.description || '—'}</td>
-                    <td className="py-2 text-center">{item.quantity}</td>
-                    <td className="py-2 text-right font-mono">{formatMoney(item.unitPriceCents)}</td>
-                    <td className="py-2 text-right font-mono font-bold">{formatMoney(item.quantity * item.unitPriceCents)}</td>
+                {activeItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-3 text-center text-slate-400 italic">No line items added yet</td>
                   </tr>
-                ))}
+                ) : (
+                  activeItems.map((item) => (
+                    <tr key={item.id}>
+                      <td className="py-2 font-medium">{item.description || '—'}</td>
+                      <td className="py-2 text-center">{item.quantity}</td>
+                      <td className="py-2 text-right font-mono">{formatMoney(item.unitPriceCents)}</td>
+                      <td className="py-2 text-right font-mono font-bold">{formatMoney(item.quantity * item.unitPriceCents)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
 
@@ -616,12 +647,34 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
               </div>
             </div>
 
-            {/* Payment Instructions */}
-            {businessProfile.payment_details && (
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-[11px]">
-                <p className="font-bold text-slate-700">Payment Instructions:</p>
-                <p className="text-slate-600 whitespace-pre-line mt-0.5">{businessProfile.payment_details}</p>
+            {/* Instructions / Acceptance Block */}
+            {isQuote ? (
+              <div className="space-y-4 pt-2">
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-[11px] text-slate-600">
+                  <span className="font-bold text-slate-700">Proposal Validity: </span>
+                  This estimate is valid until <span className="font-bold font-mono">{computedDueDate}</span>.
+                </div>
+                <div className="pt-6 border-t border-slate-200 flex justify-between items-end text-[11px] text-slate-500">
+                  <div>
+                    <div className="w-44 border-b border-slate-400 mb-1"></div>
+                    <p className="font-bold text-slate-700">Client Acceptance Signature</p>
+                    <p className="text-[10px]">Date: ________________________</p>
+                  </div>
+                  {businessProfile.signature_base64 && (
+                    <div className="text-right">
+                      <img src={businessProfile.signature_base64} alt="Signature" className="h-10 ml-auto object-contain" />
+                      <p className="font-bold text-slate-700 mt-1">Authorized Signatory</p>
+                    </div>
+                  )}
+                </div>
               </div>
+            ) : (
+              businessProfile.payment_details && (
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-[11px]">
+                  <p className="font-bold text-slate-700">Payment Instructions:</p>
+                  <p className="text-slate-600 whitespace-pre-line mt-0.5">{businessProfile.payment_details}</p>
+                </div>
+              )
             )}
           </div>
         </div>

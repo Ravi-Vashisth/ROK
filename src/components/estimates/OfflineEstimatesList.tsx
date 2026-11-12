@@ -30,9 +30,12 @@ export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
     // Status filter
     const status = (est.status || '').toUpperCase();
     if (statusFilter !== 'All') {
-      if (statusFilter === 'Draft' && status !== 'DRAFT') return false;
-      if (statusFilter === 'Pending' && status !== 'PENDING') return false;
-      if (statusFilter === 'Converted' && status !== 'CONVERTED') return false;
+      const filterUpper = statusFilter.toUpperCase();
+      if (filterUpper === 'DRAFT' && status !== 'DRAFT') return false;
+      if (filterUpper === 'PENDING' && status !== 'PENDING') return false;
+      if (filterUpper === 'ACCEPTED' && status !== 'ACCEPTED') return false;
+      if (filterUpper === 'DECLINED' && status !== 'DECLINED') return false;
+      if (filterUpper === 'CONVERTED' && status !== 'CONVERTED') return false;
     }
 
     // Search query
