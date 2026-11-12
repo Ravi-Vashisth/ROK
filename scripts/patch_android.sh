@@ -102,13 +102,20 @@ allprojects {
 }
 
 subprojects {
-    afterEvaluate {
+    val configProject: Project.() -> Unit = {
         val androidExt = extensions.findByName("android")
         if (androidExt != null) {
             try {
                 val method = androidExt.javaClass.getMethod("compileSdkVersion", Int::class.javaPrimitiveType)
                 method.invoke(androidExt, 36)
             } catch (_: Exception) {}
+        }
+    }
+    if (state.executed) {
+        configProject()
+    } else {
+        afterEvaluate {
+            configProject()
         }
     }
 }
