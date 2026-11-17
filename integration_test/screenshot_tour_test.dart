@@ -21,16 +21,6 @@ void main() {
 
   testWidgets('Multi-platform visual screenshot tour test',
       (WidgetTester tester) async {
-    // 1. Suppress layout overflow assertions during automated screenshot capture
-    final originalOnError = FlutterError.onError;
-    FlutterError.onError = (FlutterErrorDetails details) {
-      if (details.exceptionAsString().contains('overflowed') ||
-          details.exceptionAsString().contains('deactivated widget') ||
-          details.exceptionAsString().contains('hit test')) {
-        return;
-      }
-      originalOnError?.call(details);
-    };
 
     // 2. Set mock method channel for path_provider in test environment
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -51,6 +41,7 @@ void main() {
     await tester.binding.setSurfaceSize(targetSize);
 
     final Database db = await openLocalDatabase();
+    addTearDown(db.dispose);
     final GlobalKey rootKey = GlobalKey();
 
     String getPlatformDir() {
@@ -133,12 +124,12 @@ void main() {
     // 02_sales_invoices.png
     final salesNav = find.text('Sales');
     if (salesNav.evaluate().isNotEmpty) {
-      await tester.tap(salesNav.first, warnIfMissed: false);
+      await tester.tap(salesNav.first);
       await tester.pumpAndSettle();
     } else {
-      final salesIcon = find.byIcon(Icons.receipt_long);
+      final salesIcon = find.byIcon(Icons.work_outline);
       if (salesIcon.evaluate().isNotEmpty) {
-        await tester.tap(salesIcon.first, warnIfMissed: false);
+        await tester.tap(salesIcon.first);
         await tester.pumpAndSettle();
       }
     }
@@ -147,23 +138,18 @@ void main() {
     // 03_invoice_editor.png
     final createBtn = find.text('Create Invoice');
     if (createBtn.evaluate().isNotEmpty) {
-      await tester.tap(createBtn.first, warnIfMissed: false);
+      await tester.tap(createBtn.first);
       await tester.pumpAndSettle();
       await takeTourScreenshot('03_invoice_editor');
 
       // Pop back from Invoice Editor
-      final cancelBtn = find.text('Cancel / Back');
-      if (cancelBtn.evaluate().isNotEmpty) {
-        await tester.tap(cancelBtn.first, warnIfMissed: false);
+      final backBtn = find.byType(BackButton);
+      if (backBtn.evaluate().isNotEmpty) {
+        await tester.tap(backBtn.first);
       } else {
-        final backBtn = find.byType(BackButton);
-        if (backBtn.evaluate().isNotEmpty) {
-          await tester.tap(backBtn.first, warnIfMissed: false);
-        } else {
-          final backIcon = find.byIcon(Icons.arrow_back);
-          if (backIcon.evaluate().isNotEmpty) {
-            await tester.tap(backIcon.first, warnIfMissed: false);
-          }
+        final backIcon = find.byIcon(Icons.arrow_back);
+        if (backIcon.evaluate().isNotEmpty) {
+          await tester.tap(backIcon.first);
         }
       }
       await tester.pumpAndSettle();
@@ -172,9 +158,9 @@ void main() {
     }
 
     // 04_quotes_estimates.png
-    final estimatesTab = find.text('Estimates');
-    if (estimatesTab.evaluate().isNotEmpty) {
-      await tester.tap(estimatesTab.first, warnIfMissed: false);
+    final quotesTab = find.text('Quotes');
+    if (quotesTab.evaluate().isNotEmpty) {
+      await tester.tap(quotesTab.first);
       await tester.pumpAndSettle();
     }
     await takeTourScreenshot('04_quotes_estimates');
@@ -182,49 +168,52 @@ void main() {
     // 05_expenses_ledger.png
     final expensesNav = find.text('Expenses');
     if (expensesNav.evaluate().isNotEmpty) {
-      await tester.tap(expensesNav.first, warnIfMissed: false);
+      await tester.tap(expensesNav.first);
       await tester.pumpAndSettle();
     } else {
-      final expIcon = find.byIcon(Icons.account_balance_wallet);
+      final expIcon = find.byIcon(Icons.account_balance_wallet_outlined);
       if (expIcon.evaluate().isNotEmpty) {
-        await tester.tap(expIcon.first, warnIfMissed: false);
+        await tester.tap(expIcon.first);
         await tester.pumpAndSettle();
       }
     }
     await takeTourScreenshot('05_expenses_ledger');
 
-    // 06_client_dossier.png
-    final hubNav = find.text('Hub');
-    if (hubNav.evaluate().isNotEmpty) {
-      await tester.tap(hubNav.first, warnIfMissed: false);
+    // 06_client_dossier.png (Clients sub-tab lives inside Sales)
+    if (salesNav.evaluate().isNotEmpty) {
+      await tester.tap(salesNav.first);
       await tester.pumpAndSettle();
-    } else {
-      final settingsIcon = find.byIcon(Icons.settings);
-      if (settingsIcon.evaluate().isNotEmpty) {
-        await tester.tap(settingsIcon.first, warnIfMissed: false);
-        await tester.pumpAndSettle();
-      }
     }
-
-    final clientsSubTab = find.text('Clients');
+    final clientsSubTab = find.textContaining('Clients (');
     if (clientsSubTab.evaluate().isNotEmpty) {
-      await tester.tap(clientsSubTab.first, warnIfMissed: false);
+      await tester.tap(clientsSubTab.first);
       await tester.pumpAndSettle();
     }
     await takeTourScreenshot('06_client_dossier');
 
-    // 07_catalog_items.png
-    final catalogSubTab = find.text('Catalog');
+    // 07_catalog_items.png (Catalog & Services lives inside Settings)
+    final settingsNav = find.text('Settings');
+    if (settingsNav.evaluate().isNotEmpty) {
+      await tester.tap(settingsNav.first);
+      await tester.pumpAndSettle();
+    } else {
+      final settingsIcon = find.byIcon(Icons.settings_outlined);
+      if (settingsIcon.evaluate().isNotEmpty) {
+        await tester.tap(settingsIcon.first);
+        await tester.pumpAndSettle();
+      }
+    }
+    final catalogSubTab = find.text('Catalog & Services');
     if (catalogSubTab.evaluate().isNotEmpty) {
-      await tester.tap(catalogSubTab.first, warnIfMissed: false);
+      await tester.tap(catalogSubTab.first);
       await tester.pumpAndSettle();
     }
     await takeTourScreenshot('07_catalog_items');
 
     // 08_settings_branding.png
-    final settingsSubTab = find.text('Settings');
-    if (settingsSubTab.evaluate().isNotEmpty) {
-      await tester.tap(settingsSubTab.last, warnIfMissed: false);
+    final profileSubTab = find.text('Profile & Branding');
+    if (profileSubTab.evaluate().isNotEmpty) {
+      await tester.tap(profileSubTab.first);
       await tester.pumpAndSettle();
     }
     await takeTourScreenshot('08_settings_branding');

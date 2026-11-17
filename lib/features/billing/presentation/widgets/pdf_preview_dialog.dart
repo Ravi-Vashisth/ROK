@@ -14,16 +14,20 @@ class PdfPreviewDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.sizeOf(context);
     return Dialog(
-      insetPadding: const EdgeInsets.all(24),
+      insetPadding: EdgeInsets.all(screenSize.width < 600 ? 12 : 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          width: 900,
-          height: 750,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 900,
+            maxHeight: screenSize.height * 0.9,
+          ),
           child: Scaffold(
             appBar: AppBar(
-              title: Text(title),
+              title: Text(title, overflow: TextOverflow.ellipsis),
               automaticallyImplyLeading: false,
               actions: [
                 IconButton(

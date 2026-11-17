@@ -1,5 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { Settings, X, Save, Image, PenTool, Trash2, CheckCircle2 } from 'lucide-react';
+import {
+  TAX_MODE_LABELS,
+  TaxMode,
+  getCurrencyDecimals,
+  getRegionalTaxIdLabel,
+  normalizeTaxMode,
+} from '../../billingRules';
 
 interface BusinessProfileDialogProps {
   businessProfile: any;
@@ -7,6 +14,19 @@ interface BusinessProfileDialogProps {
   onClose: () => void;
   onSaveProfile: (profileData: any) => void;
 }
+
+const CURRENCY_SYMBOL_MAP: Record<string, string> = {
+  USD: '$',
+  INR: '₹',
+  EUR: '€',
+  GBP: '£',
+  JPY: '¥',
+  KRW: '₩',
+  CAD: 'C$',
+  AUD: 'A$',
+  AED: 'AED',
+  SAR: 'SAR',
+};
 
 export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
   businessProfile,
@@ -20,6 +40,12 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
   const [address, setAddress] = useState<string>(businessProfile.address || '');
   const [taxId, setTaxId] = useState<string>(businessProfile.tax_id || '');
   const [currencyCode, setCurrencyCode] = useState<string>(businessProfile.currency_code || 'USD');
+  const [defaultTaxMode, setDefaultTaxMode] = useState<TaxMode>(
+    normalizeTaxMode(businessProfile.default_tax_mode)
+  );
+  const [defaultPstRatePercentage, setDefaultPstRatePercentage] = useState<string>(
+    String(businessProfile.default_pst_rate_percentage ?? 7)
+  );
   const [paymentDetails, setPaymentDetails] = useState<string>(businessProfile.payment_details || '');
   const [defaultTerms, setDefaultTerms] = useState<string>(businessProfile.default_terms || '');
   const [defaultNotes, setDefaultNotes] = useState<string>(businessProfile.default_notes || '');
@@ -47,11 +73,8 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    let sym = '$';
-    if (currencyCode === 'INR') sym = '₹';
-    if (currencyCode === 'EUR') sym = '€';
-    if (currencyCode === 'GBP') sym = '£';
-    if (currencyCode === 'JPY') sym = '¥';
+    const sym = CURRENCY_SYMBOL_MAP[currencyCode] || '$';
+    const parsedPst = Math.min(100, Math.max(0, Math.round(Number(defaultPstRatePercentage) || 0)));
 
     onSaveProfile({
       ...businessProfile,
@@ -62,6 +85,9 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
       tax_id: taxId,
       currency_code: currencyCode,
       currency_symbol: sym,
+      currency_decimals: getCurrencyDecimals(currencyCode),
+      default_tax_mode: defaultTaxMode,
+      default_pst_rate_percentage: defaultTaxMode === 'ca_dual' ? parsedPst : 0,
       payment_details: paymentDetails,
       default_terms: defaultTerms,
       default_notes: defaultNotes,
@@ -71,20 +97,22 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
     onClose();
   };
 
+  const taxIdLabel = getRegionalTaxIdLabel(defaultTaxMode, false);
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-      <div className={`w-full max-w-lg rounded-xl border shadow-xl overflow-hidden ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}>
-        <div className="p-4 border-b flex items-center justify-between">
+      <div className={`w-full max-w-lg max-h-[90vh] flex flex-col rounded-xl border shadow-xl overflow-hidden ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}>
+        <div className="p-4 border-b dark:border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <Settings className="w-5 h-5 text-indigo-500" />
             <h3 className="font-bold text-sm">Business Profile & Settings</h3>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto text-xs flex-1">
           <div>
             <label className="block font-bold text-slate-500 mb-1">Business Name *</label>
             <input
@@ -96,7 +124,7 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-bold text-slate-500 mb-1">Business Email</label>
               <input
@@ -117,9 +145,9 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-bold text-slate-500 mb-1">Tax ID / GSTIN / VAT</label>
+              <label className="block font-bold text-slate-500 mb-1">{taxIdLabel}</label>
               <input
                 type="text"
                 value={taxId}
@@ -139,8 +167,43 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
                 <option value="EUR">EUR (€)</option>
                 <option value="GBP">GBP (£)</option>
                 <option value="JPY">JPY (¥)</option>
+                <option value="KRW">KRW (₩)</option>
+                <option value="CAD">CAD (C$)</option>
+                <option value="AUD">AUD (A$)</option>
+                <option value="AED">AED (UAE)</option>
+                <option value="SAR">SAR (KSA)</option>
               </select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className={defaultTaxMode === 'ca_dual' ? '' : 'sm:col-span-2'}>
+              <label className="block font-bold text-slate-500 mb-1">Default Regional Tax Compliance Mode</label>
+              <select
+                value={defaultTaxMode}
+                onChange={(e) => setDefaultTaxMode(normalizeTaxMode(e.target.value))}
+                className={`w-full p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
+              >
+                {(Object.keys(TAX_MODE_LABELS) as TaxMode[]).map((mode) => (
+                  <option key={mode} value={mode}>
+                    {TAX_MODE_LABELS[mode]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {defaultTaxMode === 'ca_dual' && (
+              <div>
+                <label className="block font-bold text-slate-500 mb-1">Default Canada PST %</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={defaultPstRatePercentage}
+                  onChange={(e) => setDefaultPstRatePercentage(e.target.value)}
+                  className={`w-full p-2.5 rounded-xl border font-mono tabular-nums ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
+                />
+              </div>
+            )}
           </div>
 
           <div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   LayoutDashboard,
   ReceiptText,
@@ -11,8 +11,14 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import {
-  parsePriceToCents,
+  TaxMode,
   calculateDueDate,
+  formatDecimalUnits,
+  formatMoney as formatMoneyUnits,
+  getCurrencyDecimals,
+  getNextSequentialDocNumber,
+  parsePriceToCents,
+  validateBackupPayload,
 } from './billingRules';
 
 import { DashboardTab } from './components/dashboard/DashboardTab';
@@ -22,6 +28,9 @@ import { ExpensesTab } from './components/expenses/ExpensesTab';
 import { SettingsTab } from './components/settings/SettingsTab';
 import { BusinessProfileDialog } from './components/business_profile/BusinessProfileDialog';
 import { RecordPaymentModal } from './components/payments/RecordPaymentModal';
+import { PaymentReminderModal } from './components/billing/PaymentReminderModal';
+import { ConfirmDialog } from './components/common/ConfirmDialog';
+import { ExpenseDrawerModal } from './components/expenses/ExpenseDrawerModal';
 
 export interface Client {
   id: string;
@@ -48,6 +57,19 @@ export interface InvoiceRecord {
   paid_cents?: number;
   balance_due_cents?: number;
   computed_status?: string;
+  items?: any[];
+  terms?: string;
+  notes?: string;
+  discount_type?: 'none' | 'percent' | 'flat';
+  discount_value?: number;
+  discount_cents?: number;
+  po_number?: string;
+  currency_code?: string;
+  currency_symbol?: string;
+  currency_decimals?: number;
+  tax_mode?: TaxMode;
+  pst_rate_percentage?: number;
+  tax_exemption_id?: string;
   created_at: string;
 }
 
@@ -62,6 +84,20 @@ export interface StoredEstimateRecord {
   status: string;
   issue_date: string;
   expiry_date: string;
+  payment_terms?: string;
+  items?: any[];
+  terms?: string;
+  notes?: string;
+  discount_type?: 'none' | 'percent' | 'flat';
+  discount_value?: number;
+  discount_cents?: number;
+  po_number?: string;
+  currency_code?: string;
+  currency_symbol?: string;
+  currency_decimals?: number;
+  tax_mode?: TaxMode;
+  pst_rate_percentage?: number;
+  tax_exemption_id?: string;
   created_at: string;
 }
 
@@ -73,6 +109,7 @@ export interface ExpenseRecord {
   tax_cents: number;
   total_cents: number;
   expense_date: string;
+  notes?: string;
   created_at: string;
 }
 
@@ -101,10 +138,30 @@ export const App: React.FC = () => {
   const [editorMode, setEditorMode] = useState<'none' | 'invoice' | 'estimate'>('none');
   const [editingDraftData, setEditingDraftData] = useState<any>(null);
 
-  // Modals
+  // Modals & Toast Feedback
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState<boolean>(false);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState<boolean>(false);
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    isDestructive?: boolean;
+    onConfirm: () => void;
+  } | null>(null);
   const [paymentModalInvoice, setPaymentModalInvoice] = useState<InvoiceRecord | null>(null);
+  const [reminderModalInvoice, setReminderModalInvoice] = useState<InvoiceRecord | null>(null);
+  const [toast, setToast] = useState<{ message: string; isError?: boolean } | null>(null);
+
+  const showToast = (message: string, isError = false) => {
+    setToast({ message, isError });
+  };
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   // Persistent State
   const [clients, setClients] = useState<Client[]>(() => {
@@ -156,6 +213,8 @@ export const App: React.FC = () => {
       tax_id: 'US-EIN-987654321',
       currency_code: 'USD',
       currency_symbol: '$',
+      default_tax_mode: 'standard',
+      default_pst_rate_percentage: 0,
       payment_details: 'Bank: Silicon Valley Bank\nAccount: 987654321098\nRouting / SWIFT: SVB12345',
       default_terms: 'Payment due within agreed terms. Thank you for your business!',
       default_notes: 'All work includes 30 days post-delivery support.',
@@ -179,11 +238,11 @@ export const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('freelance_business_profile', JSON.stringify(businessProfile)); }, [businessProfile]);
 
   const sym = businessProfile.currency_symbol || '$';
+  const curDec =
+    businessProfile.currency_decimals ??
+    getCurrencyDecimals(businessProfile.currency_code || sym);
 
-  const formatMoney = (cents: number) => {
-    const val = cents / 100;
-    return `${sym}${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
+  const formatMoney = (units: number) => formatMoneyUnits(units, sym, curDec);
 
   // State Handlers
   const handleCreateInvoice = () => {
@@ -222,8 +281,10 @@ export const App: React.FC = () => {
             if (i.id !== docData.existingId) return i;
             let invNum = i.invoice_number;
             if (!docData.isDraft && invNum.startsWith('DRAFT-')) {
-              const count = prev.filter((x) => !x.invoice_number.startsWith('DRAFT-')).length + 1;
-              invNum = `INV-${count.toString().padStart(4, '0')}`;
+              invNum = getNextSequentialDocNumber(
+                prev.map((x) => x.invoice_number),
+                'INV-'
+              );
             }
             return {
               ...i,
@@ -239,13 +300,29 @@ export const App: React.FC = () => {
               due_date: calculateDueDate(docData.issueDate, docData.paymentTerms),
               payment_terms: docData.paymentTerms,
               balance_due_cents: Math.max(0, docData.totalCents - (i.paid_cents || 0)),
+              items: docData.items,
+              terms: docData.terms,
+              notes: docData.notes,
+              discount_type: docData.discountType,
+              discount_value: docData.discountValue,
+              discount_cents: docData.discountCents,
+              po_number: docData.poNumber,
+              currency_code: docData.currencyCode,
+              currency_symbol: docData.currencySymbol,
+              currency_decimals: docData.currencyDecimals,
+              tax_mode: docData.taxMode,
+              pst_rate_percentage: docData.pstRatePercentage,
+              tax_exemption_id: docData.taxExemptionId,
             };
           })
         );
       } else {
         const invNumber = docData.isDraft
           ? `DRAFT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
-          : `INV-${(invoices.filter((x) => !x.invoice_number.startsWith('DRAFT-')).length + 1).toString().padStart(4, '0')}`;
+          : getNextSequentialDocNumber(
+              invoices.map((x) => x.invoice_number),
+              'INV-'
+            );
         const newInv: InvoiceRecord = {
           id: `inv-${Date.now()}`,
           client_id: docData.clientId,
@@ -261,6 +338,19 @@ export const App: React.FC = () => {
           payment_terms: docData.paymentTerms,
           paid_cents: 0,
           balance_due_cents: docData.totalCents,
+          items: docData.items,
+          terms: docData.terms,
+          notes: docData.notes,
+          discount_type: docData.discountType,
+          discount_value: docData.discountValue,
+          discount_cents: docData.discountCents,
+          po_number: docData.poNumber,
+          currency_code: docData.currencyCode,
+          currency_symbol: docData.currencySymbol,
+          currency_decimals: docData.currencyDecimals,
+          tax_mode: docData.taxMode,
+          pst_rate_percentage: docData.pstRatePercentage,
+          tax_exemption_id: docData.taxExemptionId,
           created_at: new Date().toISOString(),
         };
         setInvoices((prev) => [newInv, ...prev]);
@@ -272,8 +362,10 @@ export const App: React.FC = () => {
             if (e.id !== docData.existingId) return e;
             let estNum = e.estimate_number;
             if (!docData.isDraft && estNum.startsWith('DRAFT-')) {
-              const count = prev.filter((x) => !x.estimate_number.startsWith('DRAFT-')).length + 1;
-              estNum = `EST-${count.toString().padStart(4, '0')}`;
+              estNum = getNextSequentialDocNumber(
+                prev.map((x) => x.estimate_number),
+                'EST-'
+              );
             }
             return {
               ...e,
@@ -285,14 +377,34 @@ export const App: React.FC = () => {
               total_cents: docData.totalCents,
               status: docData.isDraft ? 'DRAFT' : 'PENDING',
               issue_date: docData.issueDate,
-              expiry_date: calculateDueDate(docData.issueDate, 'Net 30 Days'),
+              expiry_date:
+                docData.expiryDate ||
+                e.expiry_date ||
+                calculateDueDate(docData.issueDate, docData.paymentTerms || 'Net 30 Days'),
+              payment_terms: docData.paymentTerms || 'Net 30 Days',
+              items: docData.items,
+              terms: docData.terms,
+              notes: docData.notes,
+              discount_type: docData.discountType,
+              discount_value: docData.discountValue,
+              discount_cents: docData.discountCents,
+              po_number: docData.poNumber,
+              currency_code: docData.currencyCode,
+              currency_symbol: docData.currencySymbol,
+              currency_decimals: docData.currencyDecimals,
+              tax_mode: docData.taxMode,
+              pst_rate_percentage: docData.pstRatePercentage,
+              tax_exemption_id: docData.taxExemptionId,
             };
           })
         );
       } else {
         const estNumber = docData.isDraft
           ? `DRAFT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
-          : `EST-${(estimates.filter((x) => !x.estimate_number.startsWith('DRAFT-')).length + 1).toString().padStart(4, '0')}`;
+          : getNextSequentialDocNumber(
+              estimates.map((x) => x.estimate_number),
+              'EST-'
+            );
         const newEst: StoredEstimateRecord = {
           id: `est-${Date.now()}`,
           client_id: docData.clientId,
@@ -303,7 +415,23 @@ export const App: React.FC = () => {
           total_cents: docData.totalCents,
           status: docData.isDraft ? 'DRAFT' : 'PENDING',
           issue_date: docData.issueDate,
-          expiry_date: calculateDueDate(docData.issueDate, 'Net 30 Days'),
+          expiry_date:
+            docData.expiryDate ||
+            calculateDueDate(docData.issueDate, docData.paymentTerms || 'Net 30 Days'),
+          payment_terms: docData.paymentTerms || 'Net 30 Days',
+          items: docData.items,
+          terms: docData.terms,
+          notes: docData.notes,
+          discount_type: docData.discountType,
+          discount_value: docData.discountValue,
+          discount_cents: docData.discountCents,
+          po_number: docData.poNumber,
+          currency_code: docData.currencyCode,
+          currency_symbol: docData.currencySymbol,
+          currency_decimals: docData.currencyDecimals,
+          tax_mode: docData.taxMode,
+          pst_rate_percentage: docData.pstRatePercentage,
+          tax_exemption_id: docData.taxExemptionId,
           created_at: new Date().toISOString(),
         };
         setEstimates((prev) => [newEst, ...prev]);
@@ -337,9 +465,17 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteInvoice = (inv: InvoiceRecord) => {
-    if (confirm(`Are you sure you want to delete invoice ${inv.invoice_number}?`)) {
-      setInvoices((prev) => prev.filter((i) => i.id !== inv.id));
-    }
+    setConfirmState({
+      title: 'Delete Invoice',
+      message: `Are you sure you want to delete invoice ${inv.invoice_number}?`,
+      confirmLabel: 'Delete Invoice',
+      isDestructive: true,
+      onConfirm: () => {
+        setInvoices((prev) => prev.filter((i) => i.id !== inv.id));
+        setConfirmState(null);
+        showToast(`Deleted invoice ${inv.invoice_number}.`);
+      },
+    });
   };
 
   const handleFinalizeInvoice = (inv: InvoiceRecord) => {
@@ -348,8 +484,10 @@ export const App: React.FC = () => {
         if (i.id !== inv.id) return i;
         let num = i.invoice_number;
         if (num.startsWith('DRAFT-')) {
-          const count = prev.filter((x) => !x.invoice_number.startsWith('DRAFT-')).length + 1;
-          num = `INV-${count.toString().padStart(4, '0')}`;
+          num = getNextSequentialDocNumber(
+            prev.map((x) => x.invoice_number),
+            'INV-'
+          );
         }
         return { ...i, invoice_number: num, status: 'PENDING', computed_status: 'PENDING' };
       })
@@ -362,8 +500,10 @@ export const App: React.FC = () => {
         if (e.id !== est.id) return e;
         let num = e.estimate_number;
         if (num.startsWith('DRAFT-')) {
-          const count = prev.filter((x) => !x.estimate_number.startsWith('DRAFT-')).length + 1;
-          num = `EST-${count.toString().padStart(4, '0')}`;
+          num = getNextSequentialDocNumber(
+            prev.map((x) => x.estimate_number),
+            'EST-'
+          );
         }
         return { ...e, estimate_number: num, status: 'PENDING' };
       })
@@ -371,58 +511,100 @@ export const App: React.FC = () => {
   };
 
   const handleConvertEstimate = (est: StoredEstimateRecord) => {
+    const todayIso = new Date().toISOString().split('T')[0];
+    const nextInvNum = getNextSequentialDocNumber(
+      invoices.map((x) => x.invoice_number),
+      'INV-'
+    );
     const newInv: InvoiceRecord = {
       id: `inv-${Date.now()}`,
       client_id: est.client_id,
       client_name: est.client_name,
-      invoice_number: `INV-C-${est.estimate_number}`,
+      invoice_number: nextInvNum,
       subtotal_cents: est.subtotal_cents,
       tax_cents: est.tax_cents,
       total_cents: est.total_cents,
       status: 'PENDING',
       computed_status: 'PENDING',
-      issue_date: new Date().toISOString().split('T')[0],
-      due_date: calculateDueDate(new Date().toISOString().split('T')[0], 'Net 15 Days'),
+      issue_date: todayIso,
+      due_date: calculateDueDate(todayIso, 'Net 15 Days'),
       payment_terms: 'Net 15 Days',
       paid_cents: 0,
       balance_due_cents: est.total_cents,
+      items: est.items,
+      terms: est.terms,
+      notes: est.notes,
+      discount_type: est.discount_type,
+      discount_value: est.discount_value,
+      discount_cents: est.discount_cents,
+      po_number: est.po_number,
+      currency_code: est.currency_code,
+      currency_symbol: est.currency_symbol,
+      currency_decimals: est.currency_decimals,
+      tax_mode: est.tax_mode,
+      pst_rate_percentage: est.pst_rate_percentage,
+      tax_exemption_id: est.tax_exemption_id,
       created_at: new Date().toISOString(),
     };
     setInvoices((prev) => [newInv, ...prev]);
     setEstimates((prev) => prev.map((e) => (e.id === est.id ? { ...e, status: 'CONVERTED' } : e)));
-    alert(`Converted quote ${est.estimate_number} into live invoice ${newInv.invoice_number}!`);
+    showToast(`Converted quote ${est.estimate_number} into live invoice ${newInv.invoice_number}.`);
   };
 
   const handleDeleteEstimate = (est: StoredEstimateRecord) => {
-    if (confirm(`Are you sure you want to delete quote ${est.estimate_number}?`)) {
-      setEstimates((prev) => prev.filter((e) => e.id !== est.id));
-    }
+    setConfirmState({
+      title: 'Delete Quote / Estimate',
+      message: `Are you sure you want to delete quote ${est.estimate_number}?`,
+      confirmLabel: 'Delete Quote',
+      isDestructive: true,
+      onConfirm: () => {
+        setEstimates((prev) => prev.filter((e) => e.id !== est.id));
+        setConfirmState(null);
+        showToast(`Deleted quote ${est.estimate_number}.`);
+      },
+    });
   };
 
   const handleAddExpense = () => {
-    const vendor = prompt('Vendor Name (e.g. Google Cloud, Apple):');
-    if (!vendor) return;
-    const cat = prompt('Category (Software & SaaS, Hardware, Office Supplies, Travel):', 'Software & SaaS');
-    const amtStr = prompt('Amount:', '50.00');
-    if (!amtStr) return;
-    const amtCents = parsePriceToCents(amtStr);
+    setIsExpenseModalOpen(true);
+  };
+
+  const handleSaveExpense = (expData: {
+    vendor: string;
+    category: string;
+    amount_cents: number;
+    tax_cents: number;
+    total_cents: number;
+    expense_date: string;
+    notes: string;
+  }) => {
     const newExp: ExpenseRecord = {
       id: `exp-${Date.now()}`,
-      vendor: vendor.trim(),
-      category: cat || 'General',
-      amount_cents: amtCents,
-      tax_cents: Math.round(amtCents * 0.1),
-      total_cents: Math.round(amtCents * 1.1),
-      expense_date: new Date().toISOString().split('T')[0],
+      vendor: expData.vendor,
+      category: expData.category,
+      amount_cents: expData.amount_cents,
+      tax_cents: expData.tax_cents,
+      total_cents: expData.total_cents,
+      expense_date: expData.expense_date,
+      notes: expData.notes,
       created_at: new Date().toISOString(),
     };
     setExpenses((prev) => [newExp, ...prev]);
+    showToast(`Expense logged for ${expData.vendor}.`);
   };
 
   const handleDeleteExpense = (exp: ExpenseRecord) => {
-    if (confirm(`Delete expense record from ${exp.vendor}?`)) {
-      setExpenses((prev) => prev.filter((e) => e.id !== exp.id));
-    }
+    setConfirmState({
+      title: 'Delete Expense',
+      message: `Delete expense record from "${exp.vendor}"?`,
+      confirmLabel: 'Delete Expense',
+      isDestructive: true,
+      onConfirm: () => {
+        setExpenses((prev) => prev.filter((e) => e.id !== exp.id));
+        setConfirmState(null);
+        showToast(`Deleted expense for ${exp.vendor}.`);
+      },
+    });
   };
 
   const handleAddClient = (cData: any) => {
@@ -458,12 +640,23 @@ export const App: React.FC = () => {
   const handleDeleteClient = (client: Client) => {
     const hasInvoices = invoices.some((i) => i.client_id === client.id);
     if (hasInvoices) {
-      alert(`Cannot delete client "${client.name}" because active invoices exist for this client. Foreign key integrity prevents deleting clients with financial records.`);
+      showToast(
+        `Cannot delete client "${client.name}" because active invoices exist for this client.`,
+        true
+      );
       return;
     }
-    if (confirm(`Delete client "${client.name}"?`)) {
-      setClients((prev) => prev.filter((c) => c.id !== client.id));
-    }
+    setConfirmState({
+      title: 'Delete Client',
+      message: `Are you sure you want to delete client "${client.name}"?`,
+      confirmLabel: 'Delete Client',
+      isDestructive: true,
+      onConfirm: () => {
+        setClients((prev) => prev.filter((c) => c.id !== client.id));
+        setConfirmState(null);
+        showToast(`Deleted client ${client.name}.`);
+      },
+    });
   };
 
   const handleAddItem = (iData: any) => {
@@ -496,9 +689,17 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteItem = (item: any) => {
-    if (confirm(`Delete preset service "${item.title}"?`)) {
-      setSavedItems((prev) => prev.filter((i) => i.id !== item.id));
-    }
+    setConfirmState({
+      title: 'Delete Catalog Item',
+      message: `Are you sure you want to delete preset service "${item.title}"?`,
+      confirmLabel: 'Delete Item',
+      isDestructive: true,
+      onConfirm: () => {
+        setSavedItems((prev) => prev.filter((i) => i.id !== item.id));
+        setConfirmState(null);
+        showToast(`Deleted catalog item ${item.title}.`);
+      },
+    });
   };
 
   const handleExportDatabase = () => {
@@ -530,14 +731,20 @@ export const App: React.FC = () => {
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target?.result as string);
-        if (data.clients) setClients(data.clients);
-        if (data.invoices) setInvoices(data.invoices);
+        const validation = validateBackupPayload(data);
+        if (!validation.valid) {
+          showToast(validation.error || 'Invalid database backup file.', true);
+          return;
+        }
+        setClients(data.clients);
+        setInvoices(data.invoices);
         if (data.estimates) setEstimates(data.estimates);
         if (data.expenses) setExpenses(data.expenses);
+        if (data.savedItems) setSavedItems(data.savedItems);
         if (data.businessProfile) setBusinessProfile(data.businessProfile);
-        alert('Database restored successfully from backup JSON!');
-      } catch (err) {
-        alert('Invalid database backup file.');
+        showToast('Database restored successfully from backup JSON.');
+      } catch (_) {
+        showToast('Invalid database backup file: Unable to parse JSON.', true);
       }
     };
     reader.readAsText(file);
@@ -554,11 +761,32 @@ export const App: React.FC = () => {
   };
 
   const [isPaletteOpen, setIsPaletteOpen] = useState<boolean>(false);
+  const paletteRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isPaletteOpen) return;
+    const handleMouseDown = (event: MouseEvent) => {
+      if (paletteRef.current && !paletteRef.current.contains(event.target as Node)) {
+        setIsPaletteOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsPaletteOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isPaletteOpen]);
 
   return (
     <div className={`min-h-screen font-sans flex antialiased ${isDarkMode ? 'bg-[#0B0F19] text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       {/* 1. MASTER SIDEBAR NAVIGATION (4 First-Class Desktop Tabs) */}
-      <aside className={`hidden md:flex flex-col w-[220px] border-r select-none sticky top-0 h-screen shrink-0 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+      <aside className={`hidden min-[900px]:flex flex-col w-[220px] border-r select-none sticky top-0 h-screen shrink-0 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
         <div className={`p-5 border-b flex flex-col items-center text-center gap-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
           <div className={`w-12 h-12 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-xs shrink-0 ${accentColors[accentColor]?.bg || 'bg-indigo-600'}`}>
             {businessProfile.business_name ? businessProfile.business_name[0].toUpperCase() : 'F'}
@@ -602,8 +830,8 @@ export const App: React.FC = () => {
       </aside>
 
       {/* 2. MAIN VIEWPORT */}
-      <div className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
-        <main className="flex-1 p-6 overflow-y-auto max-w-7xl mx-auto w-full space-y-6">
+      <div className="flex-1 flex flex-col min-w-0 pb-24 min-[900px]:pb-0">
+        <main className="flex-1 p-4 min-[900px]:p-6 overflow-y-auto max-w-7xl mx-auto w-full space-y-6">
           {/* Top Utility Bar */}
           <div className="flex flex-wrap items-center justify-end gap-2 mb-2">
             <button
@@ -624,9 +852,11 @@ export const App: React.FC = () => {
             </button>
 
             {/* Accent Color Palette Selector */}
-            <div className="relative">
+            <div className="relative" ref={paletteRef}>
               <button
                 onClick={() => setIsPaletteOpen((p) => !p)}
+                aria-expanded={isPaletteOpen}
+                aria-haspopup="true"
                 className={`p-2 rounded-xl border transition cursor-pointer flex items-center justify-center ${isDarkMode ? 'bg-[#0F172A] border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
                 title="Accent Color"
               >
@@ -643,7 +873,7 @@ export const App: React.FC = () => {
                         setAccentColor(key);
                         setIsPaletteOpen(false);
                       }}
-                      className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${accentColor === key ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                      className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition ${accentColor === key ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
                     >
                       <span className={`w-3.5 h-3.5 rounded-full ${info.bg}`}></span>
                       <span className="flex-1 text-left">{info.name}</span>
@@ -668,6 +898,11 @@ export const App: React.FC = () => {
             <InvoiceEditorScreen
               isQuote={editorMode === 'estimate'}
               initialData={editingDraftData}
+              nextDocNumber={
+                editorMode === 'estimate'
+                  ? getNextSequentialDocNumber(estimates.map((e) => e.estimate_number), 'EST-')
+                  : getNextSequentialDocNumber(invoices.map((i) => i.invoice_number), 'INV-')
+              }
               isDarkMode={isDarkMode}
               businessProfile={businessProfile}
               clients={clients}
@@ -681,6 +916,7 @@ export const App: React.FC = () => {
                 setEditorMode('none');
               }}
               onAddClientModal={(cData) => handleAddClient(cData)}
+              onNotify={showToast}
             />
           ) : activeTab === 0 ? (
             <DashboardTab
@@ -693,6 +929,7 @@ export const App: React.FC = () => {
               onNavigateToSales={() => setActiveTab(1)}
               onNavigateToExpenses={() => setActiveTab(2)}
               onCreateInvoice={handleCreateInvoice}
+              onSendReminder={(inv) => setReminderModalInvoice(inv)}
             />
           ) : activeTab === 1 ? (
             <SalesTab
@@ -705,6 +942,7 @@ export const App: React.FC = () => {
               onCreateInvoice={handleCreateInvoice}
               onCreateQuote={handleCreateQuote}
               onRecordPayment={handleRecordPayment}
+              onSendReminder={(inv) => setReminderModalInvoice(inv)}
               onDeleteInvoice={handleDeleteInvoice}
               onConvertEstimate={handleConvertEstimate}
               onDeleteEstimate={handleDeleteEstimate}
@@ -739,13 +977,17 @@ export const App: React.FC = () => {
               onDeleteItem={handleDeleteItem}
               onExportDatabase={handleExportDatabase}
               onRestoreDatabase={handleRestoreDatabase}
+              onNotify={showToast}
             />
           )}
         </main>
       </div>
 
       {/* Mobile Bottom Navigation Bar (STRICTLY 4 DESTINATIONS) */}
-      <div className={`md:hidden fixed bottom-0 left-0 right-0 border-t flex items-center justify-around py-2 px-4 z-40 ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-600'}`}>
+      <nav
+        aria-label="Mobile navigation"
+        className={`min-[900px]:hidden fixed bottom-0 left-0 right-0 border-t flex items-center justify-around pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] px-2 z-40 ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-600'}`}
+      >
         {[
           { id: 0, label: 'Dashboard', icon: LayoutDashboard },
           { id: 1, label: 'Sales & Clients', icon: ReceiptText },
@@ -760,15 +1002,16 @@ export const App: React.FC = () => {
               onClick={() => {
                 setEditorMode('none');
                 setActiveTab(item.id);
+                if (item.id === 3) setSettingsSubTab(0);
               }}
-              className={`flex flex-col items-center gap-1 text-[10px] font-bold cursor-pointer ${isActive ? 'text-indigo-600' : ''}`}
+              className={`flex-1 min-w-0 flex flex-col items-center gap-1 text-[10px] font-bold cursor-pointer truncate px-1 ${isActive ? 'text-indigo-600' : ''}`}
             >
-              <Icon className="w-5 h-5" />
-              <span>{item.label}</span>
+              <Icon className="w-5 h-5 shrink-0" />
+              <span className="truncate max-w-full">{item.label}</span>
             </button>
           );
         })}
-      </div>
+      </nav>
 
       {/* Modals */}
       {isProfileModalOpen && (
@@ -782,7 +1025,7 @@ export const App: React.FC = () => {
 
       {isCsvModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`w-full max-w-md rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+          <div className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm">Export Financial CSV Data</h3>
               <button onClick={() => setIsCsvModalOpen(false)} className="cursor-pointer text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
@@ -800,14 +1043,15 @@ export const App: React.FC = () => {
                   finalizedInvoices.forEach((i) => {
                     const status = (i.computed_status || i.status || '').toUpperCase();
                     const isVoid = status === 'VOID';
-                    const paid = (i.paid_cents || 0) / 100;
-                    const total = (i.total_cents || 0) / 100;
-                    const due = isVoid ? 0 : Math.max(0, total - paid);
+                    const paidUnits = i.paid_cents || 0;
+                    const totalUnits = i.total_cents || 0;
+                    const dueUnits = isVoid ? 0 : Math.max(0, totalUnits - paidUnits);
                     const client = clients.find((c) => c.id === i.client_id);
                     const taxId = client?.tax_id || '';
-                    const isoCode = businessProfile.currency_code || 'USD';
+                    const isoCode = i.currency_code || businessProfile.currency_code || 'USD';
+                    const dec = i.currency_decimals ?? getCurrencyDecimals(isoCode);
                     lines.push(
-                      `"${i.invoice_number}","${i.issue_date}","${i.due_date}","${isoCode}","${(i.client_name || '').replace(/"/g, '""')}","${taxId}",${((i.subtotal_cents || 0) / 100).toFixed(2)},${((i.tax_cents || 0) / 100).toFixed(2)},${total.toFixed(2)},${paid.toFixed(2)},${due.toFixed(2)},"${isVoid ? 'VOID' : status}"`
+                      `"${i.invoice_number}","${i.issue_date}","${i.due_date}","${isoCode}","${(i.client_name || '').replace(/"/g, '""')}","${taxId}",${formatDecimalUnits(i.subtotal_cents || 0, dec)},${formatDecimalUnits(i.tax_cents || 0, dec)},${formatDecimalUnits(totalUnits, dec)},${formatDecimalUnits(paidUnits, dec)},${formatDecimalUnits(dueUnits, dec)},"${isVoid ? 'VOID' : status}"`
                     );
                   });
                   const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -834,8 +1078,9 @@ export const App: React.FC = () => {
                   const lines = ['Expense ID,Date,Category,Vendor,Currency Code,Amount,Tax,Total,Notes'];
                   const isoCode = businessProfile.currency_code || 'USD';
                   expenses.forEach((e) => {
+                    const safeNotes = (e.notes || '').replace(/"/g, '""');
                     lines.push(
-                      `"${e.id}","${e.expense_date}","${e.category}","${(e.vendor || '').replace(/"/g, '""')}","${isoCode}",${((e.amount_cents || 0) / 100).toFixed(2)},${((e.tax_cents || 0) / 100).toFixed(2)},${((e.total_cents || 0) / 100).toFixed(2)},""`
+                      `"${e.id}","${e.expense_date}","${e.category}","${(e.vendor || '').replace(/"/g, '""')}","${isoCode}",${formatDecimalUnits(e.amount_cents || 0, curDec)},${formatDecimalUnits(e.tax_cents || 0, curDec)},${formatDecimalUnits(e.total_cents || 0, curDec)},"${safeNotes}"`
                     );
                   });
                   const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -872,6 +1117,63 @@ export const App: React.FC = () => {
           onClose={() => setPaymentModalInvoice(null)}
           onSubmit={handlePaymentSubmit}
         />
+      )}
+
+      {/* Payment Reminder Modal */}
+      {reminderModalInvoice && (
+        <PaymentReminderModal
+          invoice={reminderModalInvoice}
+          client={clients.find((c) => c.id === reminderModalInvoice.client_id)}
+          businessProfile={businessProfile}
+          isDarkMode={isDarkMode}
+          onClose={() => setReminderModalInvoice(null)}
+          onCopied={(msg) => showToast(msg)}
+        />
+      )}
+
+      {/* Expense Drawer Modal */}
+      <ExpenseDrawerModal
+        isOpen={isExpenseModalOpen}
+        isDarkMode={isDarkMode}
+        currencySymbol={sym}
+        currencyDecimals={curDec}
+        onClose={() => setIsExpenseModalOpen(false)}
+        onSave={handleSaveExpense}
+      />
+
+      {/* Reusable Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={!!confirmState}
+        title={confirmState?.title || ''}
+        message={confirmState?.message || ''}
+        confirmLabel={confirmState?.confirmLabel}
+        isDestructive={confirmState?.isDestructive}
+        isDarkMode={isDarkMode}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
+
+      {/* Non-blocking Toast Banner */}
+      {toast && (
+        <div
+          role="status"
+          className={`fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] min-[900px]:bottom-6 right-4 min-[900px]:right-6 z-50 max-w-sm rounded-xl border px-4 py-3 shadow-lg flex items-center gap-3 text-xs font-semibold ${
+            toast.isError
+              ? 'bg-rose-600 border-rose-500 text-white'
+              : isDarkMode
+                ? 'bg-slate-800 border-slate-700 text-slate-100'
+                : 'bg-slate-900 border-slate-800 text-white'
+          }`}
+        >
+          <span className="flex-1">{toast.message}</span>
+          <button
+            onClick={() => setToast(null)}
+            className="text-white/75 hover:text-white cursor-pointer"
+            aria-label="Dismiss notification"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
       )}
     </div>
   );

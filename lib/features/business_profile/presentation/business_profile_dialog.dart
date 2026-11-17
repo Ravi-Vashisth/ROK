@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/tax_compliance_utils.dart';
 import '../providers/business_profile_provider.dart';
 
 class BusinessProfileDialog extends ConsumerStatefulWidget {
@@ -25,9 +26,11 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
   late final TextEditingController _defaultTermsController;
   late final TextEditingController _defaultNotesController;
   late final TextEditingController _signatureLabelController;
+  late final TextEditingController _defaultPstController;
   late String _selectedCurrencySymbol;
   late String _selectedCurrencyCode;
   late int _selectedCurrencyDecimals;
+  late String _selectedTaxMode;
 
   String _logoBase64 = '';
   String _signatureBase64 = '';
@@ -63,11 +66,15 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     _signatureLabelController = TextEditingController(
       text: profile.signatureLabel.isNotEmpty ? profile.signatureLabel : 'Authorized Signatory',
     );
+    _defaultPstController = TextEditingController(
+      text: profile.defaultPstRatePercentage.toString(),
+    );
     _logoBase64 = profile.logoBase64;
     _signatureBase64 = profile.signatureBase64;
     _selectedCurrencySymbol = profile.currencySymbol;
     _selectedCurrencyCode = profile.currencyCode;
     _selectedCurrencyDecimals = profile.currencyDecimals;
+    _selectedTaxMode = normalizeTaxMode(profile.defaultTaxMode);
   }
 
   @override
@@ -81,6 +88,7 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     _defaultTermsController.dispose();
     _defaultNotesController.dispose();
     _signatureLabelController.dispose();
+    _defaultPstController.dispose();
     super.dispose();
   }
 
@@ -131,6 +139,7 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
   void _handleSave() {
     if (!_formKey.currentState!.validate()) return;
 
+    final defaultPst = (int.tryParse(_defaultPstController.text.trim()) ?? 0).clamp(0, 100);
     ref.read(businessProfileProvider.notifier).updateProfile(
           businessName: _businessNameController.text.trim(),
           email: _emailController.text.trim(),
@@ -146,6 +155,8 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
           logoBase64: _logoBase64.trim(),
           signatureBase64: _signatureBase64.trim(),
           signatureLabel: _signatureLabelController.text.trim(),
+          defaultTaxMode: _selectedTaxMode,
+          defaultPstRatePercentage: defaultPst,
         );
 
     Navigator.of(context).pop();
@@ -163,7 +174,7 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
         height: 60,
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Theme.of(context).dividerColor, style: BorderStyle.solid),
         ),
         child: Center(
@@ -179,18 +190,18 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
               child: Image.memory(bytes, height: 48, fit: BoxFit.contain),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text('$label uploaded', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              child: Text('$label uploaded', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.black87)),
             ),
             TextButton.icon(
               onPressed: onRemove,
@@ -205,8 +216,7 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
         children: [
           const Icon(Icons.check_circle, color: Colors.green, size: 18),
           const SizedBox(width: 8),
-          Text('$label configured', style: const TextStyle(fontSize: 12)),
-          const Spacer(),
+          Expanded(child: Text('$label configured', style: const TextStyle(fontSize: 12))),
           TextButton(onPressed: onRemove, child: const Text('Remove', style: TextStyle(color: Colors.red))),
         ],
       );
@@ -215,7 +225,13 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.sizeOf(context);
     return AlertDialog(
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: screenSize.width < 600 ? 12 : 24,
+        vertical: 24,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       title: const Row(
         children: [
           Icon(Icons.business_outlined),
@@ -231,158 +247,222 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
       content: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 580,
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          maxHeight: screenSize.height * 0.85,
         ),
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'These branding settings appear on your printed A4 PDF invoices and proposals.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: TextFormField(
-                        controller: _businessNameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Business / Studio Name *',
-                          hintText: 'e.g. My Freelance Studio',
-                          prefixIcon: Icon(Icons.storefront_outlined, size: 20),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter your business or freelancer name';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 3,
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedCurrencyCode,
-                        decoration: const InputDecoration(
-                          labelText: 'Currency Preset',
-                          prefixIcon: Icon(Icons.attach_money, size: 20),
-                        ),
-                        items: _currencyPresets.map((item) {
-                          return DropdownMenuItem<String>(
-                            value: item['code'] as String,
-                            child: Text(
-                              item['label'] as String,
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            final preset = _currencyPresets.firstWhere(
-                              (element) => element['code'] == val,
-                              orElse: () => _currencyPresets.first,
-                            );
-                            setState(() {
-                              _selectedCurrencyCode = preset['code'] as String;
-                              _selectedCurrencySymbol = preset['symbol'] as String;
-                              _selectedCurrencyDecimals = preset['decimals'] as int;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _emailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Billing Email',
-                          hintText: 'billing@studio.com',
-                          prefixIcon: Icon(Icons.email_outlined, size: 20),
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _phoneController,
-                        decoration: const InputDecoration(
-                          labelText: 'Phone',
-                          hintText: '+1 555-0199',
-                          prefixIcon: Icon(Icons.phone_outlined, size: 20),
-                        ),
-                        keyboardType: TextInputType.phone,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _addressController,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 460;
+
+                final businessNameField = TextFormField(
+                  controller: _businessNameController,
                   decoration: const InputDecoration(
-                    labelText: 'Business Address',
-                    hintText: '100 Tech Plaza, Suite 400, San Francisco, CA',
-                    prefixIcon: Icon(Icons.location_on_outlined, size: 20),
+                    labelText: 'Business / Studio Name *',
+                    hintText: 'e.g. My Freelance Studio',
+                    prefixIcon: Icon(Icons.storefront_outlined, size: 20),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _taxIdController,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your business or freelancer name';
+                    }
+                    return null;
+                  },
+                );
+
+                final currencyDropdown = DropdownButtonFormField<String>(
+                  value: _selectedCurrencyCode,
+                  isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: 'Tax ID / VAT / GSTIN / EIN',
-                    hintText: 'e.g. US-EIN-123456789 or GSTIN29ABCDE1234F1Z5',
-                    prefixIcon: Icon(Icons.badge_outlined, size: 20),
+                    labelText: 'Currency Preset',
+                    prefixIcon: Icon(Icons.attach_money, size: 20),
                   ),
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  'Branding: Company Logo & Digital Signature',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    FilledButton.tonalIcon(
-                      onPressed: _pickLogoFile,
-                      icon: const Icon(Icons.file_upload_outlined, size: 16),
-                      label: const Text('Select Logo File'),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildImagePreview(_logoBase64, () => setState(() => _logoBase64 = ''), 'Logo')),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    FilledButton.tonalIcon(
-                      onPressed: _pickSignatureFile,
-                      icon: const Icon(Icons.draw_outlined, size: 16),
-                      label: const Text('Select Signature'),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildImagePreview(_signatureBase64, () => setState(() => _signatureBase64 = ''), 'Signature')),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _signatureLabelController,
+                  items: _currencyPresets.map((item) {
+                    return DropdownMenuItem<String>(
+                      value: item['code'] as String,
+                      child: Text(
+                        item['label'] as String,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      final preset = _currencyPresets.firstWhere(
+                        (element) => element['code'] == val,
+                        orElse: () => _currencyPresets.first,
+                      );
+                      setState(() {
+                        _selectedCurrencyCode = preset['code'] as String;
+                        _selectedCurrencySymbol = preset['symbol'] as String;
+                        _selectedCurrencyDecimals = preset['decimals'] as int;
+                      });
+                    }
+                  },
+                );
+
+                final emailField = TextFormField(
+                  controller: _emailController,
                   decoration: const InputDecoration(
-                    labelText: 'Signature Label',
-                    hintText: 'Authorized Signatory',
-                    prefixIcon: Icon(Icons.label_outlined, size: 20),
+                    labelText: 'Billing Email',
+                    hintText: 'billing@studio.com',
+                    prefixIcon: Icon(Icons.email_outlined, size: 20),
                   ),
-                ),
+                  keyboardType: TextInputType.emailAddress,
+                );
+
+                final phoneField = TextFormField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone',
+                    hintText: '+1 555-0199',
+                    prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                  ),
+                  keyboardType: TextInputType.phone,
+                );
+
+                final logoBtn = FilledButton.tonalIcon(
+                  onPressed: _pickLogoFile,
+                  icon: const Icon(Icons.file_upload_outlined, size: 16),
+                  label: const Text('Select Logo File'),
+                );
+                final logoPreview = _buildImagePreview(_logoBase64, () => setState(() => _logoBase64 = ''), 'Logo');
+
+                final sigBtn = FilledButton.tonalIcon(
+                  onPressed: _pickSignatureFile,
+                  icon: const Icon(Icons.draw_outlined, size: 16),
+                  label: const Text('Select Signature'),
+                );
+                final sigPreview = _buildImagePreview(_signatureBase64, () => setState(() => _signatureBase64 = ''), 'Signature');
+
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'These branding settings appear on your printed A4 PDF invoices and proposals.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    if (isCompact) ...[
+                      businessNameField,
+                      const SizedBox(height: 12),
+                      currencyDropdown,
+                      const SizedBox(height: 12),
+                      emailField,
+                      const SizedBox(height: 12),
+                      phoneField,
+                    ] else ...[
+                      Row(
+                        children: [
+                          Expanded(flex: 3, child: businessNameField),
+                          const SizedBox(width: 12),
+                          Expanded(flex: 3, child: currencyDropdown),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(child: emailField),
+                          const SizedBox(width: 12),
+                          Expanded(child: phoneField),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _addressController,
+                      decoration: const InputDecoration(
+                        labelText: 'Business Address',
+                        hintText: '100 Tech Plaza, Suite 400, San Francisco, CA',
+                        prefixIcon: Icon(Icons.location_on_outlined, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _taxIdController,
+                      decoration: InputDecoration(
+                        labelText: '${getRegionalTaxIdLabel(_selectedTaxMode)} / Registration #',
+                        hintText: 'e.g. US-EIN-123456789 or GSTIN29ABCDE1234F1Z5',
+                        prefixIcon: const Icon(Icons.badge_outlined, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _selectedTaxMode,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Default Regional Tax Compliance Mode',
+                        prefixIcon: Icon(Icons.public_outlined, size: 20),
+                      ),
+                      items: TaxMode.all.map((mode) {
+                        return DropdownMenuItem<String>(
+                          value: mode,
+                          child: Text(
+                            taxModeLabels[mode] ?? mode,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) setState(() => _selectedTaxMode = val);
+                      },
+                    ),
+                    if (_selectedTaxMode == TaxMode.caDual) ...[
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _defaultPstController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Default Canada PST Rate (%)',
+                          hintText: '7',
+                          prefixIcon: Icon(Icons.percent, size: 20),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Branding: Company Logo & Digital Signature',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    if (isCompact) ...[
+                      logoBtn,
+                      const SizedBox(height: 8),
+                      logoPreview,
+                    ] else
+                      Row(
+                        children: [
+                          logoBtn,
+                          const SizedBox(width: 12),
+                          Expanded(child: logoPreview),
+                        ],
+                      ),
+                    const SizedBox(height: 12),
+                    if (isCompact) ...[
+                      sigBtn,
+                      const SizedBox(height: 8),
+                      sigPreview,
+                    ] else
+                      Row(
+                        children: [
+                          sigBtn,
+                          const SizedBox(width: 12),
+                          Expanded(child: sigPreview),
+                        ],
+                      ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _signatureLabelController,
+                      decoration: const InputDecoration(
+                        labelText: 'Signature Label',
+                        hintText: 'Authorized Signatory',
+                        prefixIcon: Icon(Icons.label_outlined, size: 20),
+                      ),
+                    ),
                 const SizedBox(height: 18),
                 const Text(
                   'Payment Instructions & Remittance Details',
@@ -416,18 +496,20 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                TextFormField(
-                  controller: _defaultNotesController,
-                  minLines: 2,
-                  maxLines: null,
-                  keyboardType: TextInputType.multiline,
-                  decoration: const InputDecoration(
-                    labelText: 'Default Invoice Notes / Warranty',
-                    hintText: 'e.g. All work includes 30 days post-delivery support.',
-                    prefixIcon: Icon(Icons.notes_outlined, size: 20),
+                  TextFormField(
+                    controller: _defaultNotesController,
+                    minLines: 2,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    decoration: const InputDecoration(
+                      labelText: 'Default Invoice Notes / Warranty',
+                      hintText: 'e.g. All work includes 30 days post-delivery support.',
+                      prefixIcon: Icon(Icons.notes_outlined, size: 20),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              );
+              },
             ),
           ),
         ),

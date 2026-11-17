@@ -13,6 +13,7 @@ interface SalesTabProps {
   onCreateInvoice: () => void;
   onCreateQuote: () => void;
   onRecordPayment: (invoice: any) => void;
+  onSendReminder?: (invoice: any) => void;
   onDeleteInvoice: (invoice: any) => void;
   onConvertEstimate: (estimate: any) => void;
   onDeleteEstimate: (estimate: any) => void;
@@ -35,6 +36,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
   onCreateInvoice,
   onCreateQuote,
   onRecordPayment,
+  onSendReminder,
   onDeleteInvoice,
   onConvertEstimate,
   onDeleteEstimate,
@@ -55,18 +57,18 @@ export const SalesTab: React.FC<SalesTabProps> = ({
   return (
     <div className="space-y-6">
       {/* Sales Header & Action Bar */}
-      <div className={`p-6 rounded-xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+      <div className={`p-6 rounded-xl border flex flex-col min-[900px]:flex-row items-start min-[900px]:items-center justify-between gap-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
         <div>
           <h2 className="text-xl font-bold tracking-tight">Sales & Clients CRM</h2>
           <p className="text-xs text-slate-500 mt-1">Manage client invoices, proposals, and customer dossiers in one place</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 max-w-full">
           {/* 3-View SubTab Toggles */}
-          <div className={`p-1 rounded-xl border flex items-center gap-1 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
+          <div className={`p-1 rounded-xl border flex items-center gap-1 max-w-full overflow-x-auto ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
             <button
               onClick={() => { setSubTab(0); setStatusFilter('All'); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap shrink-0 ${
                 subTab === 0
                   ? isDarkMode ? 'bg-indigo-600 text-white' : 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800'
@@ -77,7 +79,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
             </button>
             <button
               onClick={() => { setSubTab(1); setStatusFilter('All'); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap shrink-0 ${
                 subTab === 1
                   ? isDarkMode ? 'bg-indigo-600 text-white' : 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800'
@@ -88,7 +90,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
             </button>
             <button
               onClick={() => { setSubTab(2); setStatusFilter('All'); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap shrink-0 ${
                 subTab === 2
                   ? isDarkMode ? 'bg-indigo-600 text-white' : 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800'
@@ -136,7 +138,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
         <>
           {/* Filter & Search Card */}
           <div className={`p-4 rounded-xl border space-y-3 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
-            <div className="flex flex-col md:flex-row items-center gap-3">
+            <div className="flex flex-col min-[900px]:flex-row items-stretch min-[900px]:items-center gap-3">
               <div className="relative flex-1 w-full">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
@@ -192,6 +194,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
               dateFilter={dateFilter}
               formatMoney={formatMoney}
               onRecordPayment={onRecordPayment}
+              onSendReminder={onSendReminder}
               onDeleteInvoice={onDeleteInvoice}
               onEditDraft={onEditInvoiceDraft}
               onFinalizeInvoice={onFinalizeInvoice}

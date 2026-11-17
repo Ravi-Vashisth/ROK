@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -34,13 +36,18 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
     'Check',
   ];
 
+  String get _sym => widget.invoice.currencySymbol.isNotEmpty ? widget.invoice.currencySymbol : '\$';
+  int get _dec => widget.invoice.currencyCode.isNotEmpty
+      ? widget.invoice.currencyDecimals
+      : getCurrencyDecimals(_sym);
+  String _fmt(int units) => formatMoney(units, symbol: _sym, decimals: _dec);
+
   @override
   void initState() {
     super.initState();
     _selectedDate = DateTime.now();
-    // Default to the remaining balance due
-    final initialDollars = (widget.invoice.balanceDueCents / 100.0).toStringAsFixed(2);
-    _amountReceivedController.text = initialDollars;
+    _amountReceivedController.text = formatDecimalUnits(widget.invoice.balanceDueCents, _dec);
+    _tdsController.text = formatDecimalUnits(0, _dec);
   }
 
   @override
@@ -52,10 +59,10 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
     super.dispose();
   }
 
-  void _applyPresetAmount(int cents) {
+  void _applyPresetAmount(int units) {
     setState(() {
-      _amountReceivedController.text = (cents / 100.0).toStringAsFixed(2);
-      _tdsController.text = '0.00';
+      _amountReceivedController.text = formatDecimalUnits(units, _dec);
+      _tdsController.text = formatDecimalUnits(0, _dec);
       _errorMessage = null;
     });
   }
@@ -75,8 +82,8 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
   }
 
   void _submitPayment() {
-    final amountReceivedCents = parsePriceToCents(_amountReceivedController.text);
-    final tdsCents = parsePriceToCents(_tdsController.text);
+    final amountReceivedCents = parsePriceToUnits(_amountReceivedController.text, _dec);
+    final tdsCents = parsePriceToUnits(_tdsController.text, _dec);
     final totalCreditCents = amountReceivedCents + tdsCents;
 
     if (totalCreditCents <= 0) {
@@ -89,7 +96,7 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
     if (totalCreditCents > widget.invoice.balanceDueCents) {
       setState(() {
         _errorMessage =
-            'Total credit (${formatCents(totalCreditCents)}) cannot exceed remaining balance due (${formatCents(widget.invoice.balanceDueCents)}).';
+            'Total credit (${_fmt(totalCreditCents)}) cannot exceed remaining balance due (${_fmt(widget.invoice.balanceDueCents)}).';
       });
       return;
     }
@@ -111,7 +118,7 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Recorded ${formatCents(amountReceivedCents)} received${tdsCents > 0 ? " (+${formatCents(tdsCents)} TDS)" : ""}. Total credit: ${formatCents(totalCreditCents)}.',
+            'Recorded ${_fmt(amountReceivedCents)} received${tdsCents > 0 ? " (+${_fmt(tdsCents)} TDS)" : ""}. Total credit: ${_fmt(totalCreditCents)}.',
           ),
           backgroundColor: Colors.green.shade800,
         ),
@@ -130,36 +137,99 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
     final dateDisplay =
         '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
 
+    final screenSize = MediaQuery.sizeOf(context);
+    final isCompact = screenSize.width < 600;
+
+    final amountField = TextFormField(
+      controller: _amountReceivedController,
+      keyboardType: _dec == 0
+          ? TextInputType.number
+          : const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: 'Amount Received in Bank *',
+        hintText: formatDecimalUnits(0, _dec),
+        border: const OutlineInputBorder(),
+        errorText: _errorMessage != null ? '' : null,
+      ),
+    );
+
+    final tdsField = TextFormField(
+      controller: _tdsController,
+      keyboardType: _dec == 0
+          ? TextInputType.number
+          : const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: 'TDS / Tax Withheld',
+        hintText: formatDecimalUnits(0, _dec),
+        border: const OutlineInputBorder(),
+      ),
+    );
+
+    final methodDropdown = DropdownButtonFormField<String>(
+      value: _selectedMethod,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Payment Method *',
+        border: OutlineInputBorder(),
+      ),
+      items: _methods.map((method) {
+        return DropdownMenuItem(
+          value: method,
+          child: Text(method, overflow: TextOverflow.ellipsis),
+        );
+      }).toList(),
+      onChanged: (val) {
+        if (val != null) {
+          setState(() => _selectedMethod = val);
+        }
+      },
+    );
+
+    final refNumberField = TextFormField(
+      controller: _refNumberController,
+      decoration: const InputDecoration(
+        labelText: 'Bank Ref / UTR No.',
+        hintText: 'e.g. UTR982310',
+        border: OutlineInputBorder(),
+      ),
+    );
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      insetPadding: EdgeInsets.all(isCompact ? 12 : 24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
+        constraints: BoxConstraints(
+          maxWidth: 520,
+          maxHeight: screenSize.height * 0.88,
+        ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(isCompact ? 16 : 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Record Payment & TDS',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Record Payment & TDS',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      Text(
-                        '${inv.invoiceNumber} • ${inv.clientName}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                        Text(
+                          '${inv.invoiceNumber} • ${inv.clientName}',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -171,28 +241,31 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
 
               // Balance summary card
               Container(
+                width: double.infinity,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: theme.dividerColor),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                child: Wrap(
+                  alignment: WrapAlignment.spaceAround,
+                  spacing: 16,
+                  runSpacing: 12,
                   children: [
                     _SummaryColumn(
                       label: 'Invoice Total',
-                      value: formatCents(inv.totalCents),
+                      value: _fmt(inv.totalCents),
                       color: theme.colorScheme.onSurface,
                     ),
                     _SummaryColumn(
                       label: 'Credited to Date',
-                      value: formatCents(inv.paidCents),
+                      value: _fmt(inv.paidCents),
                       color: Colors.green.shade700,
                     ),
                     _SummaryColumn(
                       label: 'Balance Due',
-                      value: formatCents(inv.balanceDueCents),
+                      value: _fmt(inv.balanceDueCents),
                       color: inv.balanceDueCents > 0 ? Colors.indigo.shade700 : Colors.green.shade700,
                       isBold: true,
                     ),
@@ -217,13 +290,13 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
                   children: [
                     ActionChip(
                       avatar: const Icon(Icons.check_circle_outline, size: 16),
-                      label: Text('Full Balance (${formatCents(inv.balanceDueCents)})'),
+                      label: Text('Full Balance (${_fmt(inv.balanceDueCents)})'),
                       onPressed: () => _applyPresetAmount(inv.balanceDueCents),
                     ),
                     ActionChip(
                       avatar: const Icon(Icons.pie_chart_outline, size: 16),
-                      label: Text('50% Deposit (${formatCents((inv.balanceDueCents / 2).round())})'),
-                      onPressed: () => _applyPresetAmount((inv.balanceDueCents / 2).round()),
+                      label: Text('50% Deposit (${_fmt((inv.balanceDueCents + 1) ~/ 2)})'),
+                      onPressed: () => _applyPresetAmount((inv.balanceDueCents + 1) ~/ 2),
                     ),
                   ],
                 ),
@@ -231,35 +304,25 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
               ],
 
               // Amount Received & TDS Fields Row
-              Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: TextFormField(
-                      controller: _amountReceivedController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        labelText: 'Amount Received in Bank *',
-                        hintText: '0.00',
-                        border: const OutlineInputBorder(),
-                        errorText: _errorMessage != null ? '' : null,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: TextFormField(
-                      controller: _tdsController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
-                        labelText: 'TDS / Tax Withheld',
-                        hintText: '0.00',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth < 420) {
+                    return Column(
+                      children: [
+                        amountField,
+                        const SizedBox(height: 12),
+                        tdsField,
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(flex: 3, child: amountField),
+                      const SizedBox(width: 12),
+                      Expanded(flex: 2, child: tdsField),
+                    ],
+                  );
+                },
               ),
               if (_errorMessage != null) ...[
                 const SizedBox(height: 6),
@@ -271,42 +334,25 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
               const SizedBox(height: 16),
 
               // Payment Method & Reference Number
-              Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedMethod,
-                      decoration: const InputDecoration(
-                        labelText: 'Payment Method *',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: _methods.map((method) {
-                        return DropdownMenuItem(
-                          value: method,
-                          child: Text(method),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() => _selectedMethod = val);
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 3,
-                    child: TextFormField(
-                      controller: _refNumberController,
-                      decoration: const InputDecoration(
-                        labelText: 'Bank Ref / UTR No.',
-                        hintText: 'e.g. UTR982310',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth < 420) {
+                    return Column(
+                      children: [
+                        methodDropdown,
+                        const SizedBox(height: 12),
+                        refNumberField,
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(flex: 3, child: methodDropdown),
+                      const SizedBox(width: 12),
+                      Expanded(flex: 3, child: refNumberField),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 16),
 
@@ -322,7 +368,9 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
                   ),
                   child: Text(
                     dateDisplay,
-                    style: theme.textTheme.bodyMedium,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
               ),
@@ -340,20 +388,24 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
               const SizedBox(height: 24),
 
               // Action Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 12),
-                  FilledButton.icon(
-                    icon: const Icon(Icons.payment),
-                    label: const Text('Record Payment & Credit Ledger'),
-                    onPressed: _submitPayment,
-                  ),
-                ],
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 12,
+                  runSpacing: 10,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.payment),
+                      label: const Text('Record Payment & Credit Ledger'),
+                      onPressed: _submitPayment,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -395,6 +447,7 @@ class _SummaryColumn extends StatelessWidget {
             fontSize: 14,
             color: color,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
       ],

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -79,7 +80,12 @@ class OfflineEstimatesList extends ConsumerWidget {
           children: [
             const Icon(Icons.list_alt_outlined, size: 20),
             const SizedBox(width: 8),
-            Text('Saved Estimates (${filtered.length} of ${estimates.length})', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Expanded(
+              child: Text(
+                'Saved Estimates (${filtered.length} of ${estimates.length})',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 12),
@@ -89,7 +95,7 @@ class OfflineEstimatesList extends ConsumerWidget {
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               border: Border.all(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Center(
               child: Text('No estimates match your current search and filter criteria.', style: TextStyle(color: Colors.grey)),
@@ -160,12 +166,12 @@ class OfflineEstimatesList extends ConsumerWidget {
                               onViewInvoice!(convertedInvoice.invoiceNumber);
                             }
                           },
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
                               color: Colors.green.shade50,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.green.shade300),
                             ),
                             child: Row(
@@ -173,9 +179,12 @@ class OfflineEstimatesList extends ConsumerWidget {
                               children: [
                                 Icon(Icons.receipt_outlined, size: 14, color: Colors.green.shade800),
                                 const SizedBox(width: 6),
-                                Text(
-                                  'View Invoice: ${convertedInvoice.invoiceNumber}',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                                Flexible(
+                                  child: Text(
+                                    'View Invoice: ${convertedInvoice.invoiceNumber}',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                                  ),
                                 ),
                                 const SizedBox(width: 4),
                                 Icon(Icons.arrow_forward, size: 13, color: Colors.green.shade800),
@@ -185,11 +194,25 @@ class OfflineEstimatesList extends ConsumerWidget {
                         ),
                       ],
                       const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 12,
+                        runSpacing: 10,
                         children: [
-                          Text('Total: ${formatCents(est.totalCents, symbol: sym)}', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.indigo.shade800)),
-                          Row(
+                          Text(
+                            'Total: ${formatCents(est.totalCents, symbol: est.currencySymbol.isNotEmpty ? est.currencySymbol : sym, decimals: est.currencyCode.isNotEmpty ? est.currencyDecimals : businessProfile.currencyDecimals)}',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              fontFeatures: const [FontFeature.tabularFigures()],
+                              color: Colors.indigo.shade800,
+                            ),
+                          ),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               if (est.status == 'DRAFT') ...[
                                 OutlinedButton.icon(
@@ -207,7 +230,6 @@ class OfflineEstimatesList extends ConsumerWidget {
                                     );
                                   },
                                 ),
-                                const SizedBox(width: 8),
                                 FilledButton.icon(
                                   style: FilledButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
                                   icon: const Icon(Icons.check_circle_outline, size: 16),
@@ -219,7 +241,6 @@ class OfflineEstimatesList extends ConsumerWidget {
                                     );
                                   },
                                 ),
-                                const SizedBox(width: 8),
                               ] else if (!isConverted) ...[
                                 FilledButton.icon(
                                   style: FilledButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
@@ -232,7 +253,6 @@ class OfflineEstimatesList extends ConsumerWidget {
                                     );
                                   },
                                 ),
-                                const SizedBox(width: 8),
                               ],
                               OutlinedButton.icon(
                                 icon: const Icon(Icons.picture_as_pdf, size: 16),
@@ -257,7 +277,6 @@ class OfflineEstimatesList extends ConsumerWidget {
                                   );
                                 },
                               ),
-                              const SizedBox(width: 6),
                               IconButton(
                                 icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
                                 tooltip: 'Delete Quote',

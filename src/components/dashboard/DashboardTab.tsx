@@ -1,5 +1,6 @@
 import React from 'react';
-import { LayoutDashboard, TrendingUp, CheckCircle, Clock, AlertTriangle, ArrowUpRight, ArrowDownRight, Plus } from 'lucide-react';
+import { TrendingUp, CheckCircle, Clock, AlertTriangle, ArrowUpRight, ArrowDownRight, Plus, Send } from 'lucide-react';
+import { calculateDashboardMetrics } from '../../billingRules';
 
 interface DashboardTabProps {
   invoices: any[];
@@ -11,6 +12,7 @@ interface DashboardTabProps {
   onNavigateToSales: () => void;
   onNavigateToExpenses: () => void;
   onCreateInvoice: () => void;
+  onSendReminder?: (invoice: any) => void;
 }
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({
@@ -23,32 +25,23 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onNavigateToSales,
   onNavigateToExpenses,
   onCreateInvoice,
+  onSendReminder,
 }) => {
-  // Cash flow metrics (exclude DRAFT and VOID invoices)
-  const activeInvoices = invoices.filter(
-    (inv) => inv.status !== 'DRAFT' && inv.status !== 'VOID'
-  );
-  const totalInvoicedCents = activeInvoices.reduce((sum, inv) => sum + (inv.total_cents || 0), 0);
-  const totalCollectedCents = activeInvoices.reduce((sum, inv) => sum + (inv.paid_cents || 0), 0);
-  const pendingBalanceCents = activeInvoices.reduce((sum, inv) => sum + (inv.balance_due_cents || 0), 0);
-  
+  const metrics = calculateDashboardMetrics(invoices, expenses);
+  const {
+    totalInvoicedCents,
+    totalCollectedCents,
+    pendingBalanceCents,
+    overdueAmountCents,
+    overdueInvoices,
+    netRevenueExclTaxCents,
+    netExpenseExclTaxCents,
+    taxLiabilityCents,
+    netProfitCents,
+  } = metrics;
+
   const todayDate = new Date();
   todayDate.setHours(0, 0, 0, 0);
-
-  const overdueInvoices = activeInvoices.filter((inv) => {
-    if (!inv.due_date || (inv.balance_due_cents || 0) <= 0) return false;
-    const due = new Date(inv.due_date);
-    due.setHours(0, 0, 0, 0);
-    return todayDate > due;
-  });
-
-  const overdueAmountCents = overdueInvoices.reduce(
-    (sum, inv) => sum + (inv.balance_due_cents || 0),
-    0
-  );
-
-  const totalExpenseCents = expenses.reduce((sum, exp) => sum + (exp.total_cents || 0), 0);
-  const netProfitCents = totalCollectedCents - totalExpenseCents;
 
   const recentInvoices = invoices.filter((i) => i.status !== 'DRAFT').slice(0, 5);
   const recentExpenses = expenses.slice(0, 5);
@@ -56,14 +49,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className={`p-6 rounded-xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+      <div className={`p-6 rounded-xl border flex flex-col min-[900px]:flex-row items-start min-[900px]:items-center justify-between gap-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
         <div>
           <h2 className="text-xl font-bold tracking-tight">Executive Financial Dashboard</h2>
           <p className="text-xs text-slate-500 mt-1">Real-time local ledger overview & cash flow metrics</p>
         </div>
         <button
           onClick={onCreateInvoice}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer shadow-sm transition"
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer shadow-sm transition shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>Create New Invoice</span>
@@ -71,13 +64,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       </div>
 
       {/* Cash Flow Metrics Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 min-[460px]:grid-cols-2 min-[900px]:grid-cols-4 gap-4">
         <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2">
             <TrendingUp className="w-4 h-4 text-indigo-500" />
             <span>Total Invoiced</span>
           </div>
-          <div className="text-xl font-extrabold font-mono">{formatMoney(totalInvoicedCents)}</div>
+          <div className="text-xl font-extrabold font-mono tabular-nums break-words">{formatMoney(totalInvoicedCents)}</div>
           <p className="text-[11px] text-slate-400 mt-1">{invoices.length} invoices issued</p>
         </div>
 
@@ -86,7 +79,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <CheckCircle className="w-4 h-4 text-emerald-600" />
             <span>Total Collected</span>
           </div>
-          <div className="text-xl font-extrabold font-mono">{formatMoney(totalCollectedCents)}</div>
+          <div className="text-xl font-extrabold font-mono tabular-nums break-words">{formatMoney(totalCollectedCents)}</div>
           <p className="text-[11px] opacity-80 mt-1">Settled payments</p>
         </div>
 
@@ -95,7 +88,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <Clock className="w-4 h-4 text-amber-500" />
             <span>Pending Balance</span>
           </div>
-          <div className="text-xl font-extrabold font-mono">{formatMoney(pendingBalanceCents)}</div>
+          <div className="text-xl font-extrabold font-mono tabular-nums break-words">{formatMoney(pendingBalanceCents)}</div>
           <p className="text-[11px] text-slate-400 mt-1">Awaiting client payment</p>
         </div>
 
@@ -104,24 +97,26 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <AlertTriangle className="w-4 h-4 text-rose-600" />
             <span>Overdue Amount</span>
           </div>
-          <div className="text-xl font-extrabold font-mono">{formatMoney(overdueAmountCents)}</div>
+          <div className="text-xl font-extrabold font-mono tabular-nums break-words">{formatMoney(overdueAmountCents)}</div>
           <p className="text-[11px] opacity-80 mt-1">Passed payment terms</p>
         </div>
       </div>
 
       {/* Net Profit Summary */}
       <div className={`p-5 rounded-xl border flex flex-wrap items-center justify-between gap-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
-        <div className="flex items-center gap-4">
-          <div className={`p-3 rounded-xl ${netProfitCents >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+        <div className="flex items-center gap-4 min-w-0">
+          <div className={`p-3 rounded-xl shrink-0 ${netProfitCents >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
             {netProfitCents >= 0 ? <ArrowUpRight className="w-6 h-6" /> : <ArrowDownRight className="w-6 h-6" />}
           </div>
-          <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Net Operating Profit</span>
-            <div className="text-2xl font-black font-mono mt-0.5">{formatMoney(netProfitCents)}</div>
-            <p className="text-xs text-slate-400 mt-0.5">Collected ({formatMoney(totalCollectedCents)}) − Expenses ({formatMoney(totalExpenseCents)})</p>
+          <div className="min-w-0">
+            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Net Operating Profit (Excl. Tax)</span>
+            <div className="text-2xl font-black font-mono tabular-nums mt-0.5">{formatMoney(netProfitCents)}</div>
+            <p className="text-xs text-slate-400 mt-0.5 tabular-nums">
+              Net Revenue ({formatMoney(netRevenueExclTaxCents)}) − Net Expenses ({formatMoney(netExpenseExclTaxCents)}) • Net Tax Liability: {formatMoney(taxLiabilityCents)}
+            </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={onNavigateToSales}
             className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
@@ -156,12 +151,23 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   <span className="text-slate-700 dark:text-slate-300">
                     Invoice <strong className="text-indigo-600">{inv.invoice_number}</strong> for {inv.client_name || 'Client'} is {days} {days === 1 ? 'day' : 'days'} overdue ({formatMoney(inv.balance_due_cents || 0)} balance due).
                   </span>
-                  <button
-                    onClick={onNavigateToSales}
-                    className="px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-[11px] text-indigo-600 cursor-pointer hover:bg-slate-50 shrink-0"
-                  >
-                    View in Sales
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {onSendReminder && (
+                      <button
+                        onClick={() => onSendReminder(inv)}
+                        className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[11px] cursor-pointer inline-flex items-center gap-1 transition"
+                      >
+                        <Send className="w-3 h-3" />
+                        <span>Send Reminder</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={onNavigateToSales}
+                      className="px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-[11px] text-indigo-600 cursor-pointer hover:bg-slate-50 shrink-0"
+                    >
+                      View in Sales
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -184,13 +190,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           ) : (
             <div className="space-y-2">
               {recentInvoices.map((inv) => (
-                <div key={inv.id} className={`p-3 rounded-xl border flex items-center justify-between text-xs ${isDarkMode ? 'border-slate-800 bg-slate-900/50' : 'border-slate-100 bg-slate-50'}`}>
-                  <div>
-                    <div className="font-bold font-mono text-indigo-500">{inv.invoice_number}</div>
-                    <div className="text-slate-500 text-[11px] mt-0.5">{inv.client_name || 'Client'}</div>
+                <div key={inv.id} className={`p-3 rounded-xl border flex items-center justify-between gap-3 text-xs ${isDarkMode ? 'border-slate-800 bg-slate-900/50' : 'border-slate-100 bg-slate-50'}`}>
+                  <div className="min-w-0">
+                    <div className="font-bold font-mono text-indigo-500 truncate">{inv.invoice_number}</div>
+                    <div className="text-slate-500 text-[11px] mt-0.5 truncate">{inv.client_name || 'Client'}</div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold font-mono">{formatMoney(inv.total_cents)}</div>
+                  <div className="text-right shrink-0">
+                    <div className="font-bold font-mono tabular-nums">{formatMoney(inv.total_cents)}</div>
                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
                       {inv.computed_status || inv.status}
                     </span>
@@ -214,12 +220,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           ) : (
             <div className="space-y-2">
               {recentExpenses.map((exp) => (
-                <div key={exp.id} className={`p-3 rounded-xl border flex items-center justify-between text-xs ${isDarkMode ? 'border-slate-800 bg-slate-900/50' : 'border-slate-100 bg-slate-50'}`}>
-                  <div>
-                    <div className="font-bold">{exp.vendor}</div>
-                    <div className="text-slate-500 text-[11px] mt-0.5">{exp.category} • {exp.expense_date}</div>
+                <div key={exp.id} className={`p-3 rounded-xl border flex items-center justify-between gap-3 text-xs ${isDarkMode ? 'border-slate-800 bg-slate-900/50' : 'border-slate-100 bg-slate-50'}`}>
+                  <div className="min-w-0">
+                    <div className="font-bold truncate">{exp.vendor}</div>
+                    <div className="text-slate-500 text-[11px] mt-0.5 truncate">{exp.category} • {exp.expense_date}</div>
                   </div>
-                  <div className="text-right font-bold font-mono text-rose-500">
+                  <div className="text-right font-bold font-mono tabular-nums text-rose-500 shrink-0">
                     -{formatMoney(exp.total_cents)}
                   </div>
                 </div>

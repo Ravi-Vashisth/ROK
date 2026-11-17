@@ -3,18 +3,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 /// Opens and configures the local SQLite database file in the application documents directory.
+/// Propagates errors cleanly instead of silently falling back to volatile in-memory storage.
 Future<Database> openLocalDatabase() async {
-  Database db;
+  final docsDir = await getApplicationDocumentsDirectory();
+  final dbPath = p.join(docsDir.path, 'billing_local.db');
+  final Database db = sqlite3.open(dbPath);
   try {
-    final docsDir = await getApplicationDocumentsDirectory();
-    final dbPath = p.join(docsDir.path, 'billing_local.db');
-    db = sqlite3.open(dbPath);
-    try {
-      db.execute('PRAGMA journal_mode = WAL;');
-    } catch (_) {}
-  } catch (_) {
-    db = sqlite3.openInMemory();
-  }
+    db.execute('PRAGMA journal_mode = WAL;');
+  } catch (_) {}
 
   // Enable foreign keys for durability and cascading deletions
   try {
@@ -67,6 +63,9 @@ Future<Database> openLocalDatabase() async {
       currency_code TEXT DEFAULT '',
       currency_symbol TEXT DEFAULT '',
       currency_decimals INTEGER DEFAULT 2,
+      tax_mode TEXT DEFAULT 'standard',
+      pst_rate_percentage INTEGER DEFAULT 0,
+      tax_exemption_id TEXT DEFAULT '',
       created_at TEXT NOT NULL,
       FOREIGN KEY (client_id) REFERENCES clients (id) ON DELETE RESTRICT
     );
@@ -85,6 +84,9 @@ Future<Database> openLocalDatabase() async {
     "currency_code TEXT DEFAULT ''",
     "currency_symbol TEXT DEFAULT ''",
     "currency_decimals INTEGER DEFAULT 2",
+    "tax_mode TEXT DEFAULT 'standard'",
+    "pst_rate_percentage INTEGER DEFAULT 0",
+    "tax_exemption_id TEXT DEFAULT ''",
   ]) {
     try {
       db.execute('ALTER TABLE invoices ADD COLUMN $col;');
@@ -139,7 +141,9 @@ Future<Database> openLocalDatabase() async {
       invoice_prefix TEXT DEFAULT 'INV-',
       estimate_prefix TEXT DEFAULT 'EST-',
       next_invoice_number INTEGER DEFAULT 1,
-      payment_qr_payload TEXT DEFAULT ''
+      payment_qr_payload TEXT DEFAULT '',
+      default_tax_mode TEXT DEFAULT 'standard',
+      default_pst_rate_percentage INTEGER DEFAULT 0
     );
   ''');
 
@@ -156,6 +160,8 @@ Future<Database> openLocalDatabase() async {
     r"estimate_prefix TEXT DEFAULT 'EST-'",
     r"next_invoice_number INTEGER DEFAULT 1",
     r"payment_qr_payload TEXT DEFAULT ''",
+    r"default_tax_mode TEXT DEFAULT 'standard'",
+    r"default_pst_rate_percentage INTEGER DEFAULT 0",
   ]) {
     try {
       db.execute('ALTER TABLE business_profile ADD COLUMN $col;');
@@ -165,7 +171,7 @@ Future<Database> openLocalDatabase() async {
   // Seed default business profile record
   db.execute(r'''
     INSERT OR IGNORE INTO business_profile (
-      id, business_name, email, phone, address, tax_id, payment_details, currency_symbol, currency_code, currency_decimals, default_terms, default_notes, logo_base64, signature_base64, signature_label, invoice_prefix, estimate_prefix, next_invoice_number, payment_qr_payload
+      id, business_name, email, phone, address, tax_id, payment_details, currency_symbol, currency_code, currency_decimals, default_terms, default_notes, logo_base64, signature_base64, signature_label, invoice_prefix, estimate_prefix, next_invoice_number, payment_qr_payload, default_tax_mode, default_pst_rate_percentage
     ) VALUES (
       'default',
       'My Freelance Studio',
@@ -185,7 +191,9 @@ Future<Database> openLocalDatabase() async {
       'INV-',
       'EST-',
       1,
-      ''
+      '',
+      'standard',
+      0
     );
   ''');
 
@@ -272,6 +280,9 @@ Future<Database> openLocalDatabase() async {
       currency_code TEXT DEFAULT '',
       currency_symbol TEXT DEFAULT '',
       currency_decimals INTEGER DEFAULT 2,
+      tax_mode TEXT DEFAULT 'standard',
+      pst_rate_percentage INTEGER DEFAULT 0,
+      tax_exemption_id TEXT DEFAULT '',
       created_at TEXT NOT NULL,
       FOREIGN KEY (client_id) REFERENCES clients (id) ON DELETE RESTRICT
     );
@@ -287,6 +298,9 @@ Future<Database> openLocalDatabase() async {
     "currency_code TEXT DEFAULT ''",
     "currency_symbol TEXT DEFAULT ''",
     "currency_decimals INTEGER DEFAULT 2",
+    "tax_mode TEXT DEFAULT 'standard'",
+    "pst_rate_percentage INTEGER DEFAULT 0",
+    "tax_exemption_id TEXT DEFAULT ''",
   ]) {
     try {
       db.execute('ALTER TABLE estimates ADD COLUMN $col;');

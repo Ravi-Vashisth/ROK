@@ -1,5 +1,6 @@
 import React from 'react';
-import { Search, FileText, CheckCircle2, Clock, AlertCircle, Eye, Trash2, DollarSign } from 'lucide-react';
+import { FileText, CheckCircle2, Trash2, DollarSign, Send } from 'lucide-react';
+import { formatMoney as formatMoneyUnits, getCurrencyDecimals } from '../../../billingRules';
 
 interface OfflineInvoicesListProps {
   invoices: any[];
@@ -9,6 +10,7 @@ interface OfflineInvoicesListProps {
   dateFilter: string;
   formatMoney: (cents: number) => string;
   onRecordPayment: (invoice: any) => void;
+  onSendReminder?: (invoice: any) => void;
   onDeleteInvoice: (invoice: any) => void;
   onEditDraft?: (invoice: any) => void;
   onFinalizeInvoice?: (invoice: any) => void;
@@ -23,6 +25,7 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
   dateFilter,
   formatMoney,
   onRecordPayment,
+  onSendReminder,
   onDeleteInvoice,
   onEditDraft,
   onFinalizeInvoice,
@@ -86,17 +89,22 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
               const isVoid = status === 'VOID';
               const isPartiallyPaid = status === 'PARTIALLY_PAID';
 
+              const invSym = inv.currency_symbol;
+              const invDec = inv.currency_decimals ?? getCurrencyDecimals(inv.currency_code || invSym || '');
+              const fmtInv = (amt: number) =>
+                invSym ? formatMoneyUnits(amt, invSym, invDec) : formatMoney(amt);
+
               return (
                 <tr key={inv.id} className={`hover:bg-indigo-50/20 transition ${isDarkMode ? 'hover:bg-slate-800/40' : ''} ${isVoid ? 'opacity-60' : ''}`}>
-                  <td className="p-3.5 font-bold font-mono text-indigo-500">{inv.invoice_number}</td>
-                  <td className="p-3.5 font-semibold">{inv.client_name || 'Client'}</td>
-                  <td className="p-3.5 text-slate-500">{inv.issue_date}</td>
-                  <td className="p-3.5 text-slate-500">{inv.due_date}</td>
-                  <td className="p-3.5 text-right font-bold font-mono">{formatMoney(inv.total_cents)}</td>
-                  <td className={`p-3.5 text-right font-bold font-mono ${isVoid ? 'text-slate-400 line-through' : isPaid ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    {isVoid ? formatMoney(0) : formatMoney(inv.balance_due_cents ?? inv.total_cents)}
+                  <td className="p-3.5 font-bold font-mono text-indigo-500 whitespace-nowrap">{inv.invoice_number}</td>
+                  <td className="p-3.5 font-semibold whitespace-nowrap">{inv.client_name || 'Client'}</td>
+                  <td className="p-3.5 text-slate-500 whitespace-nowrap">{inv.issue_date}</td>
+                  <td className="p-3.5 text-slate-500 whitespace-nowrap">{inv.due_date}</td>
+                  <td className="p-3.5 text-right font-bold font-mono tabular-nums whitespace-nowrap">{fmtInv(inv.total_cents)}</td>
+                  <td className={`p-3.5 text-right font-bold font-mono tabular-nums whitespace-nowrap ${isVoid ? 'text-slate-400 line-through' : isPaid ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {isVoid ? fmtInv(0) : fmtInv(inv.balance_due_cents ?? inv.total_cents)}
                   </td>
-                  <td className="p-3.5 text-center">
+                  <td className="p-3.5 text-center whitespace-nowrap">
                     <span className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-bold uppercase ${
                       isVoid ? 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400 border border-slate-300 dark:border-slate-700' :
                       isDraft ? 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700' :
@@ -108,7 +116,7 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
                       {status === 'PARTIALLY_PAID' ? 'PARTIAL' : status}
                     </span>
                   </td>
-                  <td className="p-3.5 text-right space-x-1">
+                  <td className="p-3.5 text-right space-x-1 whitespace-nowrap">
                     {isDraft && onEditDraft && (
                       <button
                         onClick={() => onEditDraft(inv)}
@@ -129,13 +137,24 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
                       </button>
                     )}
                     {!isPaid && !isDraft && !isVoid && (
-                      <button
-                        onClick={() => onRecordPayment(inv)}
-                        className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 transition cursor-pointer"
-                        title="Record Payment"
-                      >
-                        <DollarSign className="w-3.5 h-3.5" />
-                      </button>
+                      <>
+                        {onSendReminder && (
+                          <button
+                            onClick={() => onSendReminder(inv)}
+                            className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 transition cursor-pointer"
+                            title="Send Payment Reminder"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => onRecordPayment(inv)}
+                          className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 transition cursor-pointer"
+                          title="Record Payment"
+                        >
+                          <DollarSign className="w-3.5 h-3.5" />
+                        </button>
+                      </>
                     )}
                     <button
                       onClick={() => onDeleteInvoice(inv)}

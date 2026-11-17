@@ -1,5 +1,6 @@
 import React from 'react';
 import { FileText, ArrowRightLeft, Trash2 } from 'lucide-react';
+import { formatMoney as formatMoneyUnits, getCurrencyDecimals } from '../../billingRules';
 
 interface OfflineEstimatesListProps {
   estimates: any[];
@@ -78,14 +79,19 @@ export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
               const isDraft = est.status === 'DRAFT';
               const isConverted = est.status === 'CONVERTED';
 
+              const estSym = est.currency_symbol;
+              const estDec = est.currency_decimals ?? getCurrencyDecimals(est.currency_code || estSym || '');
+              const fmtEst = (amt: number) =>
+                estSym ? formatMoneyUnits(amt, estSym, estDec) : formatMoney(amt);
+
               return (
                 <tr key={est.id} className={`hover:bg-indigo-50/20 transition ${isDarkMode ? 'hover:bg-slate-800/40' : ''}`}>
-                  <td className="p-3.5 font-bold font-mono text-amber-600">{est.estimate_number}</td>
-                  <td className="p-3.5 font-semibold">{est.client_name || 'Client'}</td>
-                  <td className="p-3.5 text-slate-500">{est.issue_date}</td>
-                  <td className="p-3.5 text-slate-500">{est.expiry_date}</td>
-                  <td className="p-3.5 text-right font-bold font-mono">{formatMoney(est.total_cents)}</td>
-                  <td className="p-3.5 text-center">
+                  <td className="p-3.5 font-bold font-mono text-amber-600 whitespace-nowrap">{est.estimate_number}</td>
+                  <td className="p-3.5 font-semibold whitespace-nowrap">{est.client_name || 'Client'}</td>
+                  <td className="p-3.5 text-slate-500 whitespace-nowrap">{est.issue_date}</td>
+                  <td className="p-3.5 text-slate-500 whitespace-nowrap">{est.expiry_date}</td>
+                  <td className="p-3.5 text-right font-bold font-mono tabular-nums whitespace-nowrap">{fmtEst(est.total_cents)}</td>
+                  <td className="p-3.5 text-center whitespace-nowrap">
                     <span className={`inline-block px-2.5 py-1 rounded-md text-[10px] font-bold uppercase ${
                       isDraft ? 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700' :
                       isConverted ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
@@ -94,7 +100,7 @@ export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
                       {est.status || 'PENDING'}
                     </span>
                   </td>
-                  <td className="p-3.5 text-right space-x-1">
+                  <td className="p-3.5 text-right space-x-1 whitespace-nowrap">
                     {isDraft && onEditDraft && (
                       <button
                         onClick={() => onEditDraft(est)}

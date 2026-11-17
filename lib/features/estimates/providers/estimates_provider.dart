@@ -4,6 +4,7 @@ import 'package:sqlite3/sqlite3.dart';
 import '../../../core/database/database_provider.dart';
 import '../../../core/utils/id_generator.dart';
 import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/tax_compliance_utils.dart';
 import '../../invoices/providers/invoices_provider.dart';
 import '../models/estimate_item.dart';
 import '../models/estimate_record.dart';
@@ -39,6 +40,9 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
         e.currency_code,
         e.currency_symbol,
         e.currency_decimals,
+        e.tax_mode,
+        e.pst_rate_percentage,
+        e.tax_exemption_id,
         e.created_at
       FROM estimates e
       LEFT JOIN clients c ON e.client_id = c.id
@@ -54,12 +58,9 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     if (profileRes.isNotEmpty) {
       prefix = (profileRes.first['estimate_prefix'] as String?) ?? 'EST-';
     }
-    final offset = prefix.length + 1;
-    final result = _db.select('''
-      SELECT COALESCE(MAX(CAST(SUBSTR(estimate_number, ?) AS INTEGER)), 0) + 1 AS next_num FROM estimates;
-    ''', [offset]);
-    final nextNumber = (result.first['next_num'] as int?) ?? 1;
-    return '$prefix${nextNumber.toString().padLeft(4, '0')}';
+    final rows = _db.select('SELECT estimate_number FROM estimates');
+    final existing = rows.map((r) => (r['estimate_number'] as String?) ?? '');
+    return getNextSequentialDocNumber(existing, prefix);
   }
 
   List<EstimateItem> getEstimateItems(String estimateId) {
@@ -85,6 +86,9 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     String currencyCode = '',
     String currencySymbol = '',
     int currencyDecimals = 2,
+    String taxMode = 'standard',
+    int pstRatePercentage = 0,
+    String taxExemptionId = '',
     String status = 'PENDING',
   }) {
     if (items.isEmpty) {
@@ -114,11 +118,18 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
       }
     }
 
+    final normalizedTaxMode = normalizeTaxMode(taxMode);
     final subtotalCents = items.fold<int>(0, (sum, item) => sum + item.totalCents);
     final discountCents = calculateDiscountCents(subtotalCents, discountType, discountValue);
     final netSubtotalCents = (subtotalCents - discountCents) > 0 ? (subtotalCents - discountCents) : 0;
     final itemsTaxSum = items.fold<int>(0, (sum, item) => sum + item.taxCents);
-    final taxCents = itemsTaxSum > 0 ? itemsTaxSum : calculateTaxCents(netSubtotalCents, taxPercentage);
+    final taxCents = computeRegionalTaxCents(
+      netSubtotalCents: netSubtotalCents,
+      taxMode: normalizedTaxMode,
+      taxPercentage: taxPercentage,
+      pstRatePercentage: pstRatePercentage,
+      itemsTaxSumCents: itemsTaxSum,
+    );
     final totalCents = netSubtotalCents + taxCents;
 
     // In-place edit for existing draft estimate
@@ -137,7 +148,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
               client_id = ?, estimate_number = ?, subtotal_cents = ?, tax_cents = ?, total_cents = ?,
               status = ?, issue_date = ?, expiry_date = ?, terms = ?, notes = ?,
               discount_type = ?, discount_value = ?, discount_cents = ?, po_number = ?,
-              currency_code = ?, currency_symbol = ?, currency_decimals = ?
+              currency_code = ?, currency_symbol = ?, currency_decimals = ?,
+              tax_mode = ?, pst_rate_percentage = ?, tax_exemption_id = ?
             WHERE id = ?
           ''');
           try {
@@ -159,6 +171,9 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
               currencyCode,
               currencySymbol,
               currencyDecimals,
+              normalizedTaxMode,
+              pstRatePercentage,
+              taxExemptionId,
               existingEstimateId,
             ]);
           } finally {
@@ -214,8 +229,9 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
         INSERT INTO estimates (
           id, client_id, estimate_number, subtotal_cents, tax_cents, total_cents,
           status, issue_date, expiry_date, converted_invoice_id, terms, notes,
-          discount_type, discount_value, discount_cents, po_number, currency_code, currency_symbol, currency_decimals, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          discount_type, discount_value, discount_cents, po_number, currency_code, currency_symbol, currency_decimals,
+          tax_mode, pst_rate_percentage, tax_exemption_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         stmt.execute([
@@ -238,6 +254,9 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
           currencyCode,
           currencySymbol,
           currencyDecimals,
+          normalizedTaxMode,
+          pstRatePercentage,
+          taxExemptionId,
           createdAt,
         ]);
       } finally {
@@ -296,6 +315,9 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     final currencyCode = (estRow['currency_code'] as String?) ?? '';
     final currencySymbol = (estRow['currency_symbol'] as String?) ?? '';
     final currencyDecimals = (estRow['currency_decimals'] as int?) ?? 2;
+    final taxMode = normalizeTaxMode(estRow['tax_mode'] as String?);
+    final pstRatePercentage = (estRow['pst_rate_percentage'] as int?) ?? 0;
+    final taxExemptionId = (estRow['tax_exemption_id'] as String?) ?? '';
 
     final items = getEstimateItems(estimateId);
     final draftItems = items
@@ -325,8 +347,9 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
         INSERT INTO invoices (
           id, client_id, invoice_number, subtotal_cents, tax_cents, total_cents,
           status, issue_date, due_date, payment_terms, terms, notes,
-          discount_type, discount_value, discount_cents, po_number, currency_code, currency_symbol, currency_decimals, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          discount_type, discount_value, discount_cents, po_number, currency_code, currency_symbol, currency_decimals,
+          tax_mode, pst_rate_percentage, tax_exemption_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         invoiceStmt.execute([
@@ -349,6 +372,9 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
           currencyCode,
           currencySymbol,
           currencyDecimals,
+          taxMode,
+          pstRatePercentage,
+          taxExemptionId,
           createdAt,
         ]);
       } finally {

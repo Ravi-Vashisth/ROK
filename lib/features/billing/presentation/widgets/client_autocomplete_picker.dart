@@ -37,40 +37,48 @@ class _ClientAutocompletePickerState extends ConsumerState<ClientAutocompletePic
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        insetPadding: EdgeInsets.all(MediaQuery.sizeOf(dialogCtx).width < 600 ? 12 : 24),
         title: const Text('Add New Client'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Client Name *', hintText: 'e.g. Acme Corp'),
-                autofocus: true,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(labelText: 'Email', hintText: 'billing@client.com'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(labelText: 'Phone', hintText: '+1 (555) 012-3456'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: taxIdController,
-                decoration: const InputDecoration(labelText: 'Tax ID / GSTIN / VAT', hintText: 'e.g. EU123456789'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: addressController,
-                minLines: 2,
-                maxLines: null,
-                decoration: const InputDecoration(labelText: 'Billing Address', hintText: 'Suite 200, 456 Enterprise Blvd, Austin, TX'),
-              ),
-            ],
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 440,
+            maxHeight: MediaQuery.sizeOf(dialogCtx).height * 0.78,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Client Name *', hintText: 'e.g. Acme Corp'),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(labelText: 'Email', hintText: 'billing@client.com'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneController,
+                  decoration: const InputDecoration(labelText: 'Phone', hintText: '+1 (555) 012-3456'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: taxIdController,
+                  decoration: const InputDecoration(labelText: 'Tax ID / GSTIN / VAT', hintText: 'e.g. EU123456789'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: addressController,
+                  minLines: 2,
+                  maxLines: null,
+                  decoration: const InputDecoration(labelText: 'Billing Address', hintText: 'Suite 200, 456 Enterprise Blvd, Austin, TX'),
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -148,21 +156,27 @@ class _ClientAutocompletePickerState extends ConsumerState<ClientAutocompletePic
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '1. Client Selection & Billing Details',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                TextButton.icon(
-                  onPressed: () => _showAddClientDialog(),
-                  icon: const Icon(Icons.person_add_outlined, size: 16),
-                  label: const Text('+ Add New Client'),
-                ),
-              ],
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  Text(
+                    '1. Client Selection & Billing Details',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _showAddClientDialog(),
+                    icon: const Icon(Icons.person_add_outlined, size: 16),
+                    label: const Text('+ Add New Client'),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -200,7 +214,7 @@ class _ClientAutocompletePickerState extends ConsumerState<ClientAutocompletePic
                 constraints: const BoxConstraints(maxHeight: 220),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Theme.of(context).dividerColor),
                   boxShadow: [
                     BoxShadow(
@@ -259,7 +273,7 @@ class _ClientAutocompletePickerState extends ConsumerState<ClientAutocompletePic
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                   ),

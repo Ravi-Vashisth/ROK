@@ -1,8 +1,10 @@
+import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/currency_formatter_provider.dart';
 import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/tax_compliance_utils.dart';
 import '../../billing/presentation/widgets/client_autocomplete_picker.dart';
 import '../../business_profile/models/business_profile.dart';
 import '../../business_profile/providers/business_profile_provider.dart';
@@ -62,6 +64,11 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
   String _paymentTerms = 'Due on Receipt';
   String _discountType = 'none'; // 'none', 'percent', 'flat'
   late TextEditingController _discountController;
+  late String _taxMode;
+  late TextEditingController _pstRateController;
+  late TextEditingController _exemptionIdController;
+  String? _initialQuoteExpiryDate;
+  bool _paymentTermsChanged = false;
 
   List<LineItemEntry> _items = [];
 
@@ -78,11 +85,18 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
       _poNumberController = TextEditingController(text: inv.poNumber);
       _overrideCurrencyCode = inv.currencyCode.isNotEmpty ? inv.currencyCode : profile.currencyCode;
       _overrideCurrencySymbol = inv.currencySymbol.isNotEmpty ? inv.currencySymbol : profile.currencySymbol;
-      _overrideCurrencyDecimals = inv.currencyDecimals;
+      _overrideCurrencyDecimals = inv.currencyCode.isNotEmpty ? inv.currencyDecimals : profile.currencyDecimals;
       _termsController = TextEditingController(text: inv.terms);
       _notesController = TextEditingController(text: inv.notes);
       _discountType = inv.discountType;
-      _discountController = TextEditingController(text: inv.discountValue.toString());
+      _discountController = TextEditingController(
+        text: inv.discountType == 'flat'
+            ? formatDecimalUnits(inv.discountValue, _overrideCurrencyDecimals ?? profile.currencyDecimals)
+            : inv.discountValue.toString(),
+      );
+      _taxMode = normalizeTaxMode(inv.taxMode);
+      _pstRateController = TextEditingController(text: inv.pstRatePercentage.toString());
+      _exemptionIdController = TextEditingController(text: inv.taxExemptionId);
 
       final dbItems = ref.read(invoicesProvider.notifier).getInvoiceItems(inv.id);
       if (dbItems.isNotEmpty) {
@@ -104,14 +118,23 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
       final est = widget.existingEstimate!;
       _selectedClientId = est.clientId;
       _issueDateController = TextEditingController(text: est.issueDate);
+      _initialQuoteExpiryDate = est.expiryDate;
+      _paymentTerms = 'Net 30 Days';
       _poNumberController = TextEditingController(text: est.poNumber);
       _overrideCurrencyCode = est.currencyCode.isNotEmpty ? est.currencyCode : profile.currencyCode;
       _overrideCurrencySymbol = est.currencySymbol.isNotEmpty ? est.currencySymbol : profile.currencySymbol;
-      _overrideCurrencyDecimals = est.currencyDecimals;
+      _overrideCurrencyDecimals = est.currencyCode.isNotEmpty ? est.currencyDecimals : profile.currencyDecimals;
       _termsController = TextEditingController(text: est.terms);
       _notesController = TextEditingController(text: est.notes);
       _discountType = est.discountType;
-      _discountController = TextEditingController(text: est.discountValue.toString());
+      _discountController = TextEditingController(
+        text: est.discountType == 'flat'
+            ? formatDecimalUnits(est.discountValue, _overrideCurrencyDecimals ?? profile.currencyDecimals)
+            : est.discountValue.toString(),
+      );
+      _taxMode = normalizeTaxMode(est.taxMode);
+      _pstRateController = TextEditingController(text: est.pstRatePercentage.toString());
+      _exemptionIdController = TextEditingController(text: est.taxExemptionId);
 
       final dbItems = ref.read(estimatesProvider.notifier).getEstimateItems(est.id);
       if (dbItems.isNotEmpty) {
@@ -134,6 +157,9 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
       _issueDateController = TextEditingController(
         text: '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
       );
+      if (widget.isQuote) {
+        _paymentTerms = 'Net 30 Days';
+      }
       _poNumberController = TextEditingController();
       _overrideCurrencyCode = profile.currencyCode;
       _overrideCurrencySymbol = profile.currencySymbol;
@@ -141,6 +167,9 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
       _termsController = TextEditingController(text: profile.defaultTerms);
       _notesController = TextEditingController(text: profile.defaultNotes);
       _discountController = TextEditingController(text: '0');
+      _taxMode = normalizeTaxMode(profile.defaultTaxMode);
+      _pstRateController = TextEditingController(text: profile.defaultPstRatePercentage.toString());
+      _exemptionIdController = TextEditingController();
       _items = [
         LineItemEntry(description: '', sacHsn: '', quantity: 1, unitPriceCents: 0, taxSlab: 10)
       ];
@@ -154,6 +183,8 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
     _termsController.dispose();
     _notesController.dispose();
     _discountController.dispose();
+    _pstRateController.dispose();
+    _exemptionIdController.dispose();
     super.dispose();
   }
 
@@ -178,27 +209,49 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
       .where((i) => !(i.description.trim().isEmpty && i.unitPriceCents == 0))
       .toList();
 
+  int get _activeDecimals {
+    final code = _overrideCurrencyCode ?? ref.read(businessProfileProvider).currencyCode;
+    return _overrideCurrencyDecimals ?? getCurrencyDecimals(code);
+  }
+
   int get _subtotalCents => _validItems.fold(0, (sum, i) => sum + i.totalCents);
 
-  int get _discountCents {
+  int _effectiveDiscountValue(int decimals) {
     if (_discountType == 'none') return 0;
     if (_discountType == 'percent') {
-      final pct = double.tryParse(_discountController.text.trim()) ?? 0;
-      return (_subtotalCents * pct / 100).round();
+      return (double.tryParse(_discountController.text.trim()) ?? 0).round().clamp(0, 100);
     }
-    return parsePriceToCents(_discountController.text);
+    return parsePriceToUnits(_discountController.text.trim(), decimals);
   }
+
+  int get _discountCents => calculateDiscountCents(
+        _subtotalCents,
+        _discountType,
+        _effectiveDiscountValue(_activeDecimals),
+      );
+
+  int get _pstRatePct => (int.tryParse(_pstRateController.text.trim()) ?? 0).clamp(0, 100);
+
+  int get _netSubtotalCents => (_subtotalCents - _discountCents).clamp(0, _subtotalCents);
 
   int get _taxCents {
-    final subAfterDisc = (_subtotalCents - _discountCents).clamp(0, _subtotalCents);
-    return _validItems.fold(0, (sum, i) {
+    final subAfterDisc = _netSubtotalCents;
+    final itemsTaxSum = _validItems.fold(0, (sum, i) {
       if (_subtotalCents <= 0) return sum;
-      final lineShare = (i.totalCents * subAfterDisc) ~/ _subtotalCents;
-      return sum + (lineShare * i.taxSlab ~/ 100);
+      final lineShare = (i.totalCents * subAfterDisc + (_subtotalCents ~/ 2)) ~/ _subtotalCents;
+      return sum + calculateTaxCents(lineShare, i.taxSlab);
     });
+    final primaryTaxPct = _validItems.isNotEmpty ? _validItems.first.taxSlab : 0;
+    return computeRegionalTaxCents(
+      netSubtotalCents: subAfterDisc,
+      taxMode: _taxMode,
+      taxPercentage: primaryTaxPct,
+      pstRatePercentage: _pstRatePct,
+      itemsTaxSumCents: itemsTaxSum,
+    );
   }
 
-  int get _totalCents => (_subtotalCents - _discountCents).clamp(0, _subtotalCents) + _taxCents;
+  int get _totalCents => _netSubtotalCents + _taxCents;
 
   String _calculateDueDate(String issueDateStr, String terms) {
     try {
@@ -231,22 +284,30 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
       return;
     }
 
-    final subAfterDisc = (_subtotalCents - _discountCents).clamp(0, _subtotalCents);
+    final profile = ref.read(businessProfileProvider);
+    final curCode = _overrideCurrencyCode ?? profile.currencyCode;
+    final curSym = _overrideCurrencySymbol ?? profile.currencySymbol;
+    final curDec = _overrideCurrencyDecimals ?? getCurrencyDecimals(curCode);
 
+    final discVal = _effectiveDiscountValue(curDec);
+    final resolvedDiscount = calculateDiscountCents(_subtotalCents, _discountType, discVal);
+    final subAfterDisc = (_subtotalCents - resolvedDiscount).clamp(0, _subtotalCents);
+
+    final zeroRated = isZeroRatedTaxMode(_taxMode);
     final draftItems = _items
         .where((i) => i.description.trim().isNotEmpty)
         .map((i) {
           final lineTotal = i.totalCents;
           final lineNet = _subtotalCents > 0
-              ? (lineTotal * subAfterDisc) ~/ _subtotalCents
+              ? (lineTotal * subAfterDisc + (_subtotalCents ~/ 2)) ~/ _subtotalCents
               : lineTotal;
-          final itemTaxCents = (lineNet * i.taxSlab) ~/ 100;
+          final itemTaxCents = zeroRated ? 0 : calculateTaxCents(lineNet, i.taxSlab);
           return DraftItem(
             description: i.description.trim(),
             sacHsn: i.sacHsn.trim(),
             quantity: i.quantity,
             unitPriceCents: i.unitPriceCents,
-            taxRatePercentage: i.taxSlab,
+            taxRatePercentage: zeroRated ? 0 : i.taxSlab,
             taxCents: itemTaxCents,
             totalCents: i.totalCents,
           );
@@ -255,17 +316,17 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
 
     final issueDate = _issueDateController.text.trim();
     final dueDate = _calculateDueDate(issueDate, _paymentTerms);
+    final effectiveQuoteExpiry = (widget.existingEstimate != null &&
+            !_paymentTermsChanged &&
+            issueDate == widget.existingEstimate!.issueDate &&
+            (_initialQuoteExpiryDate?.isNotEmpty ?? false))
+        ? _initialQuoteExpiryDate!
+        : dueDate;
 
-    final discVal = _discountType == 'percent'
-        ? (double.tryParse(_discountController.text.trim()) ?? 0).toInt()
-        : parsePriceToCents(_discountController.text.trim());
-
-    final avgTaxPct = _items.isNotEmpty ? _items.first.taxSlab : 10;
-    final profile = ref.read(businessProfileProvider);
-    final curCode = _overrideCurrencyCode ?? profile.currencyCode;
-    final curSym = _overrideCurrencySymbol ?? profile.currencySymbol;
-    final curDec = _overrideCurrencyDecimals ?? profile.currencyDecimals;
+    final avgTaxPct = zeroRated ? 0 : (_items.isNotEmpty ? _items.first.taxSlab : 10);
     final docStatus = isDraft ? 'DRAFT' : 'PENDING';
+    final pstPct = _taxMode == TaxMode.caDual ? _pstRatePct : 0;
+    final exemptionId = _taxMode == TaxMode.usExempt ? _exemptionIdController.text.trim() : '';
 
     if (widget.isQuote) {
       ref.read(estimatesProvider.notifier).saveEstimate(
@@ -274,7 +335,7 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
             items: draftItems,
             taxPercentage: avgTaxPct,
             issueDate: issueDate,
-            expiryDate: dueDate,
+            expiryDate: effectiveQuoteExpiry,
             terms: _termsController.text.trim(),
             notes: _notesController.text.trim(),
             discountType: _discountType,
@@ -283,6 +344,9 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
             currencyCode: curCode,
             currencySymbol: curSym,
             currencyDecimals: curDec,
+            taxMode: _taxMode,
+            pstRatePercentage: pstPct,
+            taxExemptionId: exemptionId,
             status: docStatus,
           );
       ScaffoldMessenger.of(context).showSnackBar(
@@ -305,6 +369,9 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
             currencyCode: curCode,
             currencySymbol: curSym,
             currencyDecimals: curDec,
+            taxMode: _taxMode,
+            pstRatePercentage: pstPct,
+            taxExemptionId: exemptionId,
             status: docStatus,
           );
       ScaffoldMessenger.of(context).showSnackBar(
@@ -317,14 +384,15 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final constraints = MediaQuery.of(context).size;
-    final isWide = constraints.width >= 1000;
+    final constraints = MediaQuery.sizeOf(context);
+    final isWide = constraints.width >= 900;
     final profile = ref.watch(businessProfileProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
           widget.isQuote ? 'Two-Column Live Quote Editor' : 'Two-Column Live Invoice Editor',
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         actions: isWide
@@ -382,29 +450,138 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
   }
 
   Widget _buildMobileView(BusinessProfile profile) {
-    return Column(
-      children: [
-        Expanded(
-          child: _mobileTabIndex == 0 ? _buildEditor(profile) : _buildPreview(profile),
-        ),
-        NavigationBar(
-          selectedIndex: _mobileTabIndex,
-          onDestinationSelected: (i) => setState(() => _mobileTabIndex = i),
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.edit_note), label: 'Editor'),
-            NavigationDestination(icon: Icon(Icons.preview_outlined), label: 'Live A4 Preview'),
-          ],
-        ),
-      ],
+    return SafeArea(
+      top: false,
+      child: Column(
+        children: [
+          Expanded(
+            child: _mobileTabIndex == 0 ? _buildEditor(profile) : _buildPreview(profile),
+          ),
+          NavigationBar(
+            selectedIndex: _mobileTabIndex,
+            onDestinationSelected: (i) => setState(() => _mobileTabIndex = i),
+            destinations: const [
+              NavigationDestination(icon: Icon(Icons.edit_note), label: 'Editor'),
+              NavigationDestination(icon: Icon(Icons.preview_outlined), label: 'Live A4 Preview'),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildEditor(BusinessProfile profile) {
     final catalog = ref.watch(savedItemsProvider);
-    final formatCurrency = ref.watch(currencyFormatterProvider);
+    final curCode = _overrideCurrencyCode ?? profile.currencyCode;
+    final curSym = _overrideCurrencySymbol ?? profile.currencySymbol;
+    final curDec = _overrideCurrencyDecimals ?? getCurrencyDecimals(curCode);
+    String formatCurrency(int units) => formatMoney(units, symbol: curSym, decimals: curDec);
+
+    final isCompactEditor = MediaQuery.sizeOf(context).width < 520;
+    final issueDateField = TextField(
+      controller: _issueDateController,
+      decoration: const InputDecoration(
+        labelText: 'Issue Date',
+        border: OutlineInputBorder(),
+        isDense: true,
+      ),
+    );
+    final termsDropdown = DropdownButtonFormField<String>(
+      value: _paymentTerms,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: widget.isQuote ? 'Validity Period' : 'Payment Terms',
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
+      items: const [
+        DropdownMenuItem(value: 'Due on Receipt', child: Text('Due on Receipt')),
+        DropdownMenuItem(value: 'Net 15 Days', child: Text('Net 15 Days')),
+        DropdownMenuItem(value: 'Net 30 Days', child: Text('Net 30 Days')),
+        DropdownMenuItem(value: 'Net 60 Days', child: Text('Net 60 Days')),
+      ],
+      onChanged: (val) {
+        if (val != null) {
+          setState(() {
+            _paymentTerms = val;
+            _paymentTermsChanged = true;
+          });
+        }
+      },
+    );
+    final poField = TextField(
+      controller: _poNumberController,
+      decoration: const InputDecoration(
+        labelText: 'PO / Client Reference # (Optional)',
+        hintText: 'e.g. PO-2026-9874',
+        border: OutlineInputBorder(),
+        isDense: true,
+      ),
+      onChanged: (_) => setState(() {}),
+    );
+    final currencyOverrideDropdown = DropdownButtonFormField<String>(
+      value: _overrideCurrencyCode ?? profile.currencyCode,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Currency Override',
+        border: OutlineInputBorder(),
+        isDense: true,
+      ),
+      items: const [
+        DropdownMenuItem(value: 'USD', child: Text('USD (\$)')),
+        DropdownMenuItem(value: 'INR', child: Text('INR (₹)')),
+        DropdownMenuItem(value: 'EUR', child: Text('EUR (€)')),
+        DropdownMenuItem(value: 'GBP', child: Text('GBP (£)')),
+        DropdownMenuItem(value: 'JPY', child: Text('JPY (¥)')),
+        DropdownMenuItem(value: 'KRW', child: Text('KRW (₩)')),
+        DropdownMenuItem(value: 'CAD', child: Text('CAD (C\$)')),
+        DropdownMenuItem(value: 'AUD', child: Text('AUD (A\$)')),
+        DropdownMenuItem(value: 'AED', child: Text('AED (UAE)')),
+        DropdownMenuItem(value: 'SAR', child: Text('SAR (KSA)')),
+      ],
+      onChanged: (code) {
+        if (code == null) return;
+        setState(() {
+          _overrideCurrencyCode = code;
+          if (code == 'INR') { _overrideCurrencySymbol = '₹'; _overrideCurrencyDecimals = 2; }
+          else if (code == 'EUR') { _overrideCurrencySymbol = '€'; _overrideCurrencyDecimals = 2; }
+          else if (code == 'GBP') { _overrideCurrencySymbol = '£'; _overrideCurrencyDecimals = 2; }
+          else if (code == 'JPY') { _overrideCurrencySymbol = '¥'; _overrideCurrencyDecimals = 0; }
+          else if (code == 'KRW') { _overrideCurrencySymbol = '₩'; _overrideCurrencyDecimals = 0; }
+          else if (code == 'CAD') { _overrideCurrencySymbol = 'C\$'; _overrideCurrencyDecimals = 2; }
+          else if (code == 'AUD') { _overrideCurrencySymbol = 'A\$'; _overrideCurrencyDecimals = 2; }
+          else if (code == 'AED') { _overrideCurrencySymbol = 'AED'; _overrideCurrencyDecimals = 2; }
+          else if (code == 'SAR') { _overrideCurrencySymbol = 'SAR'; _overrideCurrencyDecimals = 2; }
+          else { _overrideCurrencySymbol = '\$'; _overrideCurrencyDecimals = 2; }
+        });
+      },
+    );
+
+    final taxModeDropdown = DropdownButtonFormField<String>(
+      value: _taxMode,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Regional Tax Compliance Mode',
+        border: OutlineInputBorder(),
+        isDense: true,
+      ),
+      items: TaxMode.all.map((mode) {
+        return DropdownMenuItem<String>(
+          value: mode,
+          child: Text(
+            taxModeLabels[mode] ?? mode,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12),
+          ),
+        );
+      }).toList(),
+      onChanged: (val) {
+        if (val != null) setState(() => _taxMode = val);
+      },
+    );
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isCompactEditor ? 14 : 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -420,137 +597,124 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Date & Terms Row
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _issueDateController,
-                  decoration: const InputDecoration(
-                    labelText: 'Issue Date',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                ),
+          // Date & Terms
+          if (isCompactEditor) ...[
+            issueDateField,
+            const SizedBox(height: 12),
+            termsDropdown,
+            const SizedBox(height: 12),
+            poField,
+            const SizedBox(height: 12),
+            currencyOverrideDropdown,
+          ] else ...[
+            Row(
+              children: [
+                Expanded(child: issueDateField),
+                const SizedBox(width: 12),
+                Expanded(child: termsDropdown),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(flex: 3, child: poField),
+                const SizedBox(width: 12),
+                Expanded(flex: 2, child: currencyOverrideDropdown),
+              ],
+            ),
+          ],
+          const SizedBox(height: 14),
+          taxModeDropdown,
+          if (_taxMode == TaxMode.caDual) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _pstRateController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Canada PST Rate (%)',
+                hintText: '7',
+                border: OutlineInputBorder(),
+                isDense: true,
+                suffixText: '%',
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _paymentTerms,
-                  decoration: const InputDecoration(
-                    labelText: 'Payment Terms',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'Due on Receipt', child: Text('Due on Receipt')),
-                    DropdownMenuItem(value: 'Net 15 Days', child: Text('Net 15 Days')),
-                    DropdownMenuItem(value: 'Net 30 Days', child: Text('Net 30 Days')),
-                    DropdownMenuItem(value: 'Net 60 Days', child: Text('Net 60 Days')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) setState(() => _paymentTerms = val);
-                  },
-                ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ],
+          if (_taxMode == TaxMode.usExempt) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _exemptionIdController,
+              decoration: const InputDecoration(
+                labelText: 'Client Tax Exemption Certificate ID (Optional)',
+                hintText: 'e.g. EX-99412-CA',
+                border: OutlineInputBorder(),
+                isDense: true,
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // PO Number & Currency Override Row
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: TextField(
-                  controller: _poNumberController,
-                  decoration: const InputDecoration(
-                    labelText: 'PO / Client Reference # (Optional)',
-                    hintText: 'e.g. PO-2026-9874',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ],
+          if (isZeroRatedTaxMode(_taxMode)) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.indigo.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.indigo.withValues(alpha: 0.3)),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: DropdownButtonFormField<String>(
-                  value: _overrideCurrencyCode ?? profile.currencyCode,
-                  decoration: const InputDecoration(
-                    labelText: 'Currency Override',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'USD', child: Text('USD (\$)')),
-                    DropdownMenuItem(value: 'INR', child: Text('INR (₹)')),
-                    DropdownMenuItem(value: 'EUR', child: Text('EUR (€)')),
-                    DropdownMenuItem(value: 'GBP', child: Text('GBP (£)')),
-                    DropdownMenuItem(value: 'JPY', child: Text('JPY (¥)')),
-                    DropdownMenuItem(value: 'CAD', child: Text('CAD (C\$)')),
-                    DropdownMenuItem(value: 'AUD', child: Text('AUD (A\$)')),
-                  ],
-                  onChanged: (code) {
-                    if (code == null) return;
-                    setState(() {
-                      _overrideCurrencyCode = code;
-                      if (code == 'INR') { _overrideCurrencySymbol = '₹'; _overrideCurrencyDecimals = 2; }
-                      else if (code == 'EUR') { _overrideCurrencySymbol = '€'; _overrideCurrencyDecimals = 2; }
-                      else if (code == 'GBP') { _overrideCurrencySymbol = '£'; _overrideCurrencyDecimals = 2; }
-                      else if (code == 'JPY') { _overrideCurrencySymbol = '¥'; _overrideCurrencyDecimals = 0; }
-                      else if (code == 'CAD') { _overrideCurrencySymbol = 'C\$'; _overrideCurrencyDecimals = 2; }
-                      else if (code == 'AUD') { _overrideCurrencySymbol = 'A\$'; _overrideCurrencyDecimals = 2; }
-                      else { _overrideCurrencySymbol = '\$'; _overrideCurrencyDecimals = 2; }
-                    });
-                  },
-                ),
+              child: const Text(
+                'Zero-rated statutory mode active: Total tax is automatically locked to 0 and compliance notice is embedded on the document.',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
               ),
-            ],
-          ),
+            ),
+          ],
           const SizedBox(height: 20),
 
           // Catalog Quick Insert Dropdown
           if (catalog.isNotEmpty) ...[
-            Row(
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 6,
               children: [
-                const Icon(Icons.flash_on, size: 16, color: Colors.amber),
-                const SizedBox(width: 6),
-                const Text('Quick-Insert from Catalog:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButton<String>(
-                    isExpanded: true,
-                    hint: const Text('Select preset item...', style: TextStyle(fontSize: 12)),
-                    underline: const SizedBox(),
-                    items: catalog.map((item) {
-                      return DropdownMenuItem(
-                        value: item.id,
-                        child: Text('${item.title} (${formatCurrency(item.defaultPriceCents)})', style: const TextStyle(fontSize: 12)),
+                const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.flash_on, size: 16, color: Colors.amber),
+                    SizedBox(width: 6),
+                    Text('Quick-Insert from Catalog:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  ],
+                ),
+                DropdownButton<String>(
+                  hint: const Text('Select preset item...', style: TextStyle(fontSize: 12)),
+                  underline: const SizedBox(),
+                  items: catalog.map((item) {
+                    return DropdownMenuItem(
+                      value: item.id,
+                      child: Text('${item.title} (${formatCurrency(item.defaultPriceCents)})', style: const TextStyle(fontSize: 12)),
+                    );
+                  }).toList(),
+                  onChanged: (itemId) {
+                    if (itemId == null) return;
+                    final item = catalog.firstWhere((it) => it.id == itemId);
+                    setState(() {
+                      final newEntry = LineItemEntry(
+                        description: item.title,
+                        sacHsn: item.sacHsn,
+                        quantity: 1,
+                        unitPriceCents: item.defaultPriceCents,
+                        taxSlab: 10,
                       );
-                    }).toList(),
-                    onChanged: (itemId) {
-                      if (itemId == null) return;
-                      final item = catalog.firstWhere((it) => it.id == itemId);
-                      setState(() {
-                        final newEntry = LineItemEntry(
-                          description: item.title,
-                          sacHsn: item.sacHsn,
-                          quantity: 1,
-                          unitPriceCents: item.defaultPriceCents,
-                          taxSlab: 10,
-                        );
-                        if (_items.length == 1 &&
-                            _items.first.description.trim().isEmpty &&
-                            _items.first.unitPriceCents == 0) {
-                          _items[0] = newEntry;
-                        } else {
-                          _items.add(newEntry);
-                        }
-                      });
-                    },
-                  ),
+                      if (_items.length == 1 &&
+                          _items.first.description.trim().isEmpty &&
+                          _items.first.unitPriceCents == 0) {
+                        _items[0] = newEntry;
+                      } else {
+                        _items.add(newEntry);
+                      }
+                    });
+                  },
                 ),
               ],
             ),
@@ -567,8 +731,58 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
           ..._items.asMap().entries.map((entry) {
             final idx = entry.key;
             final item = entry.value;
+            final qtyField = TextFormField(
+              initialValue: item.quantity.toString(),
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Qty',
+                isDense: true,
+              ),
+              onChanged: (v) => setState(() => item.quantity = int.tryParse(v) ?? 1),
+            );
+            final priceField = TextFormField(
+              key: ValueKey('price_${idx}_$curDec'),
+              initialValue: formatDecimalUnits(item.unitPriceCents, curDec),
+              keyboardType: curDec == 0
+                  ? TextInputType.number
+                  : const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: 'Price ($curSym)',
+                isDense: true,
+              ),
+              onChanged: (v) => setState(
+                () => item.unitPriceCents = parsePriceToUnits(v, curDec),
+              ),
+            );
+            final slabOptions = <int>{0, 5, 10, 12, 15, 18, 20, item.taxSlab}.toList()..sort();
+            final taxSlabField = DropdownButtonFormField<int>(
+              value: item.taxSlab,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: _taxMode == TaxMode.caDual ? 'GST Slab' : 'Tax Slab',
+                isDense: true,
+              ),
+              items: slabOptions
+                  .map((s) => DropdownMenuItem(value: s, child: Text('$s%')))
+                  .toList(),
+              onChanged: isZeroRatedTaxMode(_taxMode)
+                  ? null
+                  : (v) {
+                      if (v != null) setState(() => item.taxSlab = v);
+                    },
+            );
+            final totalText = Text(
+              formatCurrency(item.totalCents),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            );
+
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
@@ -588,7 +802,7 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          flex: 1,
+                          flex: 2,
                           child: TextFormField(
                             initialValue: item.sacHsn,
                             decoration: const InputDecoration(
@@ -599,64 +813,41 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
                           ),
                         ),
                         IconButton(
+                          visualDensity: VisualDensity.compact,
                           icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
                           onPressed: () => _removeItem(idx),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            initialValue: item.quantity.toString(),
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Qty',
-                              isDense: true,
-                            ),
-                            onChanged: (v) => setState(() => item.quantity = int.tryParse(v) ?? 1),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextFormField(
-                            initialValue: (item.unitPriceCents / 100).toStringAsFixed(2),
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: const InputDecoration(
-                              labelText: 'Price',
-                              isDense: true,
-                            ),
-                            onChanged: (v) => setState(() => item.unitPriceCents = parsePriceToCents(v)),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: DropdownButtonFormField<int>(
-                            value: item.taxSlab,
-                            decoration: const InputDecoration(
-                              labelText: 'Tax Slab',
-                              isDense: true,
-                            ),
-                            items: const [
-                              DropdownMenuItem(value: 0, child: Text('0%')),
-                              DropdownMenuItem(value: 5, child: Text('5%')),
-                              DropdownMenuItem(value: 10, child: Text('10%')),
-                              DropdownMenuItem(value: 12, child: Text('12%')),
-                              DropdownMenuItem(value: 18, child: Text('18%')),
-                            ],
-                            onChanged: (v) {
-                              if (v != null) setState(() => item.taxSlab = v);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          formatCurrency(item.totalCents),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                      ],
-                    ),
+                    if (isCompactEditor) ...[
+                      Row(
+                        children: [
+                          Expanded(flex: 2, child: qtyField),
+                          const SizedBox(width: 8),
+                          Expanded(flex: 3, child: priceField),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(child: taxSlabField),
+                          const SizedBox(width: 12),
+                          totalText,
+                        ],
+                      ),
+                    ] else
+                      Row(
+                        children: [
+                          Expanded(child: qtyField),
+                          const SizedBox(width: 8),
+                          Expanded(child: priceField),
+                          const SizedBox(width: 8),
+                          Expanded(child: taxSlabField),
+                          const SizedBox(width: 12),
+                          totalText,
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -674,37 +865,64 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
           const SizedBox(height: 16),
 
           // Discount Selector
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _discountType,
-                  decoration: const InputDecoration(labelText: 'Discount Type', isDense: true),
-                  items: const [
-                    DropdownMenuItem(value: 'none', child: Text('None')),
-                    DropdownMenuItem(value: 'percent', child: Text('Percentage (%)')),
-                    DropdownMenuItem(value: 'flat', child: Text('Flat Amount')),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) setState(() => _discountType = val);
-                  },
+          if (isCompactEditor) ...[
+            DropdownButtonFormField<String>(
+              value: _discountType,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Discount Type', isDense: true),
+              items: const [
+                DropdownMenuItem(value: 'none', child: Text('None')),
+                DropdownMenuItem(value: 'percent', child: Text('Percentage (%)')),
+                DropdownMenuItem(value: 'flat', child: Text('Flat Amount')),
+              ],
+              onChanged: (val) {
+                if (val != null) setState(() => _discountType = val);
+              },
+            ),
+            if (_discountType != 'none') ...[
+              const SizedBox(height: 10),
+              TextField(
+                controller: _discountController,
+                decoration: InputDecoration(
+                  labelText: _discountType == 'percent' ? 'Discount %' : 'Discount Amount',
+                  isDense: true,
                 ),
+                onChanged: (_) => setState(() {}),
               ),
-              if (_discountType != 'none') ...[
-                const SizedBox(width: 12),
+            ],
+          ] else
+            Row(
+              children: [
                 Expanded(
-                  child: TextField(
-                    controller: _discountController,
-                    decoration: InputDecoration(
-                      labelText: _discountType == 'percent' ? 'Discount %' : 'Discount Amount',
-                      isDense: true,
-                    ),
-                    onChanged: (_) => setState(() {}),
+                  child: DropdownButtonFormField<String>(
+                    value: _discountType,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Discount Type', isDense: true),
+                    items: const [
+                      DropdownMenuItem(value: 'none', child: Text('None')),
+                      DropdownMenuItem(value: 'percent', child: Text('Percentage (%)')),
+                      DropdownMenuItem(value: 'flat', child: Text('Flat Amount')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setState(() => _discountType = val);
+                    },
                   ),
                 ),
+                if (_discountType != 'none') ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _discountController,
+                      decoration: InputDecoration(
+                        labelText: _discountType == 'percent' ? 'Discount %' : 'Discount Amount',
+                        isDense: true,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                ],
               ],
-            ],
-          ),
+            ),
           const SizedBox(height: 16),
 
           // Terms & Notes
@@ -736,187 +954,262 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
           )
         : null;
 
+    final isCompactScreen = MediaQuery.sizeOf(context).width < 600;
+    final breakdown = resolveRegionalTaxBreakdown(
+      taxMode: _taxMode,
+      netSubtotalCents: _netSubtotalCents,
+      taxCents: _taxCents,
+      pstRatePercentage: _pstRatePct,
+      taxExemptionId: _exemptionIdController.text,
+      businessTaxId: profile.taxId,
+      clientTaxId: client?.taxId ?? '',
+      fallbackAutoDetect: true,
+      clientAddress: client?.address ?? '',
+      notes: _notesController.text,
+      terms: _termsController.text,
+    );
+    final supplierTaxLabel = getRegionalTaxIdLabel(breakdown.effectiveMode);
+    final clientTaxLabel = getRegionalTaxIdLabel(breakdown.effectiveMode, isClient: true);
+
     return Container(
       color: Colors.grey.shade100,
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isCompactScreen ? 12 : 24),
       child: Center(
         child: SingleChildScrollView(
-          child: Container(
-            width: 580,
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          profile.businessName.isNotEmpty ? profile.businessName : 'My Freelance Studio',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580),
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(isCompactScreen ? 18 : 32),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.start,
+                    spacing: 12,
+                    runSpacing: 10,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            profile.businessName.isNotEmpty ? profile.businessName : 'My Freelance Studio',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                          ),
+                          if (profile.email.isNotEmpty) Text(profile.email, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          if (profile.phone.isNotEmpty) Text(profile.phone, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          if (profile.taxId.isNotEmpty) Text('$supplierTaxLabel: ${profile.taxId}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: widget.isQuote ? Colors.amber.shade50 : Colors.indigo.shade50,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        if (profile.email.isNotEmpty) Text(profile.email, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                        if (profile.phone.isNotEmpty) Text(profile.phone, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                        if (profile.taxId.isNotEmpty) Text('Tax ID: ${profile.taxId}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                      ],
-                    ),
+                        child: Text(
+                          widget.isQuote ? 'ESTIMATE / QUOTE' : 'TAX INVOICE',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: widget.isQuote ? Colors.amber.shade900 : Colors.indigo.shade900,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 28),
+
+                  // Bill To & Meta
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.start,
+                    spacing: 16,
+                    runSpacing: 10,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('BILL TO:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+                          Text(client?.name ?? 'Select a Client', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
+                          if (client != null && client.email.isNotEmpty) Text(client.email, style: const TextStyle(fontSize: 11, color: Colors.black87)),
+                          if (client != null && client.taxId.isNotEmpty) Text('$clientTaxLabel: ${client.taxId}', style: const TextStyle(fontSize: 11, color: Colors.black87)),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Date: ${_issueDateController.text}', style: const TextStyle(fontSize: 11, color: Colors.black87)),
+                          Text('Terms: $_paymentTerms', style: const TextStyle(fontSize: 11, color: Colors.black87)),
+                          if (_poNumberController.text.trim().isNotEmpty)
+                            Text('PO #: ${_poNumberController.text.trim()}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87)),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  if (breakdown.noticeText.isNotEmpty) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: widget.isQuote ? Colors.amber.shade50 : Colors.indigo.shade50,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        widget.isQuote ? 'ESTIMATE / QUOTE' : 'TAX INVOICE',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: widget.isQuote ? Colors.amber.shade900 : Colors.indigo.shade900,
-                          fontSize: 13,
+                        color: breakdown.isZeroRated ? Colors.indigo.shade50 : Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: breakdown.isZeroRated ? Colors.indigo.shade300 : Colors.amber.shade300,
                         ),
                       ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (breakdown.noticeTitle.isNotEmpty)
+                            Text(
+                              breakdown.noticeTitle,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: breakdown.isZeroRated ? Colors.indigo.shade900 : Colors.amber.shade900,
+                              ),
+                            ),
+                          Text(
+                            breakdown.noticeText,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.black87),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
-                ),
-                const Divider(height: 28),
 
-                // Bill To & Meta
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('BILL TO:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
-                        Text(client?.name ?? 'Select a Client', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        if (client != null && client.email.isNotEmpty) Text(client.email, style: const TextStyle(fontSize: 11)),
-                        if (client != null && client.taxId.isNotEmpty) Text('Tax ID: ${client.taxId}', style: const TextStyle(fontSize: 11)),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text('Date: ${_issueDateController.text}', style: const TextStyle(fontSize: 11)),
-                        Text('Terms: $_paymentTerms', style: const TextStyle(fontSize: 11)),
-                        if (_poNumberController.text.trim().isNotEmpty)
-                          Text('PO #: ${_poNumberController.text.trim()}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Items Table
-                Table(
-                  columnWidths: const {
-                    0: FlexColumnWidth(4),
-                    1: FlexColumnWidth(1),
-                    2: FlexColumnWidth(2),
-                    3: FlexColumnWidth(2),
-                  },
-                  children: [
-                    const TableRow(
-                      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.black26))),
-                      children: [
-                        Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text('Item', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-                        Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text('Qty', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-                        Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text('Rate', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-                        Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text('Amount', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-                      ],
-                    ),
-                    ..._items.map((i) => TableRow(
-                          children: [
-                            Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(i.description.isNotEmpty ? i.description : '—', style: const TextStyle(fontSize: 11))),
-                            Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text('${i.quantity}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 11))),
-                            Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(formatCurrency(i.unitPriceCents), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11))),
-                            Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(formatCurrency(i.totalCents), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                          ],
-                        )),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Divider(),
-
-                // Totals
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: SizedBox(
-                    width: 220,
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Subtotal:', style: TextStyle(fontSize: 11)),
-                            Text(formatCurrency(_subtotalCents), style: const TextStyle(fontSize: 11)),
-                          ],
+                  // Items Table
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minWidth: constraints.maxWidth,
+                            maxWidth: math.max(constraints.maxWidth, 420),
+                          ),
+                          child: Table(
+                            columnWidths: const {
+                              0: FlexColumnWidth(4),
+                              1: FlexColumnWidth(1),
+                              2: FlexColumnWidth(2),
+                              3: FlexColumnWidth(2),
+                            },
+                            children: [
+                              const TableRow(
+                                decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.black26))),
+                                children: [
+                                  Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text('Item', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black87))),
+                                  Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text('Qty', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black87))),
+                                  Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text('Rate', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black87))),
+                                  Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text('Amount', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black87))),
+                                ],
+                              ),
+                              ..._items.map((i) => TableRow(
+                                    children: [
+                                      Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(i.description.isNotEmpty ? i.description : '—', style: const TextStyle(fontSize: 11, color: Colors.black87))),
+                                      Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text('${i.quantity}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, color: Colors.black87, fontFeatures: [FontFeature.tabularFigures()]))),
+                                      Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(formatCurrency(i.unitPriceCents), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, color: Colors.black87, fontFeatures: [FontFeature.tabularFigures()]))),
+                                      Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(formatCurrency(i.totalCents), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87, fontFeatures: [FontFeature.tabularFigures()]))),
+                                    ],
+                                  )),
+                            ],
+                          ),
                         ),
-                        if (_discountCents > 0) ...[
-                          const SizedBox(height: 4),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+
+                  // Totals
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 240),
+                      child: Column(
+                        children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Discount:', style: TextStyle(fontSize: 11, color: Colors.orange)),
-                              Text('-${formatCurrency(_discountCents)}', style: const TextStyle(fontSize: 11, color: Colors.orange, fontWeight: FontWeight.bold)),
+                              const Text('Subtotal:', style: TextStyle(fontSize: 11, color: Colors.black87)),
+                              Text(formatCurrency(_subtotalCents), style: const TextStyle(fontSize: 11, color: Colors.black87, fontFeatures: [FontFeature.tabularFigures()])),
+                            ],
+                          ),
+                          if (_discountCents > 0) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Discount:', style: TextStyle(fontSize: 11, color: Colors.orange)),
+                                Text('-${formatCurrency(_discountCents)}', style: const TextStyle(fontSize: 11, color: Colors.orange, fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()])),
+                              ],
+                            ),
+                          ],
+                          ...breakdown.lines.map((line) => Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('${line.label}:', style: const TextStyle(fontSize: 11, color: Colors.black87)),
+                                    Text(formatCurrency(line.cents), style: const TextStyle(fontSize: 11, color: Colors.black87, fontFeatures: [FontFeature.tabularFigures()])),
+                                  ],
+                                ),
+                              )),
+                          const Divider(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Total:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+                              Text(formatCurrency(_totalCents), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()], color: Theme.of(context).colorScheme.primary)),
                             ],
                           ),
                         ],
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Tax:', style: TextStyle(fontSize: 11)),
-                            Text(formatCurrency(_taxCents), style: const TextStyle(fontSize: 11)),
-                          ],
-                        ),
-                        const Divider(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Total:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                            Text(formatCurrency(_totalCents), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
 
-                if (profile.paymentDetails.isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.grey.shade300),
+                  if (profile.paymentDetails.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Payment Instructions:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black87)),
+                          const SizedBox(height: 2),
+                          Text(profile.paymentDetails, style: const TextStyle(fontSize: 10, color: Colors.black87)),
+                        ],
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Payment Instructions:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 2),
-                        Text(profile.paymentDetails, style: const TextStyle(fontSize: 10, color: Colors.black87)),
-                      ],
-                    ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

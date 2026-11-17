@@ -25,6 +25,7 @@ jobs:
         run: |
           flutter config --enable-windows-desktop
           flutter create --platforms=windows .
+          pwsh -ExecutionPolicy Bypass -File scripts/patch_windows.ps1
       - run: flutter pub get
       - name: Run Flutter Tests
         run: flutter test test/financial_math_test.dart
@@ -40,7 +41,10 @@ jobs:
           }
           exit 1
       - name: Package Zip
-        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath billing_app_windows.zip
+        shell: powershell
+        run: |
+          pwsh -ExecutionPolicy Bypass -File scripts/patch_windows.ps1 -FinalizeBundle
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath billing_app_windows.zip
       - uses: actions/upload-artifact@v4.4.3
         with:
           name: billing-app-windows-x64
@@ -94,6 +98,7 @@ jobs:
         run: |
           flutter config --enable-macos-desktop
           flutter create --platforms=macos .
+          bash scripts/patch_apple.sh
       - run: flutter pub get
       - name: Run Flutter Tests
         run: flutter test test/financial_math_test.dart
@@ -120,7 +125,9 @@ jobs:
           channel: 'stable'
           cache: true
       - name: Generate iOS Scaffolding
-        run: flutter create --platforms=ios .
+        run: |
+          flutter create --platforms=ios .
+          bash scripts/patch_apple.sh
       - run: flutter pub get
       - name: Run Flutter Tests
         run: flutter test test/financial_math_test.dart

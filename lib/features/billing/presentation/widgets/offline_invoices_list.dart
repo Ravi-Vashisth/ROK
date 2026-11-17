@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -104,11 +106,16 @@ class OfflineInvoicesList extends ConsumerWidget {
       return true;
     }).toList();
 
+    final isCompact = MediaQuery.sizeOf(context).width < 900;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             Text(
               'Offline Invoices (${filtered.length} of ${invoices.length})',
@@ -116,13 +123,13 @@ class OfflineInvoicesList extends ConsumerWidget {
                     fontWeight: FontWeight.bold,
                   ),
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
               children: [
-                if (invoices.any((i) => i.isPartiallyPaid)) ...[
+                if (invoices.any((i) => i.isPartiallyPaid))
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    margin: const EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(
                       color: Colors.amber.shade50,
                       borderRadius: BorderRadius.circular(12),
@@ -137,8 +144,7 @@ class OfflineInvoicesList extends ConsumerWidget {
                       ),
                     ),
                   ),
-                ],
-                if (invoices.any((i) => i.isOverdue)) ...[
+                if (invoices.any((i) => i.isOverdue))
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
@@ -162,7 +168,6 @@ class OfflineInvoicesList extends ConsumerWidget {
                       ],
                     ),
                   ),
-                ],
               ],
             ),
           ],
@@ -174,7 +179,7 @@ class OfflineInvoicesList extends ConsumerWidget {
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
               border: Border.all(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Center(
               child: Text(
@@ -189,7 +194,7 @@ class OfflineInvoicesList extends ConsumerWidget {
             elevation: 0,
             shape: RoundedRectangleBorder(
               side: BorderSide(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: ListView.separated(
               shrinkWrap: true,
@@ -249,13 +254,15 @@ class OfflineInvoicesList extends ConsumerWidget {
                   title: Builder(builder: (context) {
                     final invSym = inv.currencySymbol.isNotEmpty ? inv.currencySymbol : sym;
                     final invDec = inv.currencyCode.isNotEmpty ? inv.currencyDecimals : profile.currencyDecimals;
-                    return Row(
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           inv.clientName,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        const SizedBox(width: 8),
                         // Status Badge (VOID / DRAFT / PAID / PARTIALLY PAID / OVERDUE / PENDING)
                         if (inv.isVoid || inv.status == 'VOID')
                           Container(
@@ -377,6 +384,7 @@ class OfflineInvoicesList extends ConsumerWidget {
                             formatCents(inv.totalCents, symbol: inv.currencySymbol.isNotEmpty ? inv.currencySymbol : sym, decimals: inv.currencyCode.isNotEmpty ? inv.currencyDecimals : profile.currencyDecimals),
                             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
+                                  fontFeatures: const [FontFeature.tabularFigures()],
                                   color: isPaid
                                       ? Colors.green.shade700
                                       : (isOverdue ? Colors.red.shade700 : null),
@@ -391,6 +399,7 @@ class OfflineInvoicesList extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
+                              fontFeatures: const [FontFeature.tabularFigures()],
                               color: (inv.isVoid || inv.status == 'VOID')
                                   ? Colors.grey.shade600
                                   : (inv.balanceDueCents > 0
@@ -400,17 +409,90 @@ class OfflineInvoicesList extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(width: 8),
-                      // Edit and Finalize Draft buttons for DRAFT status
-                      if (inv.isDraft) ...[
+                      const SizedBox(width: 6),
+                      if (!isCompact) ...[
+                        // Edit and Finalize Draft buttons for DRAFT status
+                        if (inv.isDraft) ...[
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.edit_outlined, size: 15),
+                            label: const Text('Edit Draft', style: TextStyle(fontSize: 12)),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => InvoiceEditorScreen(
+                                    isQuote: false,
+                                    existingInvoice: inv,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 6),
+                          FilledButton.icon(
+                            icon: const Icon(Icons.check_circle_outline, size: 15),
+                            label: const Text('Finalize', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.indigo,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            onPressed: () {
+                              ref.read(invoicesProvider.notifier).finalizeDraftInvoice(inv.id);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Invoice ${inv.invoiceNumber} finalized and issued!')),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        // 1-Click Duplicate Button
                         OutlinedButton.icon(
-                          icon: const Icon(Icons.edit_outlined, size: 15),
-                          label: const Text('Edit Draft', style: TextStyle(fontSize: 12)),
+                          icon: const Icon(Icons.copy_outlined, size: 15),
+                          label: const Text('Duplicate', style: TextStyle(fontSize: 12)),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                             visualDensity: VisualDensity.compact,
                           ),
-                          onPressed: () {
+                          onPressed: () => _handleDuplicate(context, ref, inv),
+                        ),
+                        const SizedBox(width: 6),
+                        // Record Payment Action Button
+                        if (inv.balanceDueCents > 0 && inv.status != 'VOID' && !inv.isDraft) ...[
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.add_card, size: 15),
+                            label: const Text('Pay', style: TextStyle(fontSize: 12)),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            onPressed: () => _openRecordPayment(context, inv),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        // PDF / Print action button
+                        FilledButton.tonalIcon(
+                          icon: const Icon(Icons.picture_as_pdf, size: 16),
+                          label: const Text('PDF / Print',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          onPressed: () => _handlePrint(context, ref, inv),
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, size: 18),
+                        tooltip: 'More actions',
+                        onSelected: (val) {
+                          if (val == 'edit_draft') {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -420,68 +502,13 @@ class OfflineInvoicesList extends ConsumerWidget {
                                 ),
                               ),
                             );
-                          },
-                        ),
-                        const SizedBox(width: 6),
-                        FilledButton.icon(
-                          icon: const Icon(Icons.check_circle_outline, size: 15),
-                          label: const Text('Finalize', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.indigo,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          onPressed: () {
-                            ref.read(invoicesProvider.notifier).finalizeDraftInvoice(inv.id);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Invoice ${inv.invoiceNumber} finalized and issued!')),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      // 1-Click Duplicate Button
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.copy_outlined, size: 15),
-                        label: const Text('Duplicate', style: TextStyle(fontSize: 12)),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        onPressed: () => _handleDuplicate(context, ref, inv),
-                      ),
-                      const SizedBox(width: 6),
-                      // Record Payment Action Button (only if balance due is greater than zero and not draft/void)
-                      if (inv.balanceDueCents > 0 && inv.status != 'VOID' && !inv.isDraft) ...[
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.add_card, size: 15),
-                          label: const Text('Pay', style: TextStyle(fontSize: 12)),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          onPressed: () => _openRecordPayment(context, inv),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      // PDF / Print action button
-                      FilledButton.tonalIcon(
-                        icon: const Icon(Icons.picture_as_pdf, size: 16),
-                        label: const Text('PDF / Print',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        onPressed: () => _handlePrint(context, ref, inv),
-                      ),
-                      const SizedBox(width: 4),
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, size: 18),
-                        tooltip: 'More actions',
-                        onSelected: (val) {
-                          if (val == 'finalize') {
+                          } else if (val == 'duplicate') {
+                            _handleDuplicate(context, ref, inv);
+                          } else if (val == 'pay') {
+                            _openRecordPayment(context, inv);
+                          } else if (val == 'pdf') {
+                            _handlePrint(context, ref, inv);
+                          } else if (val == 'finalize') {
                             ref.read(invoicesProvider.notifier).finalizeDraftInvoice(inv.id);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Invoice ${inv.invoiceNumber} finalized and issued!')),
@@ -538,6 +565,17 @@ class OfflineInvoicesList extends ConsumerWidget {
                           }
                         },
                         itemBuilder: (_) => [
+                          if (isCompact && inv.isDraft)
+                            const PopupMenuItem(
+                              value: 'edit_draft',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit_outlined, size: 16),
+                                  SizedBox(width: 8),
+                                  Text('Edit Draft', style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ),
                           if (inv.isDraft)
                             const PopupMenuItem(
                               value: 'finalize',
@@ -546,6 +584,39 @@ class OfflineInvoicesList extends ConsumerWidget {
                                   Icon(Icons.check_circle_outline, size: 16, color: Colors.indigo),
                                   SizedBox(width: 8),
                                   Text('Finalize & Issue', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.indigo)),
+                                ],
+                              ),
+                            ),
+                          if (isCompact && inv.balanceDueCents > 0 && inv.status != 'VOID' && !inv.isDraft)
+                            const PopupMenuItem(
+                              value: 'pay',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.add_card, size: 16),
+                                  SizedBox(width: 8),
+                                  Text('Record Payment', style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                          if (isCompact)
+                            const PopupMenuItem(
+                              value: 'pdf',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.picture_as_pdf, size: 16),
+                                  SizedBox(width: 8),
+                                  Text('PDF / Print', style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                          if (isCompact)
+                            const PopupMenuItem(
+                              value: 'duplicate',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.copy_outlined, size: 16),
+                                  SizedBox(width: 8),
+                                  Text('Duplicate', style: TextStyle(fontSize: 13)),
                                 ],
                               ),
                             ),
@@ -630,30 +701,35 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
     final items = ref.read(invoicesProvider.notifier).getInvoiceItems(invoice.id);
     final payments = ref.read(invoicesProvider.notifier).getInvoicePayments(invoice.id);
     final profile = ref.watch(businessProfileProvider);
-    final sym = profile.currencySymbol;
+    final sym = invoice.currencySymbol.isNotEmpty ? invoice.currencySymbol : profile.currencySymbol;
+    final dec = invoice.currencyCode.isNotEmpty ? invoice.currencyDecimals : profile.currencyDecimals;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       padding: const EdgeInsets.all(14.0),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               Text(
                 'Line Items Breakdown (${invoice.paymentTerms} • Due: ${invoice.dueDate}):',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  if (invoice.isDraft && onFinalize != null) ...[
+                  if (invoice.isDraft && onFinalize != null)
                     FilledButton.icon(
                       icon: const Icon(Icons.check_circle_outline, size: 15),
                       label: const Text('Finalize Draft', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
@@ -665,8 +741,6 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
                       ),
                       onPressed: onFinalize,
                     ),
-                    const SizedBox(width: 8),
-                  ],
                   OutlinedButton.icon(
                     onPressed: onDuplicate,
                     icon: const Icon(Icons.copy_outlined, size: 15),
@@ -676,8 +750,7 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
                       visualDensity: VisualDensity.compact,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  if (invoice.balanceDueCents > 0 && !invoice.isDraft) ...[
+                  if (invoice.balanceDueCents > 0 && !invoice.isDraft)
                     FilledButton.icon(
                       icon: const Icon(Icons.payment, size: 15),
                       label: const Text('Record Payment', style: TextStyle(fontSize: 12)),
@@ -687,8 +760,6 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
                       ),
                       onPressed: onRecordPayment,
                     ),
-                    const SizedBox(width: 8),
-                  ],
                   OutlinedButton.icon(
                     onPressed: onPrint,
                     icon: const Icon(Icons.print, size: 15),
@@ -704,61 +775,74 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
 
-          // Items Table
-          Table(
-            columnWidths: const {
-              0: FlexColumnWidth(4),
-              1: FlexColumnWidth(1),
-              2: FlexColumnWidth(2),
-              3: FlexColumnWidth(2),
+          // Items Table (horizontally scrollable on narrow screens)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: constraints.maxWidth,
+                    maxWidth: math.max(constraints.maxWidth, 460),
+                  ),
+                  child: Table(
+                    columnWidths: const {
+                      0: FlexColumnWidth(4),
+                      1: FlexColumnWidth(1),
+                      2: FlexColumnWidth(2),
+                      3: FlexColumnWidth(2),
+                    },
+                    children: [
+                      TableRow(
+                        decoration: BoxDecoration(
+                          border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
+                        ),
+                        children: const [
+                          Padding(
+                            padding: EdgeInsets.symmetric(vertical: 4.0),
+                            child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(vertical: 4.0),
+                            child: Text('Qty', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(vertical: 4.0),
+                            child: Text('Unit Price', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(vertical: 4.0),
+                            child: Text('Total', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                          ),
+                        ],
+                      ),
+                      ...items.map(
+                        (item) => TableRow(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4.0),
+                              child: Text(item.description, style: const TextStyle(fontSize: 11)),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4.0),
+                              child: Text('${item.quantity}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontFeatures: [FontFeature.tabularFigures()])),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4.0),
+                              child: Text(formatCents(item.unitPriceCents, symbol: sym, decimals: dec), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontFeatures: [FontFeature.tabularFigures()])),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4.0),
+                              child: Text(formatCents(item.totalCents, symbol: sym, decimals: dec), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, fontFeatures: [FontFeature.tabularFigures()])),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
             },
-            children: [
-              TableRow(
-                decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
-                ),
-                children: const [
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4.0),
-                    child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4.0),
-                    child: Text('Qty', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4.0),
-                    child: Text('Unit Price', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4.0),
-                    child: Text('Total', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                  ),
-                ],
-              ),
-              ...items.map(
-                (item) => TableRow(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Text(item.description, style: const TextStyle(fontSize: 11)),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Text('${item.quantity}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 11)),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Text(formatCents(item.unitPriceCents, symbol: sym), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11)),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Text(formatCents(item.totalCents, symbol: sym), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ),
 
           // Invoice Notes & Terms display if present
@@ -769,7 +853,7 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.grey.shade300),
               ),
               child: Column(
@@ -797,7 +881,7 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
             Container(
               decoration: BoxDecoration(
                 color: Colors.green.shade50.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.green.shade200),
               ),
               padding: const EdgeInsets.all(8),
@@ -808,21 +892,27 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.check_circle_outline, size: 14, color: Colors.green),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${p.paymentDate} • ${p.paymentMethod}${p.notes.isNotEmpty ? " (${p.notes})" : ""}',
-                              style: TextStyle(fontSize: 11, color: Colors.green.shade900),
-                            ),
-                          ],
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.check_circle_outline, size: 14, color: Colors.green),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  '${p.paymentDate} • ${p.paymentMethod}${p.notes.isNotEmpty ? " (${p.notes})" : ""}',
+                                  style: TextStyle(fontSize: 11, color: Colors.green.shade900),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Text(
-                          formatCents(p.amountCents, symbol: sym),
+                          formatCents(p.amountCents, symbol: sym, decimals: dec),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
+                            fontFeatures: const [FontFeature.tabularFigures()],
                             color: Colors.green.shade900,
                           ),
                         ),
@@ -840,17 +930,17 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
           // Financial Summary
           Align(
             alignment: Alignment.centerRight,
-            child: SizedBox(
-              width: 260,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 260),
               child: Column(
                 children: [
-                  _SummaryRow(label: 'Subtotal:', value: formatCents(invoice.subtotalCents, symbol: sym)),
-                  _SummaryRow(label: 'Tax:', value: formatCents(invoice.taxCents, symbol: sym)),
-                  _SummaryRow(label: 'Total:', value: formatCents(invoice.totalCents, symbol: sym), isBold: true),
+                  _SummaryRow(label: 'Subtotal:', value: formatCents(invoice.subtotalCents, symbol: sym, decimals: dec)),
+                  _SummaryRow(label: 'Tax:', value: formatCents(invoice.taxCents, symbol: sym, decimals: dec)),
+                  _SummaryRow(label: 'Total:', value: formatCents(invoice.totalCents, symbol: sym, decimals: dec), isBold: true),
                   if (invoice.paidCents > 0) ...[
                     _SummaryRow(
                       label: 'Less Payments:',
-                      value: '-${formatCents(invoice.paidCents, symbol: sym)}',
+                      value: '-${formatCents(invoice.paidCents, symbol: sym, decimals: dec)}',
                       textColor: Colors.green.shade700,
                     ),
                   ],
@@ -861,11 +951,11 @@ class _InvoiceItemsBreakdown extends ConsumerWidget {
                       color: invoice.balanceDueCents == 0
                           ? Colors.green.shade100
                           : (invoice.isOverdue ? Colors.red.shade100 : Colors.indigo.shade50),
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: _SummaryRow(
                       label: 'Balance Due:',
-                      value: formatCents(invoice.balanceDueCents, symbol: sym),
+                      value: formatCents(invoice.balanceDueCents, symbol: sym, decimals: dec),
                       isBold: true,
                       textColor: invoice.balanceDueCents == 0
                           ? Colors.green.shade900
@@ -902,19 +992,23 @@ class _SummaryRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              color: textColor,
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                color: textColor,
+              ),
             ),
           ),
+          const SizedBox(width: 8),
           Text(
             value,
             style: TextStyle(
               fontSize: 12,
               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              fontFeatures: const [FontFeature.tabularFigures()],
               color: textColor,
             ),
           ),

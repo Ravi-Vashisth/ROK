@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
@@ -31,35 +32,52 @@ class ClientStatementDialog extends ConsumerWidget {
       totalPaid += inv.paidCents;
     }
     final balanceDue = totalInvoiced - totalPaid;
+    final screenSize = MediaQuery.sizeOf(context);
+    final isCompactWidth = screenSize.width < 520;
+
+    Future<void> printStatement() async {
+      final businessProfile = ref.read(businessProfileProvider);
+      await Printing.layoutPdf(
+        onLayout: (format) => InvoicePdfService.generateStatementPdf(
+          client: client,
+          invoices: invoices,
+          businessProfile: businessProfile,
+        ),
+        name: 'Statement_${client.name.replaceAll(RegExp(r'\s+'), '_')}.pdf',
+      );
+    }
 
     return Dialog(
-      insetPadding: const EdgeInsets.all(24),
+      insetPadding: EdgeInsets.all(screenSize.width < 600 ? 12 : 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          width: 750,
-          height: 650,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 750,
+            maxHeight: screenSize.height * 0.88,
+          ),
           child: Scaffold(
             appBar: AppBar(
-              title: Text('Statement of Account: ${client.name}'),
+              title: Text(
+                'Statement of Account: ${client.name}',
+                overflow: TextOverflow.ellipsis,
+              ),
               automaticallyImplyLeading: false,
               actions: [
-                FilledButton.tonalIcon(
-                  icon: const Icon(Icons.print, size: 16),
-                  label: const Text('Print / Save Statement PDF'),
-                  onPressed: () async {
-                    final businessProfile = ref.read(businessProfileProvider);
-                    await Printing.layoutPdf(
-                      onLayout: (format) => InvoicePdfService.generateStatementPdf(
-                        client: client,
-                        invoices: invoices,
-                        businessProfile: businessProfile,
-                      ),
-                      name: 'Statement_${client.name.replaceAll(RegExp(r'\s+'), '_')}.pdf',
-                    );
-                  },
-                ),
-                const SizedBox(width: 8),
+                if (isCompactWidth)
+                  IconButton(
+                    tooltip: 'Print / Save Statement PDF',
+                    icon: const Icon(Icons.print),
+                    onPressed: printStatement,
+                  )
+                else
+                  FilledButton.tonalIcon(
+                    icon: const Icon(Icons.print, size: 16),
+                    label: const Text('Print / Save Statement PDF'),
+                    onPressed: printStatement,
+                  ),
+                const SizedBox(width: 4),
                 IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () => Navigator.of(context).pop(),
@@ -67,14 +85,13 @@ class ClientStatementDialog extends ConsumerWidget {
               ],
             ),
             body: Padding(
-              padding: const EdgeInsets.all(20.0),
+              padding: EdgeInsets.all(isCompactWidth ? 14.0 : 20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final clientCol = Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(client.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -82,25 +99,60 @@ class ClientStatementDialog extends ConsumerWidget {
                           if (client.phone.isNotEmpty) Text('Phone: ${client.phone}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                           if (client.taxId.isNotEmpty) Text('Tax ID: ${client.taxId}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                         ],
-                      ),
-                      Container(
+                      );
+                      final summaryBox = Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Theme.of(context).dividerColor),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('Total Invoiced: ${formatCurrency(totalInvoiced)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            Text('Total Paid: ${formatCurrency(totalPaid)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
+                            Text(
+                              'Total Invoiced: ${formatCurrency(totalInvoiced)}',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
+                            ),
+                            Text(
+                              'Total Paid: ${formatCurrency(totalPaid)}',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()], color: Colors.green.shade700),
+                            ),
                             const Divider(height: 8),
-                            Text('Outstanding Balance: ${formatCurrency(balanceDue)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: balanceDue > 0 ? Colors.red.shade700 : Colors.green.shade700)),
+                            Text(
+                              'Outstanding Balance: ${formatCurrency(balanceDue)}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                fontFeatures: const [FontFeature.tabularFigures()],
+                                color: balanceDue > 0 ? Colors.red.shade700 : Colors.green.shade700,
+                              ),
+                            ),
                           ],
                         ),
-                      ),
-                    ],
+                      );
+
+                      if (constraints.maxWidth < 560) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            clientCol,
+                            const SizedBox(height: 12),
+                            summaryBox,
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: clientCol),
+                          const SizedBox(width: 12),
+                          summaryBox,
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 20),
                   const Text('Chronological Invoices & Billing History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
@@ -128,9 +180,15 @@ class ClientStatementDialog extends ConsumerWidget {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text(formatCurrency(inv.totalCents), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    Text(
+                                      formatCurrency(inv.totalCents),
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
+                                    ),
                                     if (inv.balanceDueCents > 0)
-                                      Text('Due: ${formatCurrency(inv.balanceDueCents)}', style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.bold))
+                                      Text(
+                                        'Due: ${formatCurrency(inv.balanceDueCents)}',
+                                        style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()]),
+                                      )
                                     else
                                       const Text('Paid in Full', style: TextStyle(fontSize: 11, color: Colors.green)),
                                   ],

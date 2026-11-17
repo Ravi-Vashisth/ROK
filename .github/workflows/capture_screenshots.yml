@@ -166,7 +166,7 @@ jobs:
         run: |
           mkdir -p screenshots/android
           if [ ! -f screenshots/android/01_dashboard.png ]; then
-            adb exec-out screencapture -p > screenshots/android/01_dashboard.png || true
+            adb exec-out screencap -p > screenshots/android/01_dashboard.png || true
           fi
 
       - name: Upload Android Artifacts

@@ -62,51 +62,54 @@ class _SalesTabState extends ConsumerState<SalesTab> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                ToggleButtons(
-                  isSelected: [_subTab == 0, _subTab == 1, _subTab == 2],
-                  onPressed: (index) {
-                    setState(() {
-                      _subTab = index;
-                      _statusFilter = 'All';
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  constraints: const BoxConstraints(minHeight: 36, minWidth: 90),
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      child: Row(
-                        children: [
-                          Icon(Icons.receipt_outlined, size: 16),
-                          SizedBox(width: 6),
-                          Text('Invoices', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        ],
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ToggleButtons(
+                    isSelected: [_subTab == 0, _subTab == 1, _subTab == 2],
+                    onPressed: (index) {
+                      setState(() {
+                        _subTab = index;
+                        _statusFilter = 'All';
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    constraints: const BoxConstraints(minHeight: 36, minWidth: 90),
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Row(
+                          children: [
+                            Icon(Icons.receipt_outlined, size: 16),
+                            SizedBox(width: 6),
+                            Text('Invoices', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
+                        ),
                       ),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      child: Row(
-                        children: [
-                          Icon(Icons.request_quote_outlined, size: 16),
-                          SizedBox(width: 6),
-                          Text('Quotes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        ],
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Row(
+                          children: [
+                            Icon(Icons.request_quote_outlined, size: 16),
+                            SizedBox(width: 6),
+                            Text('Quotes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
+                        ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.people_outline, size: 16),
-                          const SizedBox(width: 6),
-                          Text('Clients (${clients.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        ],
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.people_outline, size: 16),
+                            const SizedBox(width: 6),
+                            Text('Clients (${clients.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 12),
                 if (_subTab == 0)
                   FilledButton.icon(
                     icon: const Icon(Icons.add, size: 16),
@@ -167,46 +170,63 @@ class _SalesTabState extends ConsumerState<SalesTab> {
   }
 
   Widget _buildFilterHeader() {
+    final searchField = TextField(
+      controller: _searchController,
+      decoration: const InputDecoration(
+        labelText: 'Search Invoices / Estimates by Client or #',
+        hintText: 'e.g. INV-0001 or Acme',
+        prefixIcon: Icon(Icons.search, size: 18),
+        isDense: true,
+        border: OutlineInputBorder(),
+      ),
+      onChanged: (_) => setState(() {}),
+    );
+
+    Widget buildDateDropdown({bool isExpanded = false}) => DropdownButton<String>(
+          value: _dateFilter,
+          isExpanded: isExpanded,
+          underline: const SizedBox(),
+          items: const [
+            DropdownMenuItem(value: 'All Time', child: Text('All Time', style: TextStyle(fontSize: 13))),
+            DropdownMenuItem(value: 'This Month', child: Text('This Month', style: TextStyle(fontSize: 13))),
+            DropdownMenuItem(value: 'This Quarter', child: Text('This Quarter', style: TextStyle(fontSize: 13))),
+          ],
+          onChanged: (val) {
+            if (val != null) setState(() => _dateFilter = val);
+          },
+        );
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         side: BorderSide(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: const InputDecoration(
-                      labelText: 'Search Invoices / Estimates by Client or #',
-                      hintText: 'e.g. INV-0001 or Acme',
-                      prefixIcon: Icon(Icons.search, size: 18),
-                      isDense: true,
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                DropdownButton<String>(
-                  value: _dateFilter,
-                  underline: const SizedBox(),
-                  items: const [
-                    DropdownMenuItem(value: 'All Time', child: Text('All Time', style: TextStyle(fontSize: 13))),
-                    DropdownMenuItem(value: 'This Month', child: Text('This Month', style: TextStyle(fontSize: 13))),
-                    DropdownMenuItem(value: 'This Quarter', child: Text('This Quarter', style: TextStyle(fontSize: 13))),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 460) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      searchField,
+                      const SizedBox(height: 8),
+                      buildDateDropdown(isExpanded: true),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: searchField),
+                    const SizedBox(width: 12),
+                    buildDateDropdown(),
                   ],
-                  onChanged: (val) {
-                    if (val != null) setState(() => _dateFilter = val);
-                  },
-                ),
-              ],
+                );
+              },
             ),
             const SizedBox(height: 10),
             SingleChildScrollView(

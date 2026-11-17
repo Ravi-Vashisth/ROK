@@ -13,7 +13,27 @@ import {
   Download,
   Upload,
 } from 'lucide-react';
+import {
+  TAX_MODE_LABELS,
+  TaxMode,
+  getCurrencyDecimals,
+  getRegionalTaxIdLabel,
+  normalizeTaxMode,
+} from '../../billingRules';
 import { ItemsCatalogTab } from '../items/ItemsCatalogTab';
+
+const CURRENCY_SYMBOL_MAP: Record<string, string> = {
+  USD: '$',
+  INR: '₹',
+  EUR: '€',
+  GBP: '£',
+  JPY: '¥',
+  KRW: '₩',
+  CAD: 'C$',
+  AUD: 'A$',
+  AED: 'AED',
+  SAR: 'SAR',
+};
 
 interface SettingsTabProps {
   isDarkMode: boolean;
@@ -29,6 +49,7 @@ interface SettingsTabProps {
   onDeleteItem: (item: any) => void;
   onExportDatabase?: () => void;
   onRestoreDatabase: (file: File) => void;
+  onNotify?: (message: string, isError?: boolean) => void;
 }
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({
@@ -45,6 +66,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   onDeleteItem,
   onExportDatabase,
   onRestoreDatabase,
+  onNotify,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<number>(initialSubTab);
 
@@ -55,6 +77,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const [address, setAddress] = useState<string>(businessProfile.address || '');
   const [taxId, setTaxId] = useState<string>(businessProfile.tax_id || '');
   const [currencyCode, setCurrencyCode] = useState<string>(businessProfile.currency_code || 'USD');
+  const [defaultTaxMode, setDefaultTaxMode] = useState<TaxMode>(
+    normalizeTaxMode(businessProfile.default_tax_mode)
+  );
+  const [defaultPstRatePercentage, setDefaultPstRatePercentage] = useState<string>(
+    String(businessProfile.default_pst_rate_percentage ?? 7)
+  );
   const [paymentDetails, setPaymentDetails] = useState<string>(businessProfile.payment_details || '');
   const [defaultTerms, setDefaultTerms] = useState<string>(businessProfile.default_terms || '');
   const [defaultNotes, setDefaultNotes] = useState<string>(businessProfile.default_notes || '');
@@ -80,11 +108,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
   const handleSaveProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    let sym = '$';
-    if (currencyCode === 'INR') sym = '₹';
-    if (currencyCode === 'EUR') sym = '€';
-    if (currencyCode === 'GBP') sym = '£';
-    if (currencyCode === 'JPY') sym = '¥';
+    const sym = CURRENCY_SYMBOL_MAP[currencyCode] || '$';
+    const parsedPst = Math.min(100, Math.max(0, Math.round(Number(defaultPstRatePercentage) || 0)));
 
     onSaveProfile({
       ...businessProfile,
@@ -95,13 +120,16 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       tax_id: taxId,
       currency_code: currencyCode,
       currency_symbol: sym,
+      currency_decimals: getCurrencyDecimals(currencyCode),
+      default_tax_mode: defaultTaxMode,
+      default_pst_rate_percentage: defaultTaxMode === 'ca_dual' ? parsedPst : 0,
       payment_details: paymentDetails,
       default_terms: defaultTerms,
       default_notes: defaultNotes,
       logo_base64: logoBase64,
       signature_base64: signatureBase64,
     });
-    alert('Business settings and branding updated successfully!');
+    onNotify?.('Business settings and branding updated successfully!');
   };
 
   const handleRestoreFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,13 +143,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   return (
     <div className="space-y-6">
       {/* Header & 4-SubTab Segmented Control */}
-      <div className={`p-6 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+      <div className={`p-6 rounded-xl border flex flex-col min-[900px]:flex-row min-[900px]:items-center justify-between gap-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
         <div>
           <h2 className="text-xl font-bold tracking-tight">Application Settings & System Preferences</h2>
           <p className="text-xs text-slate-500 mt-0.5">Manage business profile, item catalog, payment methods, and local database backups</p>
         </div>
 
-        <div className={`inline-flex p-1 rounded-xl border self-start md:self-auto overflow-x-auto ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
+        <div className={`inline-flex p-1 rounded-xl border self-start min-[900px]:self-auto max-w-full overflow-x-auto ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
           <button
             onClick={() => setActiveSubTab(0)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
@@ -174,7 +202,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         <form onSubmit={handleSaveProfileSubmit} className={`p-6 rounded-xl border space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
           <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 uppercase tracking-wider">Business Identity & Legal Branding</h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-4 text-xs">
             <div>
               <label className="block font-bold text-slate-500 mb-1">Legal Business Name *</label>
               <input
@@ -204,7 +232,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               />
             </div>
             <div>
-              <label className="block font-bold text-slate-500 mb-1">Tax ID / GSTIN / VAT</label>
+              <label className="block font-bold text-slate-500 mb-1">
+                {getRegionalTaxIdLabel(defaultTaxMode, false)}
+              </label>
               <input
                 type="text"
                 value={taxId}
@@ -214,7 +244,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-4 text-xs">
             <div>
               <label className="block font-bold text-slate-500 mb-1">Default Currency Code</label>
               <select
@@ -227,6 +257,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 <option value="EUR">EUR (€)</option>
                 <option value="GBP">GBP (£)</option>
                 <option value="JPY">JPY (¥)</option>
+                <option value="KRW">KRW (₩)</option>
+                <option value="CAD">CAD (C$)</option>
+                <option value="AUD">AUD (A$)</option>
+                <option value="AED">AED (UAE)</option>
+                <option value="SAR">SAR (KSA)</option>
               </select>
             </div>
             <div>
@@ -240,8 +275,38 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             </div>
           </div>
 
+          <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-4 text-xs">
+            <div>
+              <label className="block font-bold text-slate-500 mb-1">Default Regional Tax Compliance Mode</label>
+              <select
+                value={defaultTaxMode}
+                onChange={(e) => setDefaultTaxMode(normalizeTaxMode(e.target.value))}
+                className={`w-full p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+              >
+                {(Object.keys(TAX_MODE_LABELS) as TaxMode[]).map((mode) => (
+                  <option key={mode} value={mode}>
+                    {TAX_MODE_LABELS[mode]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {defaultTaxMode === 'ca_dual' && (
+              <div>
+                <label className="block font-bold text-slate-500 mb-1">Default Canada PST Rate %</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={defaultPstRatePercentage}
+                  onChange={(e) => setDefaultPstRatePercentage(e.target.value)}
+                  className={`w-full p-2.5 rounded-xl border font-mono tabular-nums ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                />
+              </div>
+            )}
+          </div>
+
           {/* Logo & Signature Branding Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs pt-2">
+          <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-4 text-xs pt-2">
             <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
               <label className="block font-bold text-slate-500 mb-2 flex items-center gap-1.5">
                 <Image className="w-3.5 h-3.5" />
@@ -367,7 +432,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     default_terms: defaultTerms,
                     default_notes: defaultNotes,
                   });
-                  alert('Payment and banking instructions saved!');
+                  onNotify?.('Payment and banking instructions saved!');
                 }}
                 className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition shadow-xs"
               >
@@ -387,7 +452,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             <p className="text-xs text-slate-500 mt-1">Export or restore your complete local SQLite database snapshot atomically.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+          <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-6 text-xs">
             {/* Export */}
             <div className={`p-5 rounded-xl border space-y-3 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
               <div className="flex items-center gap-2 font-bold text-sm text-indigo-600">

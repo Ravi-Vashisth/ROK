@@ -1,8 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/currency_formatter_provider.dart';
 import '../../../core/utils/money_utils.dart';
+import '../../business_profile/providers/business_profile_provider.dart';
 import '../models/saved_item.dart';
 import '../providers/saved_items_provider.dart';
 
@@ -37,7 +39,8 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
       return;
     }
 
-    final priceCents = parsePriceToCents(_priceController.text);
+    final decimals = ref.read(businessProfileProvider).currencyDecimals;
+    final priceCents = parsePriceToUnits(_priceController.text, decimals);
     if (priceCents < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid price.')),
@@ -63,57 +66,66 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
   }
 
   void _showEditItemDialog(BuildContext context, SavedItem item) {
+    final decimals = ref.read(businessProfileProvider).currencyDecimals;
     final titleCtrl = TextEditingController(text: item.title);
     final sacHsnCtrl = TextEditingController(text: item.sacHsn);
-    final priceCtrl = TextEditingController(text: (item.defaultPriceCents / 100).toStringAsFixed(2));
+    final priceCtrl = TextEditingController(text: formatDecimalUnits(item.defaultPriceCents, decimals));
     final descCtrl = TextEditingController(text: item.description);
     final formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Row(
           children: [
             Icon(Icons.edit_outlined),
             SizedBox(width: 8),
-            Text('Edit Catalog Item', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Expanded(
+              child: Text('Edit Catalog Item', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
           ],
         ),
-        content: SizedBox(
-          width: 440,
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: titleCtrl,
-                  decoration: const InputDecoration(labelText: 'Item / Service Title *'),
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Please enter a title' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: sacHsnCtrl,
-                  decoration: const InputDecoration(labelText: 'SAC / HSN Code (e.g. 998311)'),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: priceCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Default Unit Price *'),
-                  validator: (val) {
-                    if (val == null || val.trim().isEmpty) return 'Please enter a price';
-                    if (parsePriceToCents(val) < 0) return 'Invalid price';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: descCtrl,
-                  maxLines: 2,
-                  decoration: const InputDecoration(labelText: 'Description'),
-                ),
-              ],
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 440,
+            maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+          ),
+          child: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(labelText: 'Item / Service Title *'),
+                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter a title' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: sacHsnCtrl,
+                    decoration: const InputDecoration(labelText: 'SAC / HSN Code (e.g. 998311)'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: priceCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Default Unit Price *'),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) return 'Please enter a price';
+                      if (parsePriceToUnits(val, decimals) < 0) return 'Invalid price';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: descCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -131,7 +143,7 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                     id: item.id,
                     title: titleCtrl.text.trim(),
                     sacHsn: sacHsnCtrl.text.trim(),
-                    defaultPriceCents: parsePriceToCents(priceCtrl.text),
+                    defaultPriceCents: parsePriceToUnits(priceCtrl.text, decimals),
                     description: descCtrl.text.trim(),
                   );
               Navigator.of(dialogCtx).pop();
@@ -196,53 +208,62 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: TextField(
-                        controller: _titleController,
-                        decoration: const InputDecoration(
-                          labelText: 'Item / Service Title',
-                          hintText: 'e.g. Logo Design',
-                        ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final titleField = TextField(
+                      controller: _titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Item / Service Title',
+                        hintText: 'e.g. Logo Design',
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: TextField(
-                        controller: _sacHsnController,
-                        decoration: const InputDecoration(
-                          labelText: 'SAC / HSN',
-                          hintText: 'e.g. 998311',
-                        ),
+                    );
+                    final sacField = TextField(
+                      controller: _sacHsnController,
+                      decoration: const InputDecoration(
+                        labelText: 'SAC / HSN',
+                        hintText: 'e.g. 998311',
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: TextField(
-                        controller: _priceController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(
-                          labelText: 'Default Price',
-                          hintText: '100.00',
-                        ),
+                    );
+                    final priceField = TextField(
+                      controller: _priceController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Default Price',
+                        hintText: '100.00',
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 3,
-                      child: TextField(
-                        controller: _descriptionController,
-                        decoration: const InputDecoration(
-                          labelText: 'Description (optional)',
-                          hintText: 'Detailed deliverables...',
-                        ),
+                    );
+                    final descField = TextField(
+                      controller: _descriptionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Description (optional)',
+                        hintText: 'Detailed deliverables...',
                       ),
-                    ),
-                  ],
+                    );
+                    if (MediaQuery.sizeOf(context).width < 900) {
+                      return Column(
+                        children: [
+                          titleField,
+                          const SizedBox(height: 10),
+                          sacField,
+                          const SizedBox(height: 10),
+                          priceField,
+                          const SizedBox(height: 10),
+                          descField,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(flex: 3, child: titleField),
+                        const SizedBox(width: 8),
+                        Expanded(flex: 2, child: sacField),
+                        const SizedBox(width: 8),
+                        Expanded(flex: 2, child: priceField),
+                        const SizedBox(width: 8),
+                        Expanded(flex: 3, child: descField),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
                 Align(
@@ -333,7 +354,7 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                               DataCell(
                                 Text(
                                   formatCurrency(item.defaultPriceCents),
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
                                 ),
                               ),
                               DataCell(
@@ -405,16 +426,22 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                         children: [
                           Text(
                             formatCurrency(item.defaultPriceCents),
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 4),
                           IconButton(
                             tooltip: 'Edit Item',
+                            visualDensity: VisualDensity.compact,
                             icon: const Icon(Icons.edit_outlined, size: 18),
                             onPressed: () => _showEditItemDialog(context, item),
                           ),
                           IconButton(
                             tooltip: 'Delete Item',
+                            visualDensity: VisualDensity.compact,
                             icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
                             onPressed: () => _confirmDeleteItem(context, item),
                           ),

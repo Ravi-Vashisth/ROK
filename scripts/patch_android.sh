@@ -122,4 +122,42 @@ subprojects {
 EOF
 fi
 
+# 5. Inject Android 11+ (API 30+) <queries> intents for url_launcher (https, mailto, tel, sms)
+MANIFEST="android/app/src/main/AndroidManifest.xml"
+if [ -f "$MANIFEST" ] && ! grep -q "<queries>" "$MANIFEST"; then
+  echo "Injecting <queries> OS intent declarations into $MANIFEST..."
+  python3 - "$MANIFEST" << 'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path, 'r', encoding='utf-8') as f:
+    xml = f.read()
+
+queries_block = """    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="sms" />
+        </intent>
+    </queries>
+</manifest>"""
+
+if '</manifest>' in xml:
+    xml = xml.replace('</manifest>', queries_block, 1)
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(xml)
+PYEOF
+fi
+
 echo "Android patches applied successfully."
+

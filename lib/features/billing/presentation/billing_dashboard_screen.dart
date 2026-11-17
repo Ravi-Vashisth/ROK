@@ -92,14 +92,16 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 800;
+        final isWide = constraints.maxWidth >= 900;
 
         if (isWide) {
-          // Desktop (width >= 800px) with 4 first-class NavigationRail destinations
+          // Desktop (width >= 900px) with 220px left NavigationRail
           return Scaffold(
             body: Row(
               children: [
                 NavigationRail(
+                  extended: true,
+                  minExtendedWidth: 220,
                   selectedIndex: _selectedTab < 4 ? _selectedTab : 0,
                   onDestinationSelected: (index) {
                     setState(() {
@@ -108,26 +110,30 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                       if (index == 3) _settingsSubTab = 0;
                     });
                   },
-                  labelType: NavigationRailLabelType.all,
-                  leading: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    child: Column(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                          child: Text(
-                            profile.businessName.isNotEmpty ? profile.businessName[0].toUpperCase() : 'F',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                  leading: SizedBox(
+                    width: 204,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                            child: Text(
+                              profile.businessName.isNotEmpty ? profile.businessName[0].toUpperCase() : 'F',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          profile.businessName.isNotEmpty ? profile.businessName : 'Freelance',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              profile.businessName.isNotEmpty ? profile.businessName : 'Freelance',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   destinations: const [
@@ -180,34 +186,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                             );
                           },
                         ),
-                        PopupMenuButton<Color>(
-                          tooltip: 'Accent Color',
-                          icon: Icon(Icons.palette_outlined, color: currentAccent),
-                          onSelected: (color) => ref.read(accentColorProvider.notifier).setAccentColor(color),
-                          itemBuilder: (context) {
-                            return AppTheme.presetAccents.map((color) {
-                              final isSelected = color.value == currentAccent.value;
-                              return PopupMenuItem<Color>(
-                                value: color,
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 18,
-                                      height: 18,
-                                      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(_getColorName(color), style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
-                                    if (isSelected) ...[
-                                      const Spacer(),
-                                      const Icon(Icons.check, size: 16),
-                                    ],
-                                  ],
-                                ),
-                              );
-                            }).toList();
-                          },
-                        ),
+                        _buildAccentColorPicker(currentAccent),
                         IconButton(
                           tooltip: _getThemeModeTooltip(themeMode),
                           icon: Icon(_getThemeModeIcon(themeMode)),
@@ -226,10 +205,14 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
             ),
           );
         } else {
-          // Mobile / Compact (< 800px) with STRICTLY 4 NavigationBar destinations
+          // Mobile / Split-Window (< 900px) with 4 NavigationBar destinations & SafeArea
           return Scaffold(
             appBar: AppBar(
-              title: const SizedBox.shrink(),
+              title: Text(
+                profile.businessName.isNotEmpty ? profile.businessName : 'Freelance',
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
               elevation: 0,
               actions: [
                 IconButton(
@@ -247,6 +230,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                     );
                   },
                 ),
+                _buildAccentColorPicker(currentAccent),
                 IconButton(
                   tooltip: _getThemeModeTooltip(themeMode),
                   icon: Icon(_getThemeModeIcon(themeMode)),
@@ -254,28 +238,68 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                 ),
               ],
             ),
-            body: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: desktopTabs[_selectedTab < 4 ? _selectedTab : 0],
+            body: SafeArea(
+              top: false,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: desktopTabs[_selectedTab < 4 ? _selectedTab : 0],
+              ),
             ),
-            bottomNavigationBar: NavigationBar(
-              selectedIndex: _selectedTab < 4 ? _selectedTab : 0,
-              onDestinationSelected: (index) {
-                setState(() {
-                  _selectedTab = index;
-                  if (index == 1) _salesSubTab = 0;
-                  if (index == 3) _settingsSubTab = 0;
-                });
-              },
-              destinations: const [
-                NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
-                NavigationDestination(icon: Icon(Icons.work_outline), label: 'Sales'),
-                NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), label: 'Expenses'),
-                NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
-              ],
+            bottomNavigationBar: Container(
+              color: Theme.of(context).navigationBarTheme.backgroundColor,
+              child: SafeArea(
+                top: false,
+                child: NavigationBar(
+                  selectedIndex: _selectedTab < 4 ? _selectedTab : 0,
+                  onDestinationSelected: (index) {
+                    setState(() {
+                      _selectedTab = index;
+                      if (index == 1) _salesSubTab = 0;
+                      if (index == 3) _settingsSubTab = 0;
+                    });
+                  },
+                  destinations: const [
+                    NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
+                    NavigationDestination(icon: Icon(Icons.work_outline), label: 'Sales'),
+                    NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), label: 'Expenses'),
+                    NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
+                  ],
+                ),
+              ),
             ),
           );
         }
+      },
+    );
+  }
+
+  Widget _buildAccentColorPicker(Color currentAccent) {
+    return PopupMenuButton<Color>(
+      tooltip: 'Accent Color',
+      icon: Icon(Icons.palette_outlined, color: currentAccent),
+      onSelected: (color) => ref.read(accentColorProvider.notifier).setAccentColor(color),
+      itemBuilder: (context) {
+        return AppTheme.presetAccents.map((color) {
+          final isSelected = color.value == currentAccent.value;
+          return PopupMenuItem<Color>(
+            value: color,
+            child: Row(
+              children: [
+                Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 10),
+                Text(_getColorName(color), style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                if (isSelected) ...[
+                  const Spacer(),
+                  const Icon(Icons.check, size: 16),
+                ],
+              ],
+            ),
+          );
+        }).toList();
       },
     );
   }

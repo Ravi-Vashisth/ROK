@@ -1,8 +1,12 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/currency_formatter_provider.dart';
 import '../../../core/utils/money_utils.dart';
+import '../../../core/utils/telephony_utils.dart';
 import '../../invoices/providers/invoices_provider.dart';
 import '../models/client.dart';
 import '../providers/clients_provider.dart';
@@ -25,6 +29,31 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
     super.dispose();
   }
 
+  Future<void> _launchClientIntent({
+    required Uri? uri,
+    required String actionLabel,
+    required String fallbackCopyValue,
+  }) async {
+    if (uri == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    bool launched = false;
+    try {
+      launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      launched = false;
+    }
+    if (!mounted) return;
+    if (!launched && fallbackCopyValue.isNotEmpty) {
+      await Clipboard.setData(ClipboardData(text: fallbackCopyValue));
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('No $actionLabel app available. Copied "$fallbackCopyValue" to clipboard.'),
+        ),
+      );
+    }
+  }
+
   void _showAddClientDialog() {
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
@@ -36,9 +65,13 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text('Add New Client'),
-        content: SizedBox(
-          width: 440,
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 440,
+            maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+          ),
           child: Form(
             key: formKey,
             child: SingleChildScrollView(
@@ -111,9 +144,13 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text('Edit Client Details'),
-        content: SizedBox(
-          width: 440,
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 440,
+            maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+          ),
           child: Form(
             key: formKey,
             child: SingleChildScrollView(
@@ -193,11 +230,12 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                 showDialog(
                   context: context,
                   builder: (warnCtx) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     title: const Row(
                       children: [
                         Icon(Icons.warning_amber_rounded, color: Colors.amber),
                         SizedBox(width: 8),
-                        Text('Cannot Delete Client'),
+                        Expanded(child: Text('Cannot Delete Client')),
                       ],
                     ),
                     content: Text(
@@ -244,13 +282,29 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
         children: [
           _buildClientListHeader(),
           const SizedBox(height: 12),
+          TextField(
+            controller: _searchController,
+            decoration: const InputDecoration(
+              hintText: 'Search clients...',
+              prefixIcon: Icon(Icons.search, size: 18),
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 10),
           _buildClientListView(filteredClients, (id) {
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => Scaffold(
                   appBar: AppBar(title: const Text('Client Dossier')),
-                  body: _buildDetailPane(id),
+                  body: SafeArea(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildDetailPane(id),
+                    ),
+                  ),
                 ),
               ),
             );
@@ -371,7 +425,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
         return ListTile(
           selected: isSelected,
           selectedTileColor: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           subtitle: Text(c.email.isNotEmpty ? c.email : (c.phone.isNotEmpty ? c.phone : 'No contact info'), style: const TextStyle(fontSize: 11)),
           trailing: Text(
@@ -379,6 +433,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.bold,
+              fontFeatures: const [FontFeature.tabularFigures()],
               color: balanceDue > 0 ? Colors.amber.shade900 : Colors.green.shade700,
             ),
           ),
@@ -415,123 +470,238 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
     }
     final balanceDue = totalBilled - totalPaid;
 
+    final metricCards = [
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Lifetime Billed', style: TextStyle(fontSize: 11, color: Colors.grey)),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                formatCurrency(totalBilled),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
+              ),
+            ),
+          ],
+        ),
+      ),
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.green.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Total Collected', style: TextStyle(fontSize: 11, color: Colors.green)),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                formatCurrency(totalPaid),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()], color: Colors.green.shade800),
+              ),
+            ),
+          ],
+        ),
+      ),
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: balanceDue > 0 ? Colors.amber.shade50.withValues(alpha: 0.4) : Colors.green.shade50.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: balanceDue > 0 ? Colors.amber.shade300 : Colors.green.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Outstanding Balance', style: TextStyle(fontSize: 11, color: balanceDue > 0 ? Colors.amber.shade900 : Colors.green)),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                formatCurrency(balanceDue),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  color: balanceDue > 0 ? Colors.amber.shade900 : Colors.green.shade800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
+
+    final isCompactScreen = MediaQuery.sizeOf(context).width < 600;
+    final tabViewHeight = (MediaQuery.sizeOf(context).height * 0.48).clamp(320.0, 480.0);
+
     return DefaultTabController(
       length: 3,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Client Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(client.name, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${client.email.isNotEmpty ? client.email : "No Email"} • ${client.phone.isNotEmpty ? client.phone : "No Phone"} • Tax ID: ${client.taxId.isNotEmpty ? client.taxId : "None"}',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    if (client.address.isNotEmpty)
-                      Text(client.address, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                  ],
-                ),
-              ),
-              Row(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final infoCol = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(client.name, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${client.email.isNotEmpty ? client.email : "No Email"} • ${client.phone.isNotEmpty ? client.phone : "No Phone"} • Tax ID: ${client.taxId.isNotEmpty ? client.taxId : "None"}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  if (client.address.isNotEmpty)
+                    Text(client.address, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                ],
+              );
+              final actionsRow = Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   OutlinedButton.icon(
                     icon: const Icon(Icons.edit_outlined, size: 14),
                     label: const Text('Edit Client', style: TextStyle(fontSize: 12)),
                     onPressed: () => _showEditClientDialog(client),
                   ),
-                  const SizedBox(width: 8),
                   IconButton(
                     tooltip: 'Delete Client',
                     icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
                     onPressed: () => _handleDeleteClient(client),
                   ),
                 ],
-              ),
-            ],
+              );
+              if (constraints.maxWidth < 520) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    infoCol,
+                    const SizedBox(height: 10),
+                    actionsRow,
+                  ],
+                );
+              }
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: infoCol),
+                  const SizedBox(width: 12),
+                  actionsRow,
+                ],
+              );
+            },
           ),
+          if (client.phone.trim().isNotEmpty || client.email.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (buildTelUri(client.phone) != null)
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.call_outlined, size: 14),
+                    label: const Text('Call', style: TextStyle(fontSize: 12)),
+                    onPressed: () => _launchClientIntent(
+                      uri: buildTelUri(client.phone),
+                      actionLabel: 'phone dialer',
+                      fallbackCopyValue: normalizePhoneForUri(client.phone),
+                    ),
+                  ),
+                if (buildSmsUri(phone: client.phone) != null)
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.sms_outlined, size: 14),
+                    label: const Text('SMS', style: TextStyle(fontSize: 12)),
+                    onPressed: () => _launchClientIntent(
+                      uri: buildSmsUri(phone: client.phone),
+                      actionLabel: 'SMS',
+                      fallbackCopyValue: normalizePhoneForUri(client.phone),
+                    ),
+                  ),
+                if (client.email.trim().isNotEmpty)
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.email_outlined, size: 14),
+                    label: const Text('Email', style: TextStyle(fontSize: 12)),
+                    onPressed: () => _launchClientIntent(
+                      uri: buildMailtoUri(
+                        email: client.email,
+                        subject: 'Regarding your account with us',
+                        body: 'Hi ${client.name},\n\n',
+                      ),
+                      actionLabel: 'email',
+                      fallbackCopyValue: client.email.trim(),
+                    ),
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
 
           // 3 Financial Metric Cards
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Theme.of(context).dividerColor),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Lifetime Billed', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                      const SizedBox(height: 4),
-                      Text(formatCurrency(totalBilled), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 560) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    metricCards[0],
+                    const SizedBox(height: 10),
+                    metricCards[1],
+                    const SizedBox(height: 10),
+                    metricCards[2],
+                  ],
+                );
+              }
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: metricCards[0]),
+                    const SizedBox(width: 10),
+                    Expanded(child: metricCards[1]),
+                    const SizedBox(width: 10),
+                    Expanded(child: metricCards[2]),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Total Collected', style: TextStyle(fontSize: 11, color: Colors.green)),
-                      const SizedBox(height: 4),
-                      Text(formatCurrency(totalPaid), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green.shade800)),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: balanceDue > 0 ? Colors.amber.shade50.withValues(alpha: 0.4) : Colors.green.shade50.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: balanceDue > 0 ? Colors.amber.shade300 : Colors.green.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Outstanding Balance', style: TextStyle(fontSize: 11, color: balanceDue > 0 ? Colors.amber.shade900 : Colors.green)),
-                      const SizedBox(height: 4),
-                      Text(
-                        formatCurrency(balanceDue),
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: balanceDue > 0 ? Colors.amber.shade900 : Colors.green.shade800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+              );
+            },
           ),
           const SizedBox(height: 16),
 
           // Sub-tabs: Invoices, Statements, Notes
-          const TabBar(
-            tabs: [
+          TabBar(
+            isScrollable: isCompactScreen,
+            tabAlignment: isCompactScreen ? TabAlignment.start : TabAlignment.fill,
+            tabs: const [
               Tab(text: 'Invoices & Billing'),
               Tab(text: 'Statement of Account'),
               Tab(text: 'Internal Notes'),
@@ -540,7 +710,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
           const SizedBox(height: 12),
 
           SizedBox(
-            height: 380,
+            height: tabViewHeight,
             child: TabBarView(
               children: [
                 // Invoices List (Finalized/Issued Invoices only - No Drafts)
@@ -562,7 +732,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                             color: isVoid
                                 ? Colors.grey.shade100
                                 : (inv.isFullyPaid ? Colors.green.shade50 : Colors.amber.shade50),
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: isVoid
                                   ? Colors.grey.shade400
@@ -592,13 +762,17 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(formatCurrency(inv.totalCents), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text(
+                              formatCurrency(inv.totalCents),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, fontFeatures: [FontFeature.tabularFigures()]),
+                            ),
                             Text(
                               isVoid
                                   ? 'Voided'
                                   : (inv.balanceDueCents > 0 ? 'Bal: ${formatCurrency(inv.balanceDueCents)}' : '✓ Paid'),
                               style: TextStyle(
                                 fontSize: 11,
+                                fontFeatures: const [FontFeature.tabularFigures()],
                                 color: isVoid
                                     ? Colors.grey.shade600
                                     : (inv.balanceDueCents > 0 ? Colors.red.shade700 : Colors.green.shade700),
@@ -616,21 +790,27 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Itemized Account Ledger', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        FilledButton.tonalIcon(
-                          icon: const Icon(Icons.picture_as_pdf, size: 15),
-                          label: const Text('Download Statement PDF', style: TextStyle(fontSize: 12)),
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (_) => ClientStatementDialog(client: client),
-                            );
-                          },
-                        ),
-                      ],
+                    SizedBox(
+                      width: double.infinity,
+                      child: Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          const Text('Itemized Account Ledger', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          FilledButton.tonalIcon(
+                            icon: const Icon(Icons.picture_as_pdf, size: 15),
+                            label: const Text('Download Statement PDF', style: TextStyle(fontSize: 12)),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (_) => ClientStatementDialog(client: client),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Expanded(
@@ -646,7 +826,10 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                                   leading: const Icon(Icons.receipt_long, size: 18),
                                   title: Text('Invoice ${inv.invoiceNumber}'),
                                   subtitle: Text(inv.issueDate),
-                                  trailing: Text(formatCurrency(inv.totalCents), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  trailing: Text(
+                                    formatCurrency(inv.totalCents),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
+                                  ),
                                 );
                               },
                             ),
@@ -655,7 +838,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                 ),
 
                 // Client Notes
-                Padding(
+                SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -664,7 +847,11 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                       const SizedBox(height: 8),
                       Text(
                         'Client ID: ${client.id}\nCreated: ${client.createdAt}\nAddress: ${client.address.isNotEmpty ? client.address : "Not provided"}\nTax ID: ${client.taxId.isNotEmpty ? client.taxId : "Not provided"}',
-                        style: const TextStyle(fontSize: 12, height: 1.6, color: Colors.black87),
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.6,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                     ],
                   ),

@@ -43,94 +43,151 @@ class _ClientSelectionCardState extends ConsumerState<ClientSelectionCard> {
           )
         : null;
 
+    final newClientField = TextField(
+      controller: widget.newClientController,
+      decoration: const InputDecoration(
+        labelText: 'New Client Name *',
+        hintText: 'e.g. Acme Corp',
+      ),
+    );
+
+    final addClientBtn = Padding(
+      padding: const EdgeInsets.only(top: 4.0),
+      child: FilledButton.tonal(
+        onPressed: widget.onAddClient,
+        child: const Text('Add Client'),
+      ),
+    );
+
+    final savedClientDropdown = DropdownButtonFormField<String>(
+      value: widget.selectedClientId,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Select Saved Client',
+      ),
+      items: clients.map((c) {
+        return DropdownMenuItem<String>(
+          value: c.id,
+          child: Text(
+            c.taxId.isNotEmpty
+                ? '${c.name} (${c.taxId})'
+                : c.name,
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList(),
+      onChanged: widget.onClientSelected,
+      hint: const Text('Choose a client'),
+    );
+
+    final emailField = TextField(
+      controller: widget.emailController,
+      decoration: const InputDecoration(
+        labelText: 'Client Email',
+        hintText: 'invoices@client.com',
+      ),
+    );
+
+    final phoneField = TextField(
+      controller: widget.phoneController,
+      decoration: const InputDecoration(
+        labelText: 'Phone',
+        hintText: '+1 (555) 012-3456',
+      ),
+    );
+
+    final taxIdField = TextField(
+      controller: widget.taxIdController,
+      decoration: const InputDecoration(
+        labelText: 'Client Tax ID / VAT / GSTIN',
+        hintText: 'e.g. EU123456789 or GSTIN',
+      ),
+    );
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         side: BorderSide(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '1. Client Selection & Billing Details',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _showAdvancedDetails = !_showAdvancedDetails;
-                    });
-                  },
-                  icon: Icon(
-                    _showAdvancedDetails
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    size: 18,
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  Text(
+                    '1. Client Selection & Billing Details',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
-                  label: Text(_showAdvancedDetails
-                      ? 'Hide Extra Details'
-                      : '+ Client Details (Tax ID, Address)'),
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _showAdvancedDetails = !_showAdvancedDetails;
+                      });
+                    },
+                    icon: Icon(
+                      _showAdvancedDetails
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                      size: 18,
+                    ),
+                    label: Text(_showAdvancedDetails
+                        ? 'Hide Extra Details'
+                        : '+ Client Details (Tax ID, Address)'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 12),
 
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: TextField(
-                    controller: widget.newClientController,
-                    decoration: const InputDecoration(
-                      labelText: 'New Client Name *',
-                      hintText: 'e.g. Acme Corp',
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Padding(
-                  padding: const EdgeInsets.only(top: 4.0),
-                  child: FilledButton.tonal(
-                    onPressed: widget.onAddClient,
-                    child: const Text('Add Client'),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 4,
-                  child: DropdownButtonFormField<String>(
-                    value: widget.selectedClientId,
-                    decoration: const InputDecoration(
-                      labelText: 'Select Saved Client',
-                    ),
-                    items: clients.map((c) {
-                      return DropdownMenuItem<String>(
-                        value: c.id,
-                        child: Text(
-                          c.taxId.isNotEmpty
-                              ? '${c.name} (${c.taxId})'
-                              : c.name,
-                          overflow: TextOverflow.ellipsis,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 760) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (constraints.maxWidth < 400) ...[
+                        newClientField,
+                        const SizedBox(height: 8),
+                        Align(alignment: Alignment.centerRight, child: addClientBtn),
+                      ] else
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: newClientField),
+                            const SizedBox(width: 8),
+                            addClientBtn,
+                          ],
                         ),
-                      );
-                    }).toList(),
-                    onChanged: widget.onClientSelected,
-                    hint: const Text('Choose a client'),
-                  ),
-                ),
-              ],
+                      const SizedBox(height: 12),
+                      savedClientDropdown,
+                    ],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 3, child: newClientField),
+                    const SizedBox(width: 8),
+                    addClientBtn,
+                    const SizedBox(width: 16),
+                    Expanded(flex: 4, child: savedClientDropdown),
+                  ],
+                );
+              },
             ),
 
             if (_showAdvancedDetails) ...[
@@ -142,7 +199,7 @@ class _ClientSelectionCardState extends ConsumerState<ClientSelectionCard> {
                       .colorScheme
                       .surfaceContainerHighest
                       .withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Theme.of(context).dividerColor),
                 ),
                 child: Column(
@@ -153,38 +210,29 @@ class _ClientSelectionCardState extends ConsumerState<ClientSelectionCard> {
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: widget.emailController,
-                            decoration: const InputDecoration(
-                              labelText: 'Client Email',
-                              hintText: 'invoices@client.com',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: widget.phoneController,
-                            decoration: const InputDecoration(
-                              labelText: 'Phone',
-                              hintText: '+1 (555) 012-3456',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: widget.taxIdController,
-                            decoration: const InputDecoration(
-                              labelText: 'Client Tax ID / VAT / GSTIN',
-                              hintText: 'e.g. EU123456789 or GSTIN',
-                            ),
-                          ),
-                        ),
-                      ],
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        if (constraints.maxWidth < 600) {
+                          return Column(
+                            children: [
+                              emailField,
+                              const SizedBox(height: 10),
+                              phoneField,
+                              const SizedBox(height: 10),
+                              taxIdField,
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(child: emailField),
+                            const SizedBox(width: 12),
+                            Expanded(child: phoneField),
+                            const SizedBox(width: 12),
+                            Expanded(child: taxIdField),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 10),
                     TextField(
@@ -209,7 +257,7 @@ class _ClientSelectionCardState extends ConsumerState<ClientSelectionCard> {
                       .colorScheme
                       .primaryContainer
                       .withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: Theme.of(context)
                         .colorScheme

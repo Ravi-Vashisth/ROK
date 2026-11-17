@@ -53,6 +53,14 @@ String formatMoney(int units, {String symbol = '\$', int decimals = 2}) {
   return formatter.format(units / 100.0);
 }
 
+/// Formats minor units into an input-friendly or CSV decimal string (0 or 2 decimals).
+String formatDecimalUnits(int units, [int decimals = 2]) {
+  if (decimals == 0) {
+    return units.toString();
+  }
+  return (units / 100.0).toStringAsFixed(2);
+}
+
 /// Backward compatible alias for formatMoney.
 String formatCents(int cents, {String symbol = '\$', int decimals = 2}) =>
     formatMoney(cents, symbol: symbol, decimals: decimals);
@@ -63,6 +71,42 @@ int calculateTaxCents(int netSubtotalCents, int taxPercentage) {
   final safeSubtotal = netSubtotalCents < 0 ? 0 : netSubtotalCents;
   final safePercentage = taxPercentage < 0 ? 0 : taxPercentage;
   return (safeSubtotal * safePercentage + 50) ~/ 100;
+}
+
+/// Calculates collected tax portion on a payment using integer round-half-up math.
+int calculateCollectedTaxPortion(int paidCents, int taxCents, int totalCents) {
+  if (totalCents <= 0 || paidCents <= 0 || taxCents <= 0) return 0;
+  if (paidCents >= totalCents) return taxCents;
+  return (paidCents * taxCents + (totalCents ~/ 2)) ~/ totalCents;
+}
+
+/// Extracts numeric sequence for official invoice/estimate numbers matching prefix.
+/// Safely returns 0 for DRAFT- entries or mismatched prefixes.
+int extractSequenceNumber(String docNumber, String prefix) {
+  final trimmed = docNumber.trim();
+  if (trimmed.isEmpty || trimmed.toUpperCase().startsWith('DRAFT-')) {
+    return 0;
+  }
+  if (!trimmed.startsWith(prefix)) {
+    return 0;
+  }
+  final numericPart = trimmed.substring(prefix.length);
+  return int.tryParse(numericPart) ?? 0;
+}
+
+/// Computes the next sequential document number from existing numbers without .length+1 collisions.
+String getNextSequentialDocNumber(
+  Iterable<String> existingNumbers,
+  String prefix, {
+  int minNext = 1,
+}) {
+  int maxSeq = 0;
+  for (final numStr in existingNumbers) {
+    final seq = extractSequenceNumber(numStr, prefix);
+    if (seq > maxSeq) maxSeq = seq;
+  }
+  final nextNum = (maxSeq + 1) > minNext ? (maxSeq + 1) : minNext;
+  return '$prefix${nextNum.toString().padLeft(4, '0')}';
 }
 
 /// Computes discount in integer minor units based on type ('none', 'percent', 'flat') and value.

@@ -22,6 +22,8 @@ class BusinessProfile {
   final String estimatePrefix;
   final int nextInvoiceNumber;
   final String paymentQrPayload;
+  final String defaultTaxMode;
+  final int defaultPstRatePercentage;
 
   const BusinessProfile({
     required this.id,
@@ -43,6 +45,8 @@ class BusinessProfile {
     this.estimatePrefix = 'EST-',
     this.nextInvoiceNumber = 1,
     this.paymentQrPayload = '',
+    this.defaultTaxMode = 'standard',
+    this.defaultPstRatePercentage = 0,
   });
 
   factory BusinessProfile.fromRow(sql.Row row) {
@@ -71,6 +75,8 @@ class BusinessProfile {
       estimatePrefix: row['estimate_prefix'] as String? ?? 'EST-',
       nextInvoiceNumber: row['next_invoice_number'] as int? ?? 1,
       paymentQrPayload: row['payment_qr_payload'] as String? ?? '',
+      defaultTaxMode: (row['default_tax_mode'] as String?) ?? 'standard',
+      defaultPstRatePercentage: (row['default_pst_rate_percentage'] as int?) ?? 0,
     );
   }
 
@@ -94,6 +100,8 @@ class BusinessProfile {
     String? estimatePrefix,
     int? nextInvoiceNumber,
     String? paymentQrPayload,
+    String? defaultTaxMode,
+    int? defaultPstRatePercentage,
   }) {
     return BusinessProfile(
       id: id ?? this.id,
@@ -115,6 +123,8 @@ class BusinessProfile {
       estimatePrefix: estimatePrefix ?? this.estimatePrefix,
       nextInvoiceNumber: nextInvoiceNumber ?? this.nextInvoiceNumber,
       paymentQrPayload: paymentQrPayload ?? this.paymentQrPayload,
+      defaultTaxMode: defaultTaxMode ?? this.defaultTaxMode,
+      defaultPstRatePercentage: defaultPstRatePercentage ?? this.defaultPstRatePercentage,
     );
   }
 
@@ -139,6 +149,8 @@ class BusinessProfile {
       'estimate_prefix': estimatePrefix,
       'next_invoice_number': nextInvoiceNumber,
       'payment_qr_payload': paymentQrPayload,
+      'default_tax_mode': defaultTaxMode,
+      'default_pst_rate_percentage': defaultPstRatePercentage,
     };
   }
 }

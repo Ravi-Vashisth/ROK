@@ -19,7 +19,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
 
-  const categories = ['All', 'Software & SaaS', 'Office Supplies', 'Hardware', 'Travel', 'Marketing', 'Utilities'];
+  const categories = ['All', 'Software & SaaS', 'Office Supplies', 'Hardware', 'Travel', 'Marketing', 'Utilities', 'Subcontracting', 'Other'];
 
   const filteredExpenses = expenses.filter((exp) => {
     if (categoryFilter !== 'All' && exp.category !== categoryFilter) return false;
@@ -27,7 +27,8 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
       const q = searchQuery.toLowerCase().trim();
       const matchVendor = exp.vendor?.toLowerCase().includes(q);
       const matchCat = exp.category?.toLowerCase().includes(q);
-      if (!matchVendor && !matchCat) return false;
+      const matchNotes = exp.notes?.toLowerCase().includes(q);
+      if (!matchVendor && !matchCat && !matchNotes) return false;
     }
     return true;
   });
@@ -37,7 +38,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className={`p-6 rounded-xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+      <div className={`p-6 rounded-xl border flex flex-col min-[900px]:flex-row items-start min-[900px]:items-center justify-between gap-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
         <div>
           <h2 className="text-xl font-bold tracking-tight">Expense Tracker & Receipts</h2>
           <p className="text-xs text-slate-500 mt-1">Track business expenses, vendor receipts, and deductibles</p>
@@ -45,7 +46,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
 
         <button
           onClick={onAddExpense}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer shadow-sm transition"
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer shadow-sm transition shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>Record Expense</span>
@@ -54,7 +55,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
 
       {/* Filter & Summary Card */}
       <div className={`p-4 rounded-xl border space-y-3 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
-        <div className="flex flex-col md:flex-row items-center gap-3">
+        <div className="flex flex-col min-[900px]:flex-row items-stretch min-[900px]:items-center gap-3">
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -65,7 +66,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
               className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs border focus:outline-none ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
             />
           </div>
-          <div className="text-xs font-bold font-mono px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">
+          <div className="text-xs font-bold font-mono tabular-nums px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300 shrink-0 text-center min-[900px]:text-left">
             Total: {formatMoney(totalExpenseCents)}
           </div>
         </div>
@@ -116,12 +117,19 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
               <tbody className={`divide-y ${isDarkMode ? 'divide-slate-800' : 'divide-slate-100'}`}>
                 {filteredExpenses.map((exp) => (
                   <tr key={exp.id} className={`hover:bg-indigo-50/20 transition ${isDarkMode ? 'hover:bg-slate-800/40' : ''}`}>
-                    <td className="p-3.5 font-bold">{exp.vendor}</td>
+                    <td className="p-3.5 font-bold">
+                      <div>{exp.vendor}</div>
+                      {exp.notes && (
+                        <div className="text-[11px] font-normal text-slate-400 truncate max-w-xs">
+                          {exp.notes}
+                        </div>
+                      )}
+                    </td>
                     <td className="p-3.5 text-slate-500">{exp.category}</td>
                     <td className="p-3.5 text-slate-500">{exp.expense_date}</td>
-                    <td className="p-3.5 text-right font-mono">{formatMoney(exp.amount_cents)}</td>
-                    <td className="p-3.5 text-right font-mono text-slate-400">{formatMoney(exp.tax_cents || 0)}</td>
-                    <td className="p-3.5 text-right font-mono font-bold text-rose-600">-{formatMoney(exp.total_cents)}</td>
+                    <td className="p-3.5 text-right font-mono tabular-nums whitespace-nowrap">{formatMoney(exp.amount_cents)}</td>
+                    <td className="p-3.5 text-right font-mono tabular-nums text-slate-400 whitespace-nowrap">{formatMoney(exp.tax_cents || 0)}</td>
+                    <td className="p-3.5 text-right font-mono tabular-nums font-bold text-rose-600 whitespace-nowrap">-{formatMoney(exp.total_cents)}</td>
                     <td className="p-3.5 text-right">
                       <button
                         onClick={() => onDeleteExpense(exp)}

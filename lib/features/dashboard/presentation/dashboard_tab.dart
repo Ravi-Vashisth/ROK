@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,10 +25,10 @@ class DashboardTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final invoices = ref.watch(invoicesProvider);
     final estimates = ref.watch(estimatesProvider);
-    final expenses = ref.watch(expensesProvider);
+    ref.watch(expensesProvider);
     final formatCurrency = ref.watch(currencyFormatterProvider);
 
-    // Triage items: Overdue invoices, pending/accepted estimates, invoices due soon
+    // Triage items: Overdue invoices, pending/accepted estimates
     final overdueInvoices = invoices.where((i) => i.isOverdue && i.balanceDueCents > 0 && !i.isDraft && !i.isVoid).toList();
     final acceptedEstimates = estimates.where((e) => !e.isConverted).toList();
 
@@ -47,6 +48,7 @@ class DashboardTab extends ConsumerWidget {
             // Top Quick-Action Bar
             Wrap(
               spacing: 8,
+              runSpacing: 8,
               children: [
                 FilledButton.icon(
                   onPressed: onNavigateToInvoices,
@@ -70,7 +72,7 @@ class DashboardTab extends ConsumerWidget {
         const SizedBox(height: 20),
         const CashFlowMetricsBar(),
         const SizedBox(height: 24),
-        
+
         // Action Required Triage Inbox
         Card(
           elevation: 0,
@@ -81,81 +83,128 @@ class DashboardTab extends ConsumerWidget {
           color: Colors.amber.shade50.withValues(alpha: 0.3),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompactTriage = constraints.maxWidth < 600;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.notification_important_outlined, color: Colors.amber.shade900),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Action Required Triage (${overdueInvoices.length + acceptedEstimates.length} Pending)',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.amber.shade900),
+                    Row(
+                      children: [
+                        Icon(Icons.notification_important_outlined, color: Colors.amber.shade900),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Action Required Triage (${overdueInvoices.length + acceptedEstimates.length} Pending)',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.amber.shade900),
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 12),
+                    if (overdueInvoices.isEmpty && acceptedEstimates.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text(
+                          'All client balances are up to date. No urgent action required.',
+                          style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                      )
+                    else ...[
+                      ...overdueInvoices.map((inv) {
+                        final msg =
+                            'Invoice ${inv.invoiceNumber} for ${inv.clientName} is ${inv.daysOverdue} ${inv.daysOverdue == 1 ? 'day' : 'days'} overdue (${formatCurrency(inv.balanceDueCents)} balance due).';
+                        final btn = OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                          onPressed: () => showDialog(
+                            context: context,
+                            builder: (_) => PaymentReminderModal(invoice: inv),
+                          ),
+                          icon: const Icon(Icons.send, size: 14),
+                          label: const Text('Send Reminder'),
+                        );
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: isCompactTriage
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Padding(
+                                          padding: EdgeInsets.only(top: 2),
+                                          child: Icon(Icons.error_outline, size: 16, color: Colors.red),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(child: Text(msg, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Align(alignment: Alignment.centerRight, child: btn),
+                                  ],
+                                )
+                              : Row(
+                                  children: [
+                                    const Icon(Icons.error_outline, size: 16, color: Colors.red),
+                                    const SizedBox(width: 8),
+                                    Expanded(child: Text(msg, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
+                                    const SizedBox(width: 12),
+                                    btn,
+                                  ],
+                                ),
+                        );
+                      }),
+                      ...acceptedEstimates.map((est) {
+                        final msg =
+                            'Quote ${est.estimateNumber} for ${est.clientName} (${formatCurrency(est.totalCents)}) is ready to be converted.';
+                        final btn = FilledButton.icon(
+                          style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+                          onPressed: () {
+                            ref.read(estimatesProvider.notifier).convertEstimateToInvoice(est.id);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Quote ${est.estimateNumber} converted to live invoice!')),
+                            );
+                          },
+                          icon: const Icon(Icons.arrow_forward, size: 14),
+                          label: const Text('Convert to Invoice'),
+                        );
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: isCompactTriage
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Padding(
+                                          padding: EdgeInsets.only(top: 2),
+                                          child: Icon(Icons.assignment_turned_in_outlined, size: 16, color: Colors.indigo),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(child: Text(msg, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Align(alignment: Alignment.centerRight, child: btn),
+                                  ],
+                                )
+                              : Row(
+                                  children: [
+                                    const Icon(Icons.assignment_turned_in_outlined, size: 16, color: Colors.indigo),
+                                    const SizedBox(width: 8),
+                                    Expanded(child: Text(msg, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
+                                    const SizedBox(width: 12),
+                                    btn,
+                                  ],
+                                ),
+                        );
+                      }),
+                    ],
                   ],
-                ),
-                const SizedBox(height: 12),
-                if (overdueInvoices.isEmpty && acceptedEstimates.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8.0),
-                    child: Text(
-                      'All client balances are up to date. No urgent action required.',
-                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600, fontSize: 13),
-                    ),
-                  )
-                else ...[
-                  ...overdueInvoices.map((inv) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.error_outline, size: 16, color: Colors.red),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Invoice ${inv.invoiceNumber} for ${inv.clientName} is ${inv.daysOverdue} ${inv.daysOverdue == 1 ? 'day' : 'days'} overdue (${formatCurrency(inv.balanceDueCents)} balance due).',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                              ),
-                            ),
-                            OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
-                              onPressed: () => showDialog(
-                                context: context,
-                                builder: (_) => PaymentReminderModal(invoice: inv),
-                              ),
-                              icon: const Icon(Icons.send, size: 14),
-                              label: const Text('Send Reminder'),
-                            ),
-                          ],
-                        ),
-                      )),
-                  ...acceptedEstimates.map((est) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.assignment_turned_in_outlined, size: 16, color: Colors.indigo),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Quote ${est.estimateNumber} for ${est.clientName} (${formatCurrency(est.totalCents)}) is ready to be converted.',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                              ),
-                            ),
-                            FilledButton.icon(
-                              style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
-                              onPressed: () {
-                                ref.read(estimatesProvider.notifier).convertEstimateToInvoice(est.id);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Quote ${est.estimateNumber} converted to live invoice!')),
-                                );
-                              },
-                              icon: const Icon(Icons.arrow_forward, size: 14),
-                              label: const Text('Convert to Invoice'),
-                            ),
-                          ],
-                        ),
-                      )),
-                ],
-              ],
+                );
+              },
             ),
           ),
         ),
@@ -192,7 +241,11 @@ class DashboardTab extends ConsumerWidget {
                 subtitle: Text('Issued: ${inv.issueDate} • Due: ${inv.dueDate} • Status: ${inv.computedStatus}', style: const TextStyle(fontSize: 11)),
                 trailing: Text(
                   formatCurrency(inv.totalCents),
-                  style: TextStyle(fontWeight: FontWeight.bold, color: inv.isFullyPaid ? Colors.green.shade700 : null),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    color: inv.isFullyPaid ? Colors.green.shade700 : null,
+                  ),
                 ),
               );
             },

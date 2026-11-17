@@ -58,6 +58,8 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
     String logoBase64 = '',
     String signatureBase64 = '',
     String signatureLabel = 'Authorized Signatory',
+    String defaultTaxMode = 'standard',
+    int defaultPstRatePercentage = 0,
   }) {
     _db.execute(
       '''
@@ -75,7 +77,9 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
           default_notes = ?,
           logo_base64 = ?,
           signature_base64 = ?,
-          signature_label = ?
+          signature_label = ?,
+          default_tax_mode = ?,
+          default_pst_rate_percentage = ?
       WHERE id = 'default';
       ''',
       [
@@ -93,6 +97,8 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
         logoBase64,
         signatureBase64,
         signatureLabel,
+        defaultTaxMode,
+        defaultPstRatePercentage,
       ],
     );
 
@@ -111,6 +117,8 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
       logoBase64: logoBase64,
       signatureBase64: signatureBase64,
       signatureLabel: signatureLabel,
+      defaultTaxMode: defaultTaxMode,
+      defaultPstRatePercentage: defaultPstRatePercentage,
     );
   }
 }

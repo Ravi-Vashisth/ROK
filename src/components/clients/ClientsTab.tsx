@@ -10,12 +10,9 @@ import {
   ArrowLeft,
   Search,
   Edit2,
-  FileText,
-  DollarSign,
-  AlertCircle,
-  CheckCircle2,
-  Calendar,
+  MessageSquare,
 } from 'lucide-react';
+import { buildMailtoUrl, buildSmsUrl, buildTelUrl } from '../../billingRules';
 
 interface ClientsTabProps {
   clients: any[];
@@ -207,9 +204,9 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
       </div>
 
       {/* Master-Detail Grid: Left 30% / Right 70% */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 min-[900px]:grid-cols-12 gap-6">
         {/* Left Client List Card (3.5 cols) */}
-        <div className={`lg:col-span-4 rounded-xl border p-4 space-y-3 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+        <div className={`min-[900px]:col-span-4 rounded-xl border p-4 space-y-3 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -234,7 +231,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                   <button
                     key={c.id}
                     onClick={() => setSelectedClientId(c.id)}
-                    className={`w-full text-left p-3 rounded-lg transition cursor-pointer flex items-center justify-between gap-2 ${
+                    className={`w-full text-left p-3 rounded-xl transition cursor-pointer flex items-center justify-between gap-2 ${
                       isSelected
                         ? isDarkMode
                           ? 'bg-indigo-950/40 text-indigo-200 border border-indigo-900/60'
@@ -252,7 +249,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                     </div>
                     <div className="text-right shrink-0">
                       <span
-                        className={`font-mono font-bold text-xs ${
+                        className={`font-mono tabular-nums font-bold text-xs ${
                           hasBalance
                             ? 'text-amber-600 dark:text-amber-400'
                             : 'text-emerald-600 dark:text-emerald-400'
@@ -269,7 +266,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
         </div>
 
         {/* Right Detail Dossier Card (70% - 8 cols) */}
-        <div className={`lg:col-span-8 rounded-xl border p-6 space-y-6 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+        <div className={`min-[900px]:col-span-8 rounded-xl border p-6 space-y-6 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
           {!selectedClient ? (
             <div className="py-20 text-center text-xs text-slate-400">
               Select a client to view their account dossier.
@@ -308,17 +305,64 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {(() => {
+                    const telUrl = selectedClient.phone ? buildTelUrl(selectedClient.phone) : null;
+                    const smsUrl = selectedClient.phone
+                      ? buildSmsUrl(selectedClient.phone, `Hi ${selectedClient.name}, `)
+                      : null;
+                    const mailUrl = selectedClient.email
+                      ? buildMailtoUrl(
+                          selectedClient.email,
+                          'Regarding your account with us',
+                          `Hi ${selectedClient.name},\n\n`
+                        )
+                      : null;
+                    return (
+                      <>
+                        {telUrl && (
+                          <a
+                            href={telUrl}
+                            className="px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold rounded-xl flex items-center gap-1 transition"
+                            title={`Call ${selectedClient.phone}`}
+                          >
+                            <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Call</span>
+                          </a>
+                        )}
+                        {smsUrl && (
+                          <a
+                            href={smsUrl}
+                            className="px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold rounded-xl flex items-center gap-1 transition"
+                            title={`SMS ${selectedClient.phone}`}
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>SMS</span>
+                          </a>
+                        )}
+                        {mailUrl && (
+                          <a
+                            href={mailUrl}
+                            className="px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold rounded-xl flex items-center gap-1 transition"
+                            title={`Email ${selectedClient.email}`}
+                          >
+                            <Mail className="w-3.5 h-3.5 text-sky-600" />
+                            <span>Email</span>
+                          </a>
+                        )}
+                      </>
+                    );
+                  })()}
                   <button
                     onClick={() => handleOpenEditModal(selectedClient)}
-                    className="px-3 py-1.5 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold rounded-lg flex items-center gap-1.5 transition cursor-pointer"
+                    className="px-3 py-1.5 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                     <span>Edit Client</span>
                   </button>
                   <button
                     onClick={() => onDeleteClient(selectedClient)}
-                    className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 transition cursor-pointer"
+                    className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 transition cursor-pointer"
                     title="Delete Client"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -330,7 +374,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                   <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Lifetime Billed</div>
-                  <div className="text-lg font-mono font-bold mt-1">
+                  <div className="text-lg font-mono tabular-nums font-bold mt-1">
                     {formatMoney(selectedFinancials?.lifetimeBilled || 0)}
                   </div>
                   <div className="text-[10px] text-slate-400 mt-0.5">
@@ -340,7 +384,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
 
                 <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-emerald-950/20 border-emerald-900/40' : 'bg-emerald-50 border-emerald-200'}`}>
                   <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Total Collected</div>
-                  <div className="text-lg font-mono font-bold text-emerald-700 dark:text-emerald-400 mt-1">
+                  <div className="text-lg font-mono tabular-nums font-bold text-emerald-700 dark:text-emerald-400 mt-1">
                     {formatMoney(selectedFinancials?.totalCollected || 0)}
                   </div>
                   <div className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 mt-0.5">Cleared payments</div>
@@ -348,7 +392,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
 
                 <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-amber-950/20 border-amber-900/40' : 'bg-amber-50 border-amber-200'}`}>
                   <div className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Outstanding Balance</div>
-                  <div className="text-lg font-mono font-bold text-amber-700 dark:text-amber-400 mt-1">
+                  <div className="text-lg font-mono tabular-nums font-bold text-amber-700 dark:text-amber-400 mt-1">
                     {formatMoney(selectedFinancials?.outstandingBalance || 0)}
                   </div>
                   <div className="text-[10px] text-amber-600/80 dark:text-amber-400/80 mt-0.5">
@@ -358,10 +402,10 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
               </div>
 
               {/* Subtabs Bar */}
-              <div className="border-b border-slate-200 dark:border-slate-800 flex gap-4 text-xs font-bold">
+              <div className="border-b border-slate-200 dark:border-slate-800 flex gap-4 text-xs font-bold overflow-x-auto">
                 <button
                   onClick={() => setActiveDossierSubTab('invoices')}
-                  className={`pb-2 border-b-2 cursor-pointer transition ${
+                  className={`pb-2 border-b-2 cursor-pointer transition whitespace-nowrap shrink-0 ${
                     activeDossierSubTab === 'invoices'
                       ? 'border-indigo-600 text-indigo-600'
                       : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -371,7 +415,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                 </button>
                 <button
                   onClick={() => setActiveDossierSubTab('statement')}
-                  className={`pb-2 border-b-2 cursor-pointer transition ${
+                  className={`pb-2 border-b-2 cursor-pointer transition whitespace-nowrap shrink-0 ${
                     activeDossierSubTab === 'statement'
                       ? 'border-indigo-600 text-indigo-600'
                       : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -381,7 +425,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                 </button>
                 <button
                   onClick={() => setActiveDossierSubTab('notes')}
-                  className={`pb-2 border-b-2 cursor-pointer transition ${
+                  className={`pb-2 border-b-2 cursor-pointer transition whitespace-nowrap shrink-0 ${
                     activeDossierSubTab === 'notes'
                       ? 'border-indigo-600 text-indigo-600'
                       : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -394,101 +438,105 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
               {/* Subtab Content */}
               {activeDossierSubTab === 'invoices' && (
                 <div className={`rounded-xl border overflow-hidden ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-                  <table className="w-full text-left text-xs">
-                    <thead className={`border-b font-bold ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-                      <tr>
-                        <th className="p-3">Invoice #</th>
-                        <th className="p-3">Issue Date</th>
-                        <th className="p-3 text-right">Total</th>
-                        <th className="p-3 text-right">Balance Due</th>
-                        <th className="p-3 text-center">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {selectedFinancials?.allInvoices
-                        .filter((inv) => inv.status !== 'DRAFT')
-                        .map((inv) => {
-                          const status = (inv.computed_status || inv.status || '').toUpperCase();
-                          const isVoid = status === 'VOID';
-                          const isPaid = status === 'PAID';
-
-                          return (
-                            <tr key={inv.id} className={isVoid ? 'opacity-50' : ''}>
-                              <td className="p-3 font-mono font-bold text-indigo-500">{inv.invoice_number}</td>
-                              <td className="p-3 text-slate-500">{inv.issue_date}</td>
-                              <td className="p-3 text-right font-mono font-bold">{formatMoney(inv.total_cents)}</td>
-                              <td className={`p-3 text-right font-mono font-bold ${isVoid ? 'text-slate-400 line-through' : isPaid ? 'text-emerald-600' : 'text-amber-600'}`}>
-                                {isVoid ? formatMoney(0) : formatMoney(inv.balance_due_cents ?? inv.total_cents)}
-                              </td>
-                              <td className="p-3 text-center">
-                                <span
-                                  className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                    isVoid
-                                      ? 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
-                                      : isPaid
-                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                      : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
-                                  }`}
-                                >
-                                  {isVoid ? 'VOID' : status}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      {(!selectedFinancials || selectedFinancials.allInvoices.filter((i) => i.status !== 'DRAFT').length === 0) && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className={`border-b font-bold ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
                         <tr>
-                          <td colSpan={5} className="p-6 text-center text-slate-400">
-                            No finalized invoices recorded for this client.
-                          </td>
+                          <th className="p-3 whitespace-nowrap">Invoice #</th>
+                          <th className="p-3 whitespace-nowrap">Issue Date</th>
+                          <th className="p-3 text-right whitespace-nowrap">Total</th>
+                          <th className="p-3 text-right whitespace-nowrap">Balance Due</th>
+                          <th className="p-3 text-center whitespace-nowrap">Status</th>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {selectedFinancials?.allInvoices
+                          .filter((inv) => inv.status !== 'DRAFT')
+                          .map((inv) => {
+                            const status = (inv.computed_status || inv.status || '').toUpperCase();
+                            const isVoid = status === 'VOID';
+                            const isPaid = status === 'PAID';
+
+                            return (
+                              <tr key={inv.id} className={isVoid ? 'opacity-50' : ''}>
+                                <td className="p-3 font-mono font-bold text-indigo-500 whitespace-nowrap">{inv.invoice_number}</td>
+                                <td className="p-3 text-slate-500 whitespace-nowrap">{inv.issue_date}</td>
+                                <td className="p-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">{formatMoney(inv.total_cents)}</td>
+                                <td className={`p-3 text-right font-mono tabular-nums font-bold whitespace-nowrap ${isVoid ? 'text-slate-400 line-through' : isPaid ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                  {isVoid ? formatMoney(0) : formatMoney(inv.balance_due_cents ?? inv.total_cents)}
+                                </td>
+                                <td className="p-3 text-center whitespace-nowrap">
+                                  <span
+                                    className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                      isVoid
+                                        ? 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                                        : isPaid
+                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                        : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                                    }`}
+                                  >
+                                    {isVoid ? 'VOID' : status}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        {(!selectedFinancials || selectedFinancials.allInvoices.filter((i) => i.status !== 'DRAFT').length === 0) && (
+                          <tr>
+                            <td colSpan={5} className="p-6 text-center text-slate-400">
+                              No finalized invoices recorded for this client.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
               {activeDossierSubTab === 'statement' && (
                 <div className="space-y-3">
                   <div className={`rounded-xl border overflow-hidden ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-                    <table className="w-full text-left text-xs">
-                      <thead className={`border-b font-bold ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-                        <tr>
-                          <th className="p-3">Date</th>
-                          <th className="p-3">Reference</th>
-                          <th className="p-3">Description</th>
-                          <th className="p-3 text-right">Debit (Invoiced)</th>
-                          <th className="p-3 text-right">Credit (Paid)</th>
-                          <th className="p-3 text-right">Running Balance</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {statementRows.length === 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className={`border-b font-bold ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
                           <tr>
-                            <td colSpan={6} className="p-6 text-center text-slate-400">
-                              No financial ledger transactions recorded.
-                            </td>
+                            <th className="p-3 whitespace-nowrap">Date</th>
+                            <th className="p-3 whitespace-nowrap">Reference</th>
+                            <th className="p-3">Description</th>
+                            <th className="p-3 text-right whitespace-nowrap">Debit (Invoiced)</th>
+                            <th className="p-3 text-right whitespace-nowrap">Credit (Paid)</th>
+                            <th className="p-3 text-right whitespace-nowrap">Running Balance</th>
                           </tr>
-                        ) : (
-                          statementRows.map((row, idx) => (
-                            <tr key={idx}>
-                              <td className="p-3 text-slate-500">{row.date}</td>
-                              <td className="p-3 font-mono font-bold text-indigo-500">{row.reference}</td>
-                              <td className="p-3 text-slate-600 dark:text-slate-300">{row.description}</td>
-                              <td className="p-3 text-right font-mono font-bold">
-                                {row.debitCents > 0 ? formatMoney(row.debitCents) : '—'}
-                              </td>
-                              <td className="p-3 text-right font-mono font-bold text-emerald-600">
-                                {row.creditCents > 0 ? formatMoney(row.creditCents) : '—'}
-                              </td>
-                              <td className="p-3 text-right font-mono font-bold text-amber-600">
-                                {formatMoney(row.runningBalanceCents)}
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {statementRows.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="p-6 text-center text-slate-400">
+                                No financial ledger transactions recorded.
                               </td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                          ) : (
+                            statementRows.map((row, idx) => (
+                              <tr key={idx}>
+                                <td className="p-3 text-slate-500 whitespace-nowrap">{row.date}</td>
+                                <td className="p-3 font-mono font-bold text-indigo-500 whitespace-nowrap">{row.reference}</td>
+                                <td className="p-3 text-slate-600 dark:text-slate-300">{row.description}</td>
+                                <td className="p-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">
+                                  {row.debitCents > 0 ? formatMoney(row.debitCents) : '—'}
+                                </td>
+                                <td className="p-3 text-right font-mono tabular-nums font-bold text-emerald-600 whitespace-nowrap">
+                                  {row.creditCents > 0 ? formatMoney(row.creditCents) : '—'}
+                                </td>
+                                <td className="p-3 text-right font-mono tabular-nums font-bold text-amber-600 whitespace-nowrap">
+                                  {formatMoney(row.runningBalanceCents)}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               )}
@@ -519,7 +567,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
       {/* Add / Edit Client Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`w-full max-w-md rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+          <div className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
             <h3 className="font-bold text-sm">
               {editingClient ? 'Edit Client Details' : 'Add New Client'}
             </h3>

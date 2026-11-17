@@ -64,6 +64,9 @@ export interface InvoiceRecord {
   currencyCode?: string;
   currencySymbol?: string;
   currencyDecimals?: number;
+  taxMode?: string;
+  pstRatePercentage?: number;
+  taxExemptionId?: string;
   createdAt: string;
 }
 
@@ -83,6 +86,9 @@ export interface EstimateRecord {
   currencyCode?: string;
   currencySymbol?: string;
   currencyDecimals?: number;
+  taxMode?: string;
+  pstRatePercentage?: number;
+  taxExemptionId?: string;
   createdAt: string;
 }
 
@@ -105,6 +111,45 @@ export interface BusinessProfile {
   taxId: string;
   paymentDetails: string;
   currencySymbol: string;
+  defaultTaxMode?: TaxMode;
+  defaultPstRatePercentage?: number;
+}
+
+export type TaxMode =
+  | 'standard'
+  | 'in_intra'
+  | 'in_inter'
+  | 'in_lut'
+  | 'eu_vat'
+  | 'eu_reverse_charge'
+  | 'ca_dual'
+  | 'gulf_vat'
+  | 'us_exempt';
+
+export const TAX_MODE_LABELS: Record<TaxMode, string> = {
+  standard: 'Standard Tax',
+  in_intra: 'India GST — Intra-State (CGST + SGST)',
+  in_inter: 'India GST — Inter-State (IGST)',
+  in_lut: 'India GST — Export under LUT (0%)',
+  eu_vat: 'EU / UK VAT — Standard',
+  eu_reverse_charge: 'EU / UK B2B Reverse Charge (0%)',
+  ca_dual: 'Canada Dual Tax (GST + PST)',
+  gulf_vat: 'Gulf / GCC VAT (KSA / UAE)',
+  us_exempt: 'US Sales Tax-Exempt (0%)',
+};
+
+export interface TaxBreakdownLine {
+  label: string;
+  cents: number;
+}
+
+export interface RegionalTaxBreakdown {
+  effectiveMode: TaxMode;
+  lines: TaxBreakdownLine[];
+  totalTaxCents: number;
+  noticeTitle: string;
+  noticeText: string;
+  isZeroRated: boolean;
 }
 
 /**
@@ -169,14 +214,36 @@ export function calculateInvoice(
 }
 
 /**
+ * Calculates tax in integer minor units using strict integer round-half-up math:
+ * floor((net * pct + 50) / 100).
+ */
+export function calculateTaxCents(netSubtotalCents: number, taxPercentage: number): number {
+  const safeSub = Math.max(0, Math.round(netSubtotalCents));
+  const safeTax = Math.max(0, Math.floor(taxPercentage));
+  return Math.floor((safeSub * safeTax + 50) / 100);
+}
+
+/**
+ * Calculates collected tax portion on partial/full payments using round-half-up integer math.
+ */
+export function calculateCollectedTaxPortion(
+  paidCents: number,
+  taxCents: number,
+  totalCents: number
+): number {
+  if (totalCents <= 0 || paidCents <= 0 || taxCents <= 0) return 0;
+  if (paidCents >= totalCents) return taxCents;
+  return Math.floor((paidCents * taxCents + Math.floor(totalCents / 2)) / totalCents);
+}
+
+/**
  * Calculates Subtotal, Tax, and Total strictly in integer cents for multi-line items.
  */
 export function calculateCartTotals(
   subtotalCents: number,
   taxPercentage: number
 ): InvoiceCalculation {
-  const safeTax = Math.max(0, Math.floor(taxPercentage));
-  const taxCents = Math.floor((subtotalCents * safeTax + 50) / 100);
+  const taxCents = calculateTaxCents(subtotalCents, taxPercentage);
   const totalCents = subtotalCents + taxCents;
 
   return {
@@ -353,6 +420,17 @@ export function formatMoney(units: number, symbol = '$', decimals = 2): string {
 }
 
 /**
+ * Formats minor units into an input-friendly or CSV decimal string (0 or 2 decimals).
+ */
+export function formatDecimalUnits(units: number, decimals = 2): string {
+  const safeUnits = Math.round(units);
+  if (decimals === 0) {
+    return String(safeUnits);
+  }
+  return (safeUnits / 100).toFixed(2);
+}
+
+/**
  * UI display formatting with dynamic currency symbol and decimal exponent.
  */
 export function formatCents(cents: number, symbol = '$', decimals = 2): string {
@@ -500,15 +578,122 @@ export function parseZeroDecimalPrice(input: string): number {
 
 /**
  * Extracts sequence number for custom prefixes using dynamic prefix length offset.
+ * Safely ignores DRAFT- entries and mismatched prefixes.
  */
 export function extractSequenceNumber(invoiceNumber: string, prefix: string): number {
-  if (!invoiceNumber.startsWith(prefix)) {
-    const match = invoiceNumber.match(/(\d+)$/);
-    return match ? parseInt(match[1], 10) : 0;
+  const trimmed = invoiceNumber.trim();
+  if (!trimmed || trimmed.toUpperCase().startsWith('DRAFT-')) {
+    return 0;
   }
-  const numericPart = invoiceNumber.substring(prefix.length);
+  if (!trimmed.startsWith(prefix)) {
+    return 0;
+  }
+  const numericPart = trimmed.substring(prefix.length);
+  if (!/^\d+$/.test(numericPart)) return 0;
   const parsed = parseInt(numericPart, 10);
   return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Generates the next sequential document number from existing numbers without .length+1 collisions.
+ */
+export function getNextSequentialDocNumber(
+  existingNumbers: string[],
+  prefix: string,
+  minNext = 1
+): string {
+  let maxSeq = 0;
+  for (const numStr of existingNumbers) {
+    const seq = extractSequenceNumber(numStr, prefix);
+    if (seq > maxSeq) maxSeq = seq;
+  }
+  const nextNum = Math.max(maxSeq + 1, minNext);
+  return `${prefix}${String(nextNum).padStart(4, '0')}`;
+}
+
+export interface DashboardMetrics {
+  totalInvoicedCents: number;
+  totalCollectedCents: number;
+  pendingBalanceCents: number;
+  overdueAmountCents: number;
+  overdueInvoices: any[];
+  taxCollectedOnPaymentsCents: number;
+  totalExpenseGrossCents: number;
+  totalExpenseTaxCents: number;
+  taxLiabilityCents: number;
+  netRevenueExclTaxCents: number;
+  netExpenseExclTaxCents: number;
+  netProfitCents: number;
+}
+
+/**
+ * Computes executive dashboard cash-flow metrics with strict Net Profit tax isolation.
+ */
+export function calculateDashboardMetrics(invoices: any[], expenses: any[]): DashboardMetrics {
+  const activeInvoices = invoices.filter((inv) => {
+    const st = String(inv.status || '').toUpperCase();
+    return st !== 'DRAFT' && st !== 'VOID';
+  });
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let totalInvoicedCents = 0;
+  let totalCollectedCents = 0;
+  let pendingBalanceCents = 0;
+  let overdueAmountCents = 0;
+  let taxCollectedOnPaymentsCents = 0;
+  const overdueInvoices: any[] = [];
+
+  for (const inv of activeInvoices) {
+    const total = inv.total_cents || 0;
+    const paid = inv.paid_cents || 0;
+    const balance = inv.balance_due_cents ?? Math.max(0, total - paid);
+    const tax = inv.tax_cents || 0;
+
+    totalInvoicedCents += total;
+    totalCollectedCents += paid;
+    pendingBalanceCents += balance;
+    taxCollectedOnPaymentsCents += calculateCollectedTaxPortion(paid, tax, total);
+
+    if (inv.due_date && balance > 0) {
+      const due = new Date(inv.due_date);
+      if (!isNaN(due.getTime())) {
+        due.setHours(0, 0, 0, 0);
+        if (today > due) {
+          overdueInvoices.push(inv);
+          overdueAmountCents += balance;
+        }
+      }
+    }
+  }
+
+  let totalExpenseGrossCents = 0;
+  let totalExpenseTaxCents = 0;
+  for (const exp of expenses) {
+    totalExpenseGrossCents += exp.total_cents || 0;
+    totalExpenseTaxCents += exp.tax_cents || 0;
+  }
+
+  const netRevenueExclTaxCents = totalCollectedCents - taxCollectedOnPaymentsCents;
+  const netExpenseExclTaxCents = Math.max(0, totalExpenseGrossCents - totalExpenseTaxCents);
+  const taxLiabilityCents = taxCollectedOnPaymentsCents - totalExpenseTaxCents;
+  const netProfitCents = netRevenueExclTaxCents - netExpenseExclTaxCents;
+
+  return {
+    totalInvoicedCents,
+    totalCollectedCents,
+    pendingBalanceCents,
+    overdueAmountCents,
+    overdueInvoices,
+    taxCollectedOnPaymentsCents,
+    totalExpenseGrossCents,
+    totalExpenseTaxCents,
+    taxLiabilityCents,
+    netRevenueExclTaxCents,
+    netExpenseExclTaxCents,
+    netProfitCents,
+  };
 }
 
 /**
@@ -563,3 +748,419 @@ export function generateDynamicQrPayload(
 
   return trimmed;
 }
+
+/**
+ * Validates parsed backup JSON snapshot before mutating application state.
+ */
+export function validateBackupPayload(data: unknown): {
+  valid: boolean;
+  error?: string;
+} {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return {
+      valid: false,
+      error: 'Invalid backup file: Root payload must be a JSON object.',
+    };
+  }
+
+  const record = data as Record<string, unknown>;
+  if (!Array.isArray(record.clients) || !Array.isArray(record.invoices)) {
+    return {
+      valid: false,
+      error: 'Invalid backup file: Missing required "clients" or "invoices" collections.',
+    };
+  }
+
+  const tableKeys = ['clients', 'invoices', 'estimates', 'expenses', 'savedItems'] as const;
+  for (const key of tableKeys) {
+    const val = record[key];
+    if (val === undefined) continue;
+    if (!Array.isArray(val)) {
+      return {
+        valid: false,
+        error: `Invalid backup file: "${key}" must be an array.`,
+      };
+    }
+    for (const item of val) {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        return {
+          valid: false,
+          error: `Invalid backup file: Entries in "${key}" must be JSON objects.`,
+        };
+      }
+    }
+  }
+
+  if (
+    record.businessProfile !== undefined &&
+    (!record.businessProfile ||
+      typeof record.businessProfile !== 'object' ||
+      Array.isArray(record.businessProfile))
+  ) {
+    return {
+      valid: false,
+      error: 'Invalid backup file: "businessProfile" must be a JSON object.',
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Normalizes a raw phone string for tel:/sms: URIs.
+ * Preserves a single leading '+' for E.164 numbers and strips formatting characters.
+ */
+export function normalizePhoneForUri(phone: string): string {
+  const trimmed = phone.trim();
+  if (!trimmed) return '';
+  const hasPlus = trimmed.startsWith('+');
+  const digits = trimmed.replace(/[^0-9]/g, '');
+  if (!digits) return '';
+  return hasPlus ? `+${digits}` : digits;
+}
+
+/**
+ * Returns digits-only phone number for wa.me links (strips '+').
+ */
+export function buildWhatsAppDigits(phone: string): string {
+  return phone.replace(/[^0-9]/g, '');
+}
+
+/**
+ * Builds a standardized, currency-aware payment reminder message.
+ */
+export function buildPaymentReminderMessage(params: {
+  invoiceNumber: string;
+  clientName: string;
+  balanceDueUnits: number;
+  currencySymbol: string;
+  currencyDecimals: number;
+  dueDate: string;
+  businessName: string;
+}): string {
+  const formattedAmount = formatMoney(
+    params.balanceDueUnits,
+    params.currencySymbol,
+    params.currencyDecimals
+  );
+  const safeClient = params.clientName.trim() || 'Client';
+  const safeBusiness = params.businessName.trim() || 'Accounts Team';
+  const safeDue = params.dueDate.trim() || 'recently';
+
+  return `Hi ${safeClient}, hope you're doing well! This is a polite note that Invoice ${params.invoiceNumber} for ${formattedAmount} was due on ${safeDue}. Please let us know if you need any assistance with remittance. Thank you! - ${safeBusiness}`;
+}
+
+/**
+ * Builds a WhatsApp wa.me URL, pre-filling recipient digits when available.
+ */
+export function buildWhatsAppUrl(phone: string, message: string): string {
+  const digits = buildWhatsAppDigits(phone);
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Builds a mailto: URL, pre-filling recipient email when available.
+ */
+export function buildMailtoUrl(email: string, subject: string, body: string): string {
+  const cleanEmail = email.trim();
+  return `mailto:${cleanEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+/**
+ * Builds an sms: URL for a normalized phone number, or null when phone is empty.
+ */
+export function buildSmsUrl(phone: string, body = ''): string | null {
+  const normalized = normalizePhoneForUri(phone);
+  if (!normalized) return null;
+  if (!body) return `sms:${normalized}`;
+  return `sms:${normalized}?body=${encodeURIComponent(body)}`;
+}
+
+/**
+ * Builds a tel: URL for a normalized phone number, or null when phone is empty.
+ */
+export function buildTelUrl(phone: string): string | null {
+  const normalized = normalizePhoneForUri(phone);
+  if (!normalized) return null;
+  return `tel:${normalized}`;
+}
+
+export function normalizeTaxMode(raw?: string | null): TaxMode {
+  const trimmed = (raw ?? '').trim();
+  if ((Object.keys(TAX_MODE_LABELS) as string[]).includes(trimmed)) {
+    return trimmed as TaxMode;
+  }
+  return 'standard';
+}
+
+export function isZeroRatedTaxMode(mode?: string | null): boolean {
+  const normalized = normalizeTaxMode(mode);
+  return (
+    normalized === 'in_lut' ||
+    normalized === 'eu_reverse_charge' ||
+    normalized === 'us_exempt'
+  );
+}
+
+/**
+ * Computes authoritative total tax minor units for a document based on its tax compliance mode.
+ */
+export function computeRegionalTaxCents(params: {
+  netSubtotalCents: number;
+  taxMode: string;
+  taxPercentage: number;
+  pstRatePercentage?: number;
+  itemsTaxSumCents?: number;
+}): number {
+  const mode = normalizeTaxMode(params.taxMode);
+  if (isZeroRatedTaxMode(mode)) return 0;
+
+  const itemsTaxSum = params.itemsTaxSumCents ?? 0;
+  if (mode === 'ca_dual') {
+    const gstCents =
+      itemsTaxSum > 0
+        ? itemsTaxSum
+        : calculateTaxCents(params.netSubtotalCents, params.taxPercentage);
+    const pstCents = calculateTaxCents(
+      params.netSubtotalCents,
+      params.pstRatePercentage ?? 0
+    );
+    return gstCents + pstCents;
+  }
+
+  return itemsTaxSum > 0
+    ? itemsTaxSum
+    : calculateTaxCents(params.netSubtotalCents, params.taxPercentage);
+}
+
+/**
+ * Resolves itemized tax summary lines and statutory compliance banners for UI rendering.
+ */
+export function resolveRegionalTaxBreakdown(params: {
+  taxMode?: string;
+  netSubtotalCents: number;
+  taxCents: number;
+  pstRatePercentage?: number;
+  taxExemptionId?: string;
+  businessTaxId?: string;
+  clientTaxId?: string;
+  fallbackAutoDetect?: boolean;
+  clientAddress?: string;
+  notes?: string;
+  terms?: string;
+}): RegionalTaxBreakdown {
+  let effectiveMode = normalizeTaxMode(params.taxMode);
+  const safeTax = Math.max(0, Math.round(params.taxCents || 0));
+
+  if (params.fallbackAutoDetect && effectiveMode === 'standard' && safeTax === 0) {
+    const cTax = (params.clientTaxId || '').trim().toUpperCase();
+    const cAddr = (params.clientAddress || '').trim().toUpperCase();
+    const invNotes = (params.notes || '').toUpperCase();
+    const invTerms = (params.terms || '').toUpperCase();
+
+    const isExport =
+      cAddr.includes('USA') ||
+      cAddr.includes('UNITED STATES') ||
+      cAddr.includes('EXPORT') ||
+      cAddr.includes('INTERNATIONAL') ||
+      cAddr.includes('UK') ||
+      cAddr.includes('LONDON') ||
+      cAddr.includes('DUBAI') ||
+      cAddr.includes('SINGAPORE') ||
+      cAddr.includes('LUT') ||
+      invNotes.includes('EXPORT') ||
+      invTerms.includes('EXPORT');
+
+    const isEuVat =
+      cTax.startsWith('GB') ||
+      cTax.startsWith('DE') ||
+      cTax.startsWith('FR') ||
+      cTax.startsWith('NL') ||
+      cTax.startsWith('IE') ||
+      cTax.startsWith('IT') ||
+      cTax.startsWith('ES') ||
+      cTax.startsWith('BE') ||
+      cTax.startsWith('AT') ||
+      cTax.startsWith('SE') ||
+      cTax.startsWith('DK') ||
+      cTax.startsWith('FI') ||
+      cTax.startsWith('PL') ||
+      cTax.startsWith('CZ') ||
+      cTax.startsWith('PT') ||
+      cTax.startsWith('RO') ||
+      cTax.startsWith('HU') ||
+      cTax.startsWith('GR') ||
+      cTax.includes('VAT');
+
+    if (isExport) {
+      effectiveMode = 'in_lut';
+    } else if (isEuVat) {
+      effectiveMode = 'eu_reverse_charge';
+    }
+  }
+
+  switch (effectiveMode) {
+    case 'in_intra': {
+      if (safeTax === 0) {
+        return {
+          effectiveMode: 'in_intra',
+          lines: [{ label: 'CGST / SGST (0%)', cents: 0 }],
+          totalTaxCents: 0,
+          noticeTitle: '',
+          noticeText: '',
+          isZeroRated: false,
+        };
+      }
+      const split = calculateGstSplit(safeTax, true);
+      return {
+        effectiveMode: 'in_intra',
+        lines: [
+          { label: 'CGST (50% Split)', cents: split.cgstCents },
+          { label: 'SGST (50% Split)', cents: split.sgstCents },
+        ],
+        totalTaxCents: safeTax,
+        noticeTitle: '',
+        noticeText: '',
+        isZeroRated: false,
+      };
+    }
+
+    case 'in_inter': {
+      const split = calculateGstSplit(safeTax, false);
+      return {
+        effectiveMode: 'in_inter',
+        lines: [{ label: 'IGST (100%)', cents: split.igstCents }],
+        totalTaxCents: safeTax,
+        noticeTitle: '',
+        noticeText: '',
+        isZeroRated: false,
+      };
+    }
+
+    case 'in_lut':
+      return {
+        effectiveMode: 'in_lut',
+        lines: [{ label: 'IGST (0% Export LUT)', cents: 0 }],
+        totalTaxCents: 0,
+        noticeTitle: 'EXPORT UNDER LUT (RULE 96A)',
+        noticeText: getLutNotice(true),
+        isZeroRated: true,
+      };
+
+    case 'eu_vat':
+      return {
+        effectiveMode: 'eu_vat',
+        lines: [{ label: safeTax > 0 ? 'VAT' : 'VAT (0%)', cents: safeTax }],
+        totalTaxCents: safeTax,
+        noticeTitle: '',
+        noticeText: '',
+        isZeroRated: false,
+      };
+
+    case 'eu_reverse_charge':
+      return {
+        effectiveMode: 'eu_reverse_charge',
+        lines: [{ label: 'VAT (0% Reverse Charge)', cents: 0 }],
+        totalTaxCents: 0,
+        noticeTitle: 'EU / UK B2B REVERSE CHARGE',
+        noticeText: getEuReverseChargeNotice(true),
+        isZeroRated: true,
+      };
+
+    case 'ca_dual': {
+      if (safeTax === 0) {
+        return {
+          effectiveMode: 'ca_dual',
+          lines: [
+            { label: 'GST', cents: 0 },
+            { label: 'PST', cents: 0 },
+          ],
+          totalTaxCents: 0,
+          noticeTitle: '',
+          noticeText: '',
+          isZeroRated: false,
+        };
+      }
+      const pstPct = params.pstRatePercentage ?? 0;
+      const rawPst = calculateTaxCents(params.netSubtotalCents, pstPct);
+      const pstCents = Math.min(safeTax, rawPst);
+      const gstCents = safeTax - pstCents;
+      return {
+        effectiveMode: 'ca_dual',
+        lines: [
+          { label: 'GST', cents: gstCents },
+          { label: pstPct > 0 ? `PST (${pstPct}%)` : 'PST', cents: pstCents },
+        ],
+        totalTaxCents: safeTax,
+        noticeTitle: '',
+        noticeText: '',
+        isZeroRated: false,
+      };
+    }
+
+    case 'gulf_vat': {
+      const trnParts: string[] = [];
+      if ((params.businessTaxId || '').trim()) {
+        trnParts.push(`Supplier TRN / VAT ID: ${(params.businessTaxId || '').trim()}`);
+      }
+      if ((params.clientTaxId || '').trim()) {
+        trnParts.push(`Customer TRN / VAT ID: ${(params.clientTaxId || '').trim()}`);
+      }
+      return {
+        effectiveMode: 'gulf_vat',
+        lines: [{ label: safeTax > 0 ? 'VAT' : 'VAT (0%)', cents: safeTax }],
+        totalTaxCents: safeTax,
+        noticeTitle: trnParts.length > 0 ? 'GCC / GULF TAX INVOICE' : '',
+        noticeText: trnParts.join('  •  '),
+        isZeroRated: false,
+      };
+    }
+
+    case 'us_exempt': {
+      const cleanExemptId = (params.taxExemptionId || '').trim();
+      return {
+        effectiveMode: 'us_exempt',
+        lines: [{ label: 'Tax (0% Exempt)', cents: 0 }],
+        totalTaxCents: 0,
+        noticeTitle: 'US SALES TAX-EXEMPT SUPPLY',
+        noticeText: cleanExemptId
+          ? `Tax-Exempt Supply — Client Exemption Certificate ID: ${cleanExemptId}`
+          : 'Tax-Exempt Supply — Zero sales tax assessed.',
+        isZeroRated: true,
+      };
+    }
+
+    case 'standard':
+    default:
+      return {
+        effectiveMode: 'standard',
+        lines: [
+          {
+            label: safeTax > 0 ? 'Tax' : 'Tax (0% / Exempt)',
+            cents: safeTax,
+          },
+        ],
+        totalTaxCents: safeTax,
+        noticeTitle: '',
+        noticeText: '',
+        isZeroRated: false,
+      };
+  }
+}
+
+export function getRegionalTaxIdLabel(taxMode?: string | null, isClient = false): string {
+  const mode = normalizeTaxMode(taxMode);
+  const prefix = isClient ? 'Client ' : '';
+  if (mode === 'in_intra' || mode === 'in_inter' || mode === 'in_lut') {
+    return `${prefix}GSTIN`;
+  }
+  if (mode === 'gulf_vat') {
+    return `${prefix}TRN / VAT ID`;
+  }
+  if (mode === 'eu_vat' || mode === 'eu_reverse_charge') {
+    return `${prefix}VAT ID`;
+  }
+  return `${prefix}Tax ID`;
+}
+
+

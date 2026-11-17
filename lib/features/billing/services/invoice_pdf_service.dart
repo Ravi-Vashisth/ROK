@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../../../../core/utils/money_utils.dart';
+import '../../../../core/utils/tax_compliance_utils.dart';
 import '../../business_profile/models/business_profile.dart';
 import '../../clients/models/client.dart';
 import '../../estimates/models/estimate_item.dart';
@@ -14,6 +15,28 @@ import '../../invoices/models/invoice_record.dart';
 import '../../payments/models/payment_record.dart';
 
 class InvoicePdfService {
+  static pw.ThemeData? _cachedFontTheme;
+
+  /// Loads offline bundled DejaVuSans fonts (with full Unicode currency glyph support)
+  /// without making any runtime HTTPS requests. Falls back to built-in Helvetica in
+  /// assetless test environments.
+  static Future<pw.ThemeData> _loadOfflineFontTheme() async {
+    if (_cachedFontTheme != null) return _cachedFontTheme!;
+    try {
+      final regularData = await rootBundle.load('assets/fonts/DejaVuSans.ttf');
+      final boldData = await rootBundle.load('assets/fonts/DejaVuSans-Bold.ttf');
+      final fontRegular = pw.Font.ttf(regularData);
+      final fontBold = pw.Font.ttf(boldData);
+      _cachedFontTheme = pw.ThemeData.withFont(base: fontRegular, bold: fontBold);
+    } catch (_) {
+      _cachedFontTheme = pw.ThemeData.withFont(
+        base: pw.Font.helvetica(),
+        bold: pw.Font.helveticaBold(),
+      );
+    }
+    return _cachedFontTheme!;
+  }
+
   /// Safely decode base64 image bytes or return null on invalid input.
   static Uint8List? _safeDecodeBase64(String input) {
     if (input.trim().isEmpty) return null;
@@ -30,7 +53,7 @@ class InvoicePdfService {
     return input.replaceAll(r'\n', '\n').trim();
   }
 
-  /// Generates a print-ready A4 PDF invoice document using Noto Sans for full Unicode symbol support (₹, €, £, $, ¥).
+  /// Generates a print-ready A4 MultiPage PDF invoice document using bundled offline DejaVuSans fonts.
   static Future<Uint8List> generateInvoicePdf({
     required InvoiceRecord invoice,
     required List<InvoiceItem> items,
@@ -38,9 +61,7 @@ class InvoicePdfService {
     required BusinessProfile businessProfile,
     List<PaymentRecord> payments = const [],
   }) async {
-    final fontRegular = await PdfGoogleFonts.notoSansRegular();
-    final fontBold = await PdfGoogleFonts.notoSansBold();
-    final fontTheme = pw.ThemeData.withFont(base: fontRegular, bold: fontBold);
+    final fontTheme = await _loadOfflineFontTheme();
 
     final pdf = pw.Document(
       title: 'Invoice ${invoice.invoiceNumber}',
@@ -102,16 +123,37 @@ class InvoicePdfService {
 
     final logoBytes = _safeDecodeBase64(businessProfile.logoBase64);
     final signatureBytes = _safeDecodeBase64(businessProfile.signatureBase64);
+    final taxBreakdown = resolveRegionalTaxBreakdown(
+      taxMode: invoice.taxMode,
+      netSubtotalCents: invoice.netSubtotalCents,
+      taxCents: invoice.taxCents,
+      pstRatePercentage: invoice.pstRatePercentage,
+      taxExemptionId: invoice.taxExemptionId,
+      businessTaxId: businessProfile.taxId,
+      clientTaxId: client.taxId,
+      fallbackAutoDetect: true,
+      clientAddress: client.address,
+      notes: invoice.notes,
+      terms: invoice.terms,
+    );
+    final supplierTaxLabel = getRegionalTaxIdLabel(taxBreakdown.effectiveMode);
+    final clientTaxLabel = getRegionalTaxIdLabel(taxBreakdown.effectiveMode, isClient: true);
 
     pdf.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(36),
         theme: fontTheme,
+        footer: (pw.Context context) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          margin: const pw.EdgeInsets.only(top: 8),
+          child: pw.Text(
+            'Page ${context.pageNumber} of ${context.pagesCount}',
+            style: pw.TextStyle(fontSize: 8, color: PdfColor.fromHex('#94A3B8')),
+          ),
+        ),
         build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
+          return [
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -241,7 +283,7 @@ class InvoicePdfService {
                         if (businessProfile.taxId.isNotEmpty) ...[
                           pw.SizedBox(height: 3),
                           pw.Text(
-                            'GSTIN / Tax ID: ${businessProfile.taxId}',
+                            '$supplierTaxLabel: ${businessProfile.taxId}',
                             style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#475569')),
                           ),
                         ],
@@ -282,7 +324,7 @@ class InvoicePdfService {
                         if (client.taxId.isNotEmpty) ...[
                           pw.SizedBox(height: 3),
                           pw.Text(
-                            'Client GSTIN / Tax ID: ${client.taxId}',
+                            '$clientTaxLabel: ${client.taxId}',
                             style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#475569')),
                           ),
                         ],
@@ -294,88 +336,60 @@ class InvoicePdfService {
 
               pw.SizedBox(height: 16),
 
-              // Statutory Compliance Banner (Rule 96A LUT Export / EU Reverse Charge)
-              if (invoice.taxCents == 0) ...[
-                () {
-                  final cTax = client.taxId.trim().toUpperCase();
-                  final cAddr = client.address.trim().toUpperCase();
-                  final invNotes = invoice.notes.toUpperCase();
-                  final invTerms = invoice.terms.toUpperCase();
-                  final isExport = cAddr.contains('USA') ||
-                      cAddr.contains('UNITED STATES') ||
-                      cAddr.contains('EXPORT') ||
-                      cAddr.contains('INTERNATIONAL') ||
-                      cAddr.contains('UK') ||
-                      cAddr.contains('LONDON') ||
-                      cAddr.contains('DUBAI') ||
-                      cAddr.contains('SINGAPORE') ||
-                      cAddr.contains('LUT') ||
-                      invNotes.contains('EXPORT') ||
-                      invTerms.contains('EXPORT');
-                  final isEuVat = cTax.startsWith('GB') ||
-                      cTax.startsWith('DE') ||
-                      cTax.startsWith('FR') ||
-                      cTax.startsWith('NL') ||
-                      cTax.startsWith('IE') ||
-                      cTax.startsWith('IT') ||
-                      cTax.startsWith('ES') ||
-                      cTax.startsWith('BE') ||
-                      cTax.startsWith('AT') ||
-                      cTax.startsWith('SE') ||
-                      cTax.startsWith('DK') ||
-                      cTax.startsWith('FI') ||
-                      cTax.startsWith('PL') ||
-                      cTax.startsWith('CZ') ||
-                      cTax.startsWith('PT') ||
-                      cTax.startsWith('RO') ||
-                      cTax.startsWith('HU') ||
-                      cTax.startsWith('GR') ||
-                      cTax.contains('VAT');
-
-                  if (isExport) {
-                    return pw.Container(
-                      width: double.infinity,
-                      margin: const pw.EdgeInsets.only(bottom: 12),
-                      padding: const pw.EdgeInsets.all(8),
-                      decoration: pw.BoxDecoration(
-                        color: PdfColor.fromHex('#EEF2FF'),
-                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-                        border: pw.Border.all(color: PdfColor.fromHex('#6366F1'), width: 1),
-                      ),
-                      child: pw.Text(
-                        'SUPPLY MEANT FOR EXPORT UNDER BOND OR LETTER OF UNDERTAKING WITHOUT PAYMENT OF INTEGRATED TAX',
+              // Statutory Compliance Banner (LUT / EU Reverse Charge / US Exempt / Gulf TRN)
+              if (taxBreakdown.noticeText.isNotEmpty)
+                pw.Container(
+                  width: double.infinity,
+                  margin: const pw.EdgeInsets.only(bottom: 12),
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: pw.BoxDecoration(
+                    color: taxBreakdown.effectiveMode == TaxMode.euReverseCharge
+                        ? PdfColor.fromHex('#F0FDF4')
+                        : (taxBreakdown.effectiveMode == TaxMode.gulfVat
+                            ? PdfColor.fromHex('#FFFBEB')
+                            : PdfColor.fromHex('#EEF2FF')),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                    border: pw.Border.all(
+                      color: taxBreakdown.effectiveMode == TaxMode.euReverseCharge
+                          ? PdfColor.fromHex('#10B981')
+                          : (taxBreakdown.effectiveMode == TaxMode.gulfVat
+                              ? PdfColor.fromHex('#F59E0B')
+                              : PdfColor.fromHex('#6366F1')),
+                      width: 1,
+                    ),
+                  ),
+                  child: pw.Column(
+                    children: [
+                      if (taxBreakdown.noticeTitle.isNotEmpty)
+                        pw.Text(
+                          taxBreakdown.noticeTitle,
+                          style: pw.TextStyle(
+                            fontSize: 8.5,
+                            fontWeight: pw.FontWeight.bold,
+                            color: taxBreakdown.effectiveMode == TaxMode.euReverseCharge
+                                ? PdfColor.fromHex('#065F46')
+                                : (taxBreakdown.effectiveMode == TaxMode.gulfVat
+                                    ? PdfColor.fromHex('#92400E')
+                                    : PdfColor.fromHex('#312E81')),
+                          ),
+                          textAlign: pw.TextAlign.center,
+                        ),
+                      pw.Text(
+                        taxBreakdown.noticeText,
                         style: pw.TextStyle(
                           fontSize: 8.5,
                           fontWeight: pw.FontWeight.bold,
-                          color: PdfColor.fromHex('#312E81'),
+                          color: taxBreakdown.effectiveMode == TaxMode.euReverseCharge
+                              ? PdfColor.fromHex('#065F46')
+                              : (taxBreakdown.effectiveMode == TaxMode.gulfVat
+                                  ? PdfColor.fromHex('#78350F')
+                                  : PdfColor.fromHex('#312E81')),
                         ),
                         textAlign: pw.TextAlign.center,
                       ),
-                    );
-                  } else if (isEuVat) {
-                    return pw.Container(
-                      width: double.infinity,
-                      margin: const pw.EdgeInsets.only(bottom: 12),
-                      padding: const pw.EdgeInsets.all(8),
-                      decoration: pw.BoxDecoration(
-                        color: PdfColor.fromHex('#F0FDF4'),
-                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-                        border: pw.Border.all(color: PdfColor.fromHex('#10B981'), width: 1),
-                      ),
-                      child: pw.Text(
-                        'Reverse charge: Customer to account for VAT under Article 196 of Council Directive 2006/112/EC.',
-                        style: pw.TextStyle(
-                          fontSize: 8.5,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColor.fromHex('#065F46'),
-                        ),
-                        textAlign: pw.TextAlign.center,
-                      ),
-                    );
-                  }
-                  return pw.SizedBox.shrink();
-                }(),
-              ],
+                    ],
+                  ),
+                ),
 
               pw.Text(
                 'LINE ITEMS',
@@ -500,6 +514,7 @@ class InvoicePdfService {
                 ),
               ],
 
+              pw.SizedBox(height: 14),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.end,
                 children: [
@@ -517,21 +532,9 @@ class InvoicePdfService {
                             isBold: true,
                           ),
                         ],
-                        pw.SizedBox(height: 3),
-                        if (invoice.taxCents > 0) ...[
-                          () {
-                            final cgst = invoice.taxCents ~/ 2;
-                            final sgst = invoice.taxCents - cgst;
-                            return pw.Column(
-                              children: [
-                                _buildSummaryLine('CGST (50% Split)', formatCents(cgst, symbol: sym, decimals: dec)),
-                                pw.SizedBox(height: 3),
-                                _buildSummaryLine('SGST (50% Split)', formatCents(sgst, symbol: sym, decimals: dec)),
-                              ],
-                            );
-                          }(),
-                        ] else ...[
-                          _buildSummaryLine('Tax (0% / Exempt)', formatCents(0, symbol: sym, decimals: dec)),
+                        for (final line in taxBreakdown.lines) ...[
+                          pw.SizedBox(height: 3),
+                          _buildSummaryLine(line.label, formatCents(line.cents, symbol: sym, decimals: dec)),
                         ],
                         pw.SizedBox(height: 3),
                         pw.Divider(color: PdfColor.fromHex('#E2E8F0'), thickness: 0.8),
@@ -582,7 +585,7 @@ class InvoicePdfService {
                 ],
               ),
 
-              pw.Spacer(),
+              pw.SizedBox(height: 16),
 
               if (effectiveTerms.isNotEmpty || effectiveNotes.isNotEmpty) ...[
                 pw.Container(
@@ -749,8 +752,7 @@ class InvoicePdfService {
                   ),
                 ),
               ],
-            ],
-          );
+            ];
         },
       ),
     );
@@ -758,16 +760,14 @@ class InvoicePdfService {
     return pdf.save();
   }
 
-  /// Generates a proposal / estimate PDF document titled "ESTIMATE / QUOTE".
+  /// Generates a proposal / estimate MultiPage PDF document titled "ESTIMATE / QUOTE".
   static Future<Uint8List> generateEstimatePdf({
     required EstimateRecord estimate,
     required List<EstimateItem> items,
     required Client client,
     required BusinessProfile businessProfile,
   }) async {
-    final fontRegular = await PdfGoogleFonts.notoSansRegular();
-    final fontBold = await PdfGoogleFonts.notoSansBold();
-    final fontTheme = pw.ThemeData.withFont(base: fontRegular, bold: fontBold);
+    final fontTheme = await _loadOfflineFontTheme();
 
     final pdf = pw.Document(
       title: 'Estimate ${estimate.estimateNumber}',
@@ -786,16 +786,37 @@ class InvoicePdfService {
 
     final logoBytes = _safeDecodeBase64(businessProfile.logoBase64);
     final signatureBytes = _safeDecodeBase64(businessProfile.signatureBase64);
+    final estBreakdown = resolveRegionalTaxBreakdown(
+      taxMode: estimate.taxMode,
+      netSubtotalCents: estimate.netSubtotalCents,
+      taxCents: estimate.taxCents,
+      pstRatePercentage: estimate.pstRatePercentage,
+      taxExemptionId: estimate.taxExemptionId,
+      businessTaxId: businessProfile.taxId,
+      clientTaxId: client.taxId,
+      fallbackAutoDetect: true,
+      clientAddress: client.address,
+      notes: estimate.notes,
+      terms: estimate.terms,
+    );
+    final estSupplierTaxLabel = getRegionalTaxIdLabel(estBreakdown.effectiveMode);
+    final estClientTaxLabel = getRegionalTaxIdLabel(estBreakdown.effectiveMode, isClient: true);
 
     pdf.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(36),
         theme: fontTheme,
+        footer: (pw.Context context) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          margin: const pw.EdgeInsets.only(top: 8),
+          child: pw.Text(
+            'Page ${context.pageNumber} of ${context.pagesCount}',
+            style: pw.TextStyle(fontSize: 8, color: PdfColor.fromHex('#94A3B8')),
+          ),
+        ),
         build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
+          return [
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -912,6 +933,8 @@ class InvoicePdfService {
                         ),
                         if (businessProfile.email.isNotEmpty)
                           pw.Text(businessProfile.email, style: pw.TextStyle(fontSize: 9.5, color: PdfColor.fromHex('#475569'))),
+                        if (businessProfile.taxId.isNotEmpty)
+                          pw.Text('$estSupplierTaxLabel: ${businessProfile.taxId}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#475569'))),
                       ],
                     ),
                   ),
@@ -931,6 +954,8 @@ class InvoicePdfService {
                         ),
                         if (client.email.isNotEmpty)
                           pw.Text(client.email, style: pw.TextStyle(fontSize: 9.5, color: PdfColor.fromHex('#475569'))),
+                        if (client.taxId.isNotEmpty)
+                          pw.Text('$estClientTaxLabel: ${client.taxId}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#475569'))),
                       ],
                     ),
                   ),
@@ -938,6 +963,41 @@ class InvoicePdfService {
               ),
 
               pw.SizedBox(height: 16),
+
+              if (estBreakdown.noticeText.isNotEmpty) ...[
+                pw.Container(
+                  width: double.infinity,
+                  margin: const pw.EdgeInsets.only(bottom: 12),
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: pw.BoxDecoration(
+                    color: estBreakdown.effectiveMode == TaxMode.euReverseCharge
+                        ? PdfColor.fromHex('#F0FDF4')
+                        : PdfColor.fromHex('#EEF2FF'),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                    border: pw.Border.all(
+                      color: estBreakdown.effectiveMode == TaxMode.euReverseCharge
+                          ? PdfColor.fromHex('#10B981')
+                          : PdfColor.fromHex('#6366F1'),
+                      width: 1,
+                    ),
+                  ),
+                  child: pw.Column(
+                    children: [
+                      if (estBreakdown.noticeTitle.isNotEmpty)
+                        pw.Text(
+                          estBreakdown.noticeTitle,
+                          style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1E293B')),
+                          textAlign: pw.TextAlign.center,
+                        ),
+                      pw.Text(
+                        estBreakdown.noticeText,
+                        style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#334155')),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               pw.Text(
                 'PROPOSED ITEMS & SERVICES',
@@ -1008,8 +1068,10 @@ class InvoicePdfService {
                             isBold: true,
                           ),
                         ],
-                        pw.SizedBox(height: 3),
-                        _buildSummaryLine('Estimated Tax', formatCents(estimate.taxCents, symbol: sym, decimals: dec)),
+                        for (final line in estBreakdown.lines) ...[
+                          pw.SizedBox(height: 3),
+                          _buildSummaryLine(line.label, formatCents(line.cents, symbol: sym, decimals: dec)),
+                        ],
                         pw.SizedBox(height: 3),
                         pw.Divider(color: PdfColor.fromHex('#E2E8F0'), thickness: 0.8),
                         pw.SizedBox(height: 3),
@@ -1026,7 +1088,7 @@ class InvoicePdfService {
                 ],
               ),
 
-              pw.Spacer(),
+              pw.SizedBox(height: 16),
 
               if (effectiveTerms.isNotEmpty || effectiveNotes.isNotEmpty) ...[
                 pw.Container(
@@ -1109,8 +1171,7 @@ class InvoicePdfService {
                   ],
                 ],
               ),
-            ],
-          );
+            ];
         },
       ),
     );
@@ -1125,9 +1186,7 @@ class InvoicePdfService {
     required BusinessProfile businessProfile,
     List<PaymentRecord> payments = const [],
   }) async {
-    final fontRegular = await PdfGoogleFonts.notoSansRegular();
-    final fontBold = await PdfGoogleFonts.notoSansBold();
-    final fontTheme = pw.ThemeData.withFont(base: fontRegular, bold: fontBold);
+    final fontTheme = await _loadOfflineFontTheme();
 
     final pdf = pw.Document(
       title: 'Statement of Account - ${client.name}',
@@ -1156,6 +1215,14 @@ class InvoicePdfService {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(36),
         theme: fontTheme,
+        footer: (pw.Context context) => pw.Container(
+          alignment: pw.Alignment.centerRight,
+          margin: const pw.EdgeInsets.only(top: 8),
+          child: pw.Text(
+            'Page ${context.pageNumber} of ${context.pagesCount}',
+            style: pw.TextStyle(fontSize: 8, color: PdfColor.fromHex('#94A3B8')),
+          ),
+        ),
         build: (pw.Context context) {
           return [
             // Business Header

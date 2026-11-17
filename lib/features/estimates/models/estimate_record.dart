@@ -22,6 +22,9 @@ class EstimateRecord {
   final String currencyCode;
   final String currencySymbol;
   final int currencyDecimals;
+  final String taxMode;
+  final int pstRatePercentage;
+  final String taxExemptionId;
   final String createdAt;
 
   const EstimateRecord({
@@ -45,6 +48,9 @@ class EstimateRecord {
     this.currencyCode = '',
     this.currencySymbol = '',
     this.currencyDecimals = 2,
+    this.taxMode = 'standard',
+    this.pstRatePercentage = 0,
+    this.taxExemptionId = '',
     required this.createdAt,
   });
 
@@ -70,6 +76,9 @@ class EstimateRecord {
       currencyCode: (row['currency_code'] as String?) ?? '',
       currencySymbol: (row['currency_symbol'] as String?) ?? '',
       currencyDecimals: (row['currency_decimals'] as int?) ?? 2,
+      taxMode: (row['tax_mode'] as String?) ?? 'standard',
+      pstRatePercentage: (row['pst_rate_percentage'] as int?) ?? 0,
+      taxExemptionId: (row['tax_exemption_id'] as String?) ?? '',
       createdAt: row['created_at'] as String,
     );
   }

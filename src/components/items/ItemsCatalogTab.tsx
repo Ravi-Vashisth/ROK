@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Package, Plus, Trash2, Edit2, ArrowLeft, Check } from 'lucide-react';
+import { formatDecimalUnits, getCurrencyDecimals, parsePriceToUnits } from '../../billingRules';
 
 interface ItemsCatalogTabProps {
   savedItems: any[];
@@ -36,10 +37,12 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
   const [editSacHsn, setEditSacHsn] = useState<string>('');
   const [editDescription, setEditDescription] = useState<string>('');
 
+  const curDec = getCurrencyDecimals(currencySymbol);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    const cents = parsePriceToCents(priceStr);
+    const cents = parsePriceToUnits(priceStr, curDec);
     onAddItem({
       title: title.trim(),
       default_price_cents: cents,
@@ -57,14 +60,14 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
     setEditTitle(item.title || '');
     setEditSacHsn(item.sac_hsn || item.sacHsn || '');
     const priceCents = item.default_price_cents ?? item.defaultPriceCents ?? 0;
-    setEditPriceStr((priceCents / 100).toFixed(2));
+    setEditPriceStr(formatDecimalUnits(priceCents, curDec));
     setEditDescription(item.description || '');
   };
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem || !editTitle.trim()) return;
-    const cents = parsePriceToCents(editPriceStr);
+    const cents = parsePriceToUnits(editPriceStr, curDec);
     if (onUpdateItem) {
       onUpdateItem(editingItem.id, {
         title: editTitle.trim(),
@@ -77,14 +80,12 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
   };
 
   const handleDeletePrompt = (item: any) => {
-    if (confirm(`Are you sure you want to delete "${item.title}" from the catalog?`)) {
-      onDeleteItem(item);
-    }
+    onDeleteItem(item);
   };
 
   return (
     <div className="space-y-6">
-      <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+      <div className={`p-4 rounded-xl border flex flex-wrap items-center justify-between gap-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
         <button onClick={onBack} className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer">
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Settings</span>
@@ -95,7 +96,7 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
       {/* Add Item Form */}
       <form onSubmit={handleSubmit} className={`p-5 rounded-xl border space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
         <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">Add Preset Service or Product</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 min-[900px]:grid-cols-3 gap-3">
           <input
             type="text"
             value={title}
@@ -119,7 +120,7 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
             className={`p-2.5 rounded-xl text-xs border ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
           />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <input
             type="text"
             value={description}
@@ -129,7 +130,7 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
           />
           <button
             type="submit"
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer transition shadow-xs shrink-0"
+            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer transition shadow-xs shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Save Service Preset</span>
@@ -177,7 +178,7 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
                     <td className="p-3 text-slate-400 font-mono">
                       {item.sac_hsn || item.sacHsn || '—'}
                     </td>
-                    <td className="p-3 text-right font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                    <td className="p-3 text-right font-mono tabular-nums font-bold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
                       {formatMoney(item.default_price_cents ?? item.defaultPriceCents ?? 0)}
                     </td>
                     <td className="p-3 text-center">
@@ -209,7 +210,7 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
       {/* Edit Item Modal */}
       {editingItem && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`w-full max-w-md rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+          <div className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
             <h3 className="font-bold text-sm">Edit Catalog Item</h3>
             <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
               <div>
