@@ -4,8 +4,8 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import '../../../../core/utils/money_utils.dart';
-import '../../../../core/utils/tax_compliance_utils.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/core/utils/tax_compliance_utils.dart';
 import '../../business_profile/models/business_profile.dart';
 import '../../clients/models/client.dart';
 import '../../estimates/models/estimate_item.dart';

@@ -496,7 +496,7 @@ void main() {
   group('Group 8: P2 Regional Tax Compliance Engine', () {
     test('India Intra-State CGST/SGST splits odd minor units cleanly without float error', () {
       final breakdown = resolveRegionalTaxBreakdown(
-        taxMode: TaxMode.inIntra.value,
+        taxMode: TaxMode.inIntra,
         netSubtotalCents: 1739,
         taxCents: 313,
       );
@@ -506,12 +506,12 @@ void main() {
       expect(breakdown.lines[1].label, equals('SGST (50% Split)'));
       expect(breakdown.lines[1].cents, equals(157));
       expect(breakdown.lines[0].cents + breakdown.lines[1].cents, equals(313));
-      expect(getRegionalTaxIdLabel(TaxMode.inIntra.value), equals('GSTIN'));
+      expect(getRegionalTaxIdLabel(TaxMode.inIntra), equals('GSTIN'));
     });
 
     test('India Inter-State IGST and Export under LUT (Rule 96A) compute exact tax & notice', () {
       final inter = resolveRegionalTaxBreakdown(
-        taxMode: TaxMode.inInter.value,
+        taxMode: TaxMode.inInter,
         netSubtotalCents: 10000,
         taxCents: 1800,
       );
@@ -520,13 +520,13 @@ void main() {
 
       final lutTax = computeRegionalTaxCents(
         netSubtotalCents: 50000,
-        taxMode: TaxMode.inLut.value,
+        taxMode: TaxMode.inLut,
         taxPercentage: 18,
         itemsTaxSumCents: 9000,
       );
       expect(lutTax, equals(0));
       final lutBreakdown = resolveRegionalTaxBreakdown(
-        taxMode: TaxMode.inLut.value,
+        taxMode: TaxMode.inLut,
         netSubtotalCents: 50000,
         taxCents: lutTax,
       );
@@ -538,31 +538,31 @@ void main() {
     test('EU/UK Reverse Charge zero-rates tax and includes Article 196 Directive notice', () {
       final tax = computeRegionalTaxCents(
         netSubtotalCents: 20000,
-        taxMode: TaxMode.euReverseCharge.value,
+        taxMode: TaxMode.euReverseCharge,
         taxPercentage: 20,
         itemsTaxSumCents: 4000,
       );
       expect(tax, equals(0));
       final breakdown = resolveRegionalTaxBreakdown(
-        taxMode: TaxMode.euReverseCharge.value,
+        taxMode: TaxMode.euReverseCharge,
         netSubtotalCents: 20000,
         taxCents: tax,
       );
       expect(breakdown.isZeroRated, isTrue);
       expect(breakdown.noticeText, contains('Article 196 of Council Directive 2006/112/EC'));
-      expect(getRegionalTaxIdLabel(TaxMode.euReverseCharge.value, isClient: true), equals('Client VAT ID'));
+      expect(getRegionalTaxIdLabel(TaxMode.euReverseCharge, isClient: true), equals('Client VAT ID'));
     });
 
     test('Canada Dual Tax (GST + PST) preserves integer minor units across 2-decimal and 0-decimal JPY', () {
       final totalUsdTax = computeRegionalTaxCents(
         netSubtotalCents: 10000,
-        taxMode: TaxMode.caDual.value,
+        taxMode: TaxMode.caDual,
         taxPercentage: 5,
         pstRatePercentage: 7,
       );
       expect(totalUsdTax, equals(1200));
       final usdBreakdown = resolveRegionalTaxBreakdown(
-        taxMode: TaxMode.caDual.value,
+        taxMode: TaxMode.caDual,
         netSubtotalCents: 10000,
         taxCents: totalUsdTax,
         pstRatePercentage: 7,
@@ -575,7 +575,7 @@ void main() {
       // 0-decimal JPY check (¥50,000 @ 5% GST + 7% PST = ¥2,500 + ¥3,500 = ¥6,000)
       final jpyTax = computeRegionalTaxCents(
         netSubtotalCents: 50000,
-        taxMode: TaxMode.caDual.value,
+        taxMode: TaxMode.caDual,
         taxPercentage: 5,
         pstRatePercentage: 7,
       );
@@ -584,7 +584,7 @@ void main() {
 
     test('Gulf VAT displays Supplier/Client TRN & US Tax-Exempt enforces 0% with Exemption ID', () {
       final gulfBreakdown = resolveRegionalTaxBreakdown(
-        taxMode: TaxMode.gulfVat.value,
+        taxMode: TaxMode.gulfVat,
         netSubtotalCents: 10000,
         taxCents: 1500,
         businessTaxId: 'TRN-100200300',
@@ -593,17 +593,17 @@ void main() {
       expect(gulfBreakdown.noticeTitle, equals('GCC / GULF TAX INVOICE'));
       expect(gulfBreakdown.noticeText, contains('Supplier TRN / VAT ID: TRN-100200300'));
       expect(gulfBreakdown.noticeText, contains('Customer TRN / VAT ID: TRN-999888777'));
-      expect(getRegionalTaxIdLabel(TaxMode.gulfVat.value), equals('TRN / VAT ID'));
+      expect(getRegionalTaxIdLabel(TaxMode.gulfVat), equals('TRN / VAT ID'));
 
       final exemptTax = computeRegionalTaxCents(
         netSubtotalCents: 25000,
-        taxMode: TaxMode.usExempt.value,
+        taxMode: TaxMode.usExempt,
         taxPercentage: 8,
         itemsTaxSumCents: 2000,
       );
       expect(exemptTax, equals(0));
       final exemptBreakdown = resolveRegionalTaxBreakdown(
-        taxMode: TaxMode.usExempt.value,
+        taxMode: TaxMode.usExempt,
         netSubtotalCents: 25000,
         taxCents: exemptTax,
         taxExemptionId: 'EX-TX-2026',
@@ -613,7 +613,7 @@ void main() {
 
       // Legacy auto-detect fallback when taxMode is standard & taxCents is 0
       final legacyEu = resolveRegionalTaxBreakdown(
-        taxMode: TaxMode.standard.value,
+        taxMode: TaxMode.standard,
         netSubtotalCents: 10000,
         taxCents: 0,
         clientTaxId: 'DE123456789',

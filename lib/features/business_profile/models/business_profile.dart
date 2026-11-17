@@ -1,6 +1,6 @@
 import 'package:sqlite3/sqlite3.dart' hide Row;
 import 'package:sqlite3/sqlite3.dart' as sql show Row;
-import '../../../../core/utils/money_utils.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
 
 class BusinessProfile {
   final String id;
