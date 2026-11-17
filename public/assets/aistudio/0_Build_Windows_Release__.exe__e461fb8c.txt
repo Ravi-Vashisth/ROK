@@ -1,0 +1,823 @@
+﻿2026-11-17T04:23:20.5051990Z Current runner version: '2.338.2'
+2026-11-17T04:23:20.5080437Z ##[group]Runner Image Provisioner
+2026-11-17T04:23:20.5081215Z Hosted Compute Agent
+2026-11-17T04:23:20.5081786Z Version: 20261103.629
+2026-11-17T04:23:20.5082480Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-17T04:23:20.5083170Z Build Date: 2026-11-03T17:26:59Z
+2026-11-17T04:23:20.5083822Z Worker ID: {78774773-09b1-4fe1-a300-fa2caca795d0}
+2026-11-17T04:23:20.5084520Z Region: westus
+2026-11-17T04:23:20.5085046Z Cloud: Azure
+2026-11-17T04:23:20.5085572Z ##[endgroup]
+2026-11-17T04:23:20.5086939Z ##[group]Operating System
+2026-11-17T04:23:20.5087609Z Microsoft Windows Server 2025
+2026-11-17T04:23:20.5088171Z 10.0.26100
+2026-11-17T04:23:20.5088633Z Datacenter
+2026-11-17T04:23:20.5089151Z ##[endgroup]
+2026-11-17T04:23:20.5089641Z ##[group]Runner Image
+2026-11-17T04:23:20.5090206Z Image: windows-2025-vs2026
+2026-11-17T04:23:20.5090871Z Version: 20261103.298.1
+2026-11-17T04:23:20.5092315Z Included Software: https://github.com/actions/runner-images/blob/win25-vs2026/20261103.298/images/windows/Windows2025-VS2026-Readme.md
+2026-11-17T04:23:20.5093969Z Image Release: https://github.com/actions/runner-images/releases/tag/win25-vs2026%2F20261103.298
+2026-11-17T04:23:20.5095586Z ##[endgroup]
+2026-11-17T04:23:20.5096619Z ##[group]GITHUB_TOKEN Permissions
+2026-11-17T04:23:20.5098523Z Contents: write
+2026-11-17T04:23:20.5099100Z Metadata: read
+2026-11-17T04:23:20.5099580Z ##[endgroup]
+2026-11-17T04:23:20.5101703Z Secret source: Actions
+2026-11-17T04:23:20.5102604Z Cache mode: write
+2026-11-17T04:23:20.5103353Z Prepare workflow directory
+2026-11-17T04:23:20.5461555Z Prepare all required actions
+2026-11-17T04:23:20.5521292Z Getting action download info
+2026-11-17T04:23:20.9086824Z Download action repository 'actions/checkout@v4.2.2' (SHA:11bd71901bbe5b1630ceea73d27597364c9af683)
+2026-11-17T04:23:21.0416116Z Download action repository 'subosito/flutter-action@v2.18.0' (SHA:f2c4f6686ca8e8d6e6d0f28410eeef506ed66aff)
+2026-11-17T04:23:21.3169046Z Download action repository 'actions/upload-artifact@v4.4.3' (SHA:b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882)
+2026-11-17T04:23:21.5570736Z Getting action download info
+2026-11-17T04:23:21.6883872Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-11-17T04:23:21.9103945Z Complete job name: Build Windows Release (.exe)
+2026-11-17T04:23:22.0697986Z ##[group]Run actions/checkout@v4.2.2
+2026-11-17T04:23:22.0699502Z with:
+2026-11-17T04:23:22.0700286Z   repository: Ravi-Vashisth/ROK
+2026-11-17T04:23:22.0708724Z   token: ***
+2026-11-17T04:23:22.0709529Z   ssh-strict: true
+2026-11-17T04:23:22.0710307Z   ssh-user: git
+2026-11-17T04:23:22.0711331Z   persist-credentials: true
+2026-11-17T04:23:22.0712216Z   clean: true
+2026-11-17T04:23:22.0713014Z   sparse-checkout-cone-mode: true
+2026-11-17T04:23:22.0713964Z   fetch-depth: 1
+2026-11-17T04:23:22.0714781Z   fetch-tags: false
+2026-11-17T04:23:22.0715560Z   show-progress: true
+2026-11-17T04:23:22.0716373Z   lfs: false
+2026-11-17T04:23:22.0717112Z   submodules: false
+2026-11-17T04:23:22.0717900Z   set-safe-directory: true
+2026-11-17T04:23:22.0719136Z ##[endgroup]
+2026-11-17T04:23:22.2171219Z Syncing repository: Ravi-Vashisth/ROK
+2026-11-17T04:23:22.2173718Z ##[group]Getting Git version info
+2026-11-17T04:23:22.2174770Z Working directory is 'D:\a\ROK\ROK'
+2026-11-17T04:23:22.3218103Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-11-17T04:23:22.6445812Z git version 2.56.0.windows.4
+2026-11-17T04:23:22.6502428Z ##[endgroup]
+2026-11-17T04:23:22.6523386Z Temporarily overriding HOME='D:\a\_temp\48665b5d-f3b8-4fbb-8eb3-03c08a5954ac' before making global git config changes
+2026-11-17T04:23:22.6525803Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-17T04:23:22.6533809Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\ROK\ROK
+2026-11-17T04:23:22.7158083Z Deleting the contents of 'D:\a\ROK\ROK'
+2026-11-17T04:23:22.7165192Z ##[group]Initializing the repository
+2026-11-17T04:23:22.7174158Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\ROK\ROK
+2026-11-17T04:23:22.8076667Z Initialized empty Git repository in D:/a/ROK/ROK/.git/
+2026-11-17T04:23:22.8128926Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/Ravi-Vashisth/ROK
+2026-11-17T04:23:22.8846555Z ##[endgroup]
+2026-11-17T04:23:22.8848052Z ##[group]Disabling automatic garbage collection
+2026-11-17T04:23:22.8855444Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+2026-11-17T04:23:22.9268819Z ##[endgroup]
+2026-11-17T04:23:22.9270166Z ##[group]Setting up auth
+2026-11-17T04:23:22.9286630Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-11-17T04:23:22.9714341Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-11-17T04:23:24.4445838Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-17T04:23:24.4830393Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-11-17T04:23:25.0595666Z [command]"C:\Program Files\Git\bin\git.exe" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+2026-11-17T04:23:25.1006530Z ##[endgroup]
+2026-11-17T04:23:25.1007679Z ##[group]Fetching the repository
+2026-11-17T04:23:25.1023072Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +6d79afa7a2f2a11785fc19dfb7233b60f2982024:refs/remotes/origin/main
+2026-11-17T04:23:26.4746213Z From https://github.com/Ravi-Vashisth/ROK
+2026-11-17T04:23:26.4747238Z  * [new ref]         6d79afa7a2f2a11785fc19dfb7233b60f2982024 -> origin/main
+2026-11-17T04:23:26.4787074Z ##[endgroup]
+2026-11-17T04:23:26.4787542Z ##[group]Determining the checkout info
+2026-11-17T04:23:26.4790783Z ##[endgroup]
+2026-11-17T04:23:26.4805416Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+2026-11-17T04:23:26.5387318Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-11-17T04:23:26.5765024Z ##[group]Checking out the ref
+2026-11-17T04:23:26.5774067Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force -B main refs/remotes/origin/main
+2026-11-17T04:23:26.7546235Z Switched to a new branch 'main'
+2026-11-17T04:23:26.8807975Z branch 'main' set up to track 'origin/main'.
+2026-11-17T04:23:26.8934351Z ##[endgroup]
+2026-11-17T04:23:26.9404274Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+2026-11-17T04:23:26.9765700Z 6d79afa7a2f2a11785fc19dfb7233b60f2982024
+2026-11-17T04:23:27.0366699Z ##[group]Run subosito/flutter-action@v2.18.0
+2026-11-17T04:23:27.0367096Z with:
+2026-11-17T04:23:27.0367301Z   channel: stable
+2026-11-17T04:23:27.0367556Z   cache: true
+2026-11-17T04:23:27.0367749Z   architecture: X64
+2026-11-17T04:23:27.0367973Z   pub-cache-path: default
+2026-11-17T04:23:27.0368200Z   dry-run: false
+2026-11-17T04:23:27.0368712Z   git-source: https://github.com/flutter/flutter.git
+2026-11-17T04:23:27.0369045Z ##[endgroup]
+2026-11-17T04:23:27.0433896Z ##[start-action display=Make yq tool available on Windows runners;id=__subosito_flutter-action.__run]
+2026-11-17T04:23:27.0614996Z ##[group]Run choco install yq
+2026-11-17T04:23:27.0615337Z [36;1mchoco install yq[0m
+2026-11-17T04:23:27.0636504Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-17T04:23:27.0636955Z ##[endgroup]
+2026-11-17T04:23:30.0258306Z Chocolatey v2.7.5
+2026-11-17T04:23:30.3024901Z Installing the following packages:
+2026-11-17T04:23:30.3029661Z yq
+2026-11-17T04:23:30.3033907Z By installing, you accept licenses for the packages.
+2026-11-17T04:23:33.2029759Z Downloading package from source 'https://community.chocolatey.org/api/v2/'
+2026-11-17T04:23:33.3023758Z 
+2026-11-17T04:23:33.3024339Z Progress: Downloading yq 4.54.3... 29%
+2026-11-17T04:23:33.3024964Z Progress: Downloading yq 4.54.3... 84%
+2026-11-17T04:23:33.3025440Z Progress: Downloading yq 4.54.3... 100%
+2026-11-17T04:23:33.5340532Z 
+2026-11-17T04:23:33.5341000Z yq v4.54.3 [Approved]
+2026-11-17T04:23:33.5573941Z yq package files install completed. Performing other installation steps.
+2026-11-17T04:23:36.5324522Z Downloading yq 64 bit
+2026-11-17T04:23:36.5325174Z   from 'https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_windows_amd64.exe'
+2026-11-17T04:23:36.6801581Z 
+2026-11-17T04:23:36.6830295Z Progress: 1% - Saving 160 KB of 15.25 MB
+2026-11-17T04:23:36.6857207Z Progress: 2% - Saving 317.93 KB of 15.25 MB
+2026-11-17T04:23:36.6889653Z Progress: 3% - Saving 475.1 KB of 15.25 MB
+2026-11-17T04:23:36.6938953Z Progress: 4% - Saving 635.1 KB of 15.25 MB
+2026-11-17T04:23:36.6959279Z Progress: 5% - Saving 795.1 KB of 15.25 MB
+2026-11-17T04:23:36.6989411Z Progress: 6% - Saving 955.1 KB of 15.25 MB
+2026-11-17T04:23:36.7035726Z Progress: 7% - Saving 1.09 MB of 15.25 MB
+2026-11-17T04:23:36.7064722Z Progress: 8% - Saving 1.25 MB of 15.25 MB
+2026-11-17T04:23:36.7096147Z Progress: 9% - Saving 1.4 MB of 15.25 MB
+2026-11-17T04:23:36.7121619Z Progress: 10% - Saving 1.56 MB of 15.25 MB
+2026-11-17T04:23:36.7157682Z Progress: 11% - Saving 1.71 MB of 15.25 MB
+2026-11-17T04:23:36.7181566Z Progress: 12% - Saving 1.87 MB of 15.25 MB
+2026-11-17T04:23:36.7203114Z Progress: 13% - Saving 2.03 MB of 15.25 MB
+2026-11-17T04:23:36.7228914Z Progress: 14% - Saving 2.18 MB of 15.25 MB
+2026-11-17T04:23:36.7252968Z Progress: 15% - Saving 2.34 MB of 15.25 MB
+2026-11-17T04:23:36.7278028Z Progress: 16% - Saving 2.5 MB of 15.25 MB
+2026-11-17T04:23:36.7310785Z Progress: 17% - Saving 2.65 MB of 15.25 MB
+2026-11-17T04:23:36.7334676Z Progress: 18% - Saving 2.81 MB of 15.25 MB
+2026-11-17T04:23:36.7353442Z Progress: 19% - Saving 2.96 MB of 15.25 MB
+2026-11-17T04:23:36.7373386Z Progress: 20% - Saving 3.12 MB of 15.25 MB
+2026-11-17T04:23:36.7393858Z Progress: 21% - Saving 3.28 MB of 15.25 MB
+2026-11-17T04:23:36.7426394Z Progress: 22% - Saving 3.43 MB of 15.25 MB
+2026-11-17T04:23:36.7449713Z Progress: 23% - Saving 3.59 MB of 15.25 MB
+2026-11-17T04:23:36.7474071Z Progress: 24% - Saving 3.75 MB of 15.25 MB
+2026-11-17T04:23:36.7586447Z Progress: 25% - Saving 3.9 MB of 15.25 MB
+2026-11-17T04:23:36.7607705Z Progress: 26% - Saving 4.06 MB of 15.25 MB
+2026-11-17T04:23:36.7633672Z Progress: 27% - Saving 4.21 MB of 15.25 MB
+2026-11-17T04:23:36.7652069Z Progress: 28% - Saving 4.37 MB of 15.25 MB
+2026-11-17T04:23:36.7672176Z Progress: 29% - Saving 4.53 MB of 15.25 MB
+2026-11-17T04:23:36.7691803Z Progress: 30% - Saving 4.68 MB of 15.25 MB
+2026-11-17T04:23:36.7717660Z Progress: 31% - Saving 4.84 MB of 15.25 MB
+2026-11-17T04:23:36.7735264Z Progress: 32% - Saving 5 MB of 15.25 MB
+2026-11-17T04:23:36.7757105Z Progress: 33% - Saving 5.15 MB of 15.25 MB
+2026-11-17T04:23:36.7778353Z Progress: 34% - Saving 5.31 MB of 15.25 MB
+2026-11-17T04:23:36.7798032Z Progress: 35% - Saving 5.46 MB of 15.25 MB
+2026-11-17T04:23:36.7816557Z Progress: 36% - Saving 5.62 MB of 15.25 MB
+2026-11-17T04:23:36.7839472Z Progress: 37% - Saving 5.78 MB of 15.25 MB
+2026-11-17T04:23:36.7857342Z Progress: 38% - Saving 5.93 MB of 15.25 MB
+2026-11-17T04:23:36.7876342Z Progress: 39% - Saving 6.09 MB of 15.25 MB
+2026-11-17T04:23:36.7942892Z Progress: 40% - Saving 6.25 MB of 15.25 MB
+2026-11-17T04:23:36.7960756Z Progress: 41% - Saving 6.4 MB of 15.25 MB
+2026-11-17T04:23:36.7979169Z Progress: 43% - Saving 6.56 MB of 15.25 MB
+2026-11-17T04:23:36.8001047Z Progress: 44% - Saving 6.71 MB of 15.25 MB
+2026-11-17T04:23:36.8021657Z Progress: 45% - Saving 6.87 MB of 15.25 MB
+2026-11-17T04:23:36.8042374Z Progress: 46% - Saving 7.03 MB of 15.25 MB
+2026-11-17T04:23:36.8067955Z Progress: 47% - Saving 7.18 MB of 15.25 MB
+2026-11-17T04:23:36.8085409Z Progress: 48% - Saving 7.34 MB of 15.25 MB
+2026-11-17T04:23:36.8104699Z Progress: 49% - Saving 7.5 MB of 15.25 MB
+2026-11-17T04:23:36.8122035Z Progress: 50% - Saving 7.65 MB of 15.25 MB
+2026-11-17T04:23:36.8143027Z Progress: 51% - Saving 7.81 MB of 15.25 MB
+2026-11-17T04:23:36.8161560Z Progress: 52% - Saving 7.96 MB of 15.25 MB
+2026-11-17T04:23:36.8182261Z Progress: 53% - Saving 8.12 MB of 15.25 MB
+2026-11-17T04:23:36.8201094Z Progress: 54% - Saving 8.28 MB of 15.25 MB
+2026-11-17T04:23:36.8223910Z Progress: 55% - Saving 8.43 MB of 15.25 MB
+2026-11-17T04:23:36.8244721Z Progress: 56% - Saving 8.59 MB of 15.25 MB
+2026-11-17T04:23:36.8267176Z Progress: 57% - Saving 8.75 MB of 15.25 MB
+2026-11-17T04:23:36.8291459Z Progress: 58% - Saving 8.9 MB of 15.25 MB
+2026-11-17T04:23:36.8310801Z Progress: 59% - Saving 9.06 MB of 15.25 MB
+2026-11-17T04:23:36.8331835Z Progress: 60% - Saving 9.21 MB of 15.25 MB
+2026-11-17T04:23:36.8349984Z Progress: 61% - Saving 9.37 MB of 15.25 MB
+2026-11-17T04:23:36.8370002Z Progress: 62% - Saving 9.53 MB of 15.25 MB
+2026-11-17T04:23:36.8388854Z Progress: 63% - Saving 9.68 MB of 15.25 MB
+2026-11-17T04:23:36.8408524Z Progress: 64% - Saving 9.84 MB of 15.25 MB
+2026-11-17T04:23:36.8687778Z Progress: 65% - Saving 10 MB of 15.25 MB
+2026-11-17T04:23:36.8707338Z Progress: 66% - Saving 10.14 MB of 15.25 MB
+2026-11-17T04:23:36.8727854Z Progress: 67% - Saving 10.28 MB of 15.25 MB
+2026-11-17T04:23:36.8746780Z Progress: 68% - Saving 10.44 MB of 15.25 MB
+2026-11-17T04:23:36.8765737Z Progress: 69% - Saving 10.6 MB of 15.25 MB
+2026-11-17T04:23:36.8784704Z Progress: 70% - Saving 10.75 MB of 15.25 MB
+2026-11-17T04:23:36.8804777Z Progress: 71% - Saving 10.91 MB of 15.25 MB
+2026-11-17T04:23:36.8824292Z Progress: 72% - Saving 11.07 MB of 15.25 MB
+2026-11-17T04:23:36.8843846Z Progress: 73% - Saving 11.22 MB of 15.25 MB
+2026-11-17T04:23:36.8865036Z Progress: 74% - Saving 11.38 MB of 15.25 MB
+2026-11-17T04:23:36.8884870Z Progress: 75% - Saving 11.53 MB of 15.25 MB
+2026-11-17T04:23:36.8908465Z Progress: 76% - Saving 11.68 MB of 15.25 MB
+2026-11-17T04:23:36.8927300Z Progress: 77% - Saving 11.84 MB of 15.25 MB
+2026-11-17T04:23:36.8946342Z Progress: 78% - Saving 11.99 MB of 15.25 MB
+2026-11-17T04:23:36.8964663Z Progress: 79% - Saving 12.15 MB of 15.25 MB
+2026-11-17T04:23:36.8984715Z Progress: 80% - Saving 12.31 MB of 15.25 MB
+2026-11-17T04:23:36.9003354Z Progress: 81% - Saving 12.46 MB of 15.25 MB
+2026-11-17T04:23:36.9024053Z Progress: 82% - Saving 12.62 MB of 15.25 MB
+2026-11-17T04:23:36.9042285Z Progress: 83% - Saving 12.77 MB of 15.25 MB
+2026-11-17T04:23:36.9060883Z Progress: 84% - Saving 12.93 MB of 15.25 MB
+2026-11-17T04:23:36.9080854Z Progress: 85% - Saving 13.09 MB of 15.25 MB
+2026-11-17T04:23:36.9099593Z Progress: 86% - Saving 13.24 MB of 15.25 MB
+2026-11-17T04:23:36.9127177Z Progress: 87% - Saving 13.4 MB of 15.25 MB
+2026-11-17T04:23:36.9146836Z Progress: 88% - Saving 13.56 MB of 15.25 MB
+2026-11-17T04:23:36.9164606Z Progress: 89% - Saving 13.71 MB of 15.25 MB
+2026-11-17T04:23:36.9188255Z Progress: 90% - Saving 13.87 MB of 15.25 MB
+2026-11-17T04:23:36.9205850Z Progress: 91% - Saving 14.02 MB of 15.25 MB
+2026-11-17T04:23:36.9225079Z Progress: 92% - Saving 14.18 MB of 15.25 MB
+2026-11-17T04:23:36.9249601Z Progress: 94% - Saving 14.34 MB of 15.25 MB
+2026-11-17T04:23:36.9269480Z Progress: 95% - Saving 14.49 MB of 15.25 MB
+2026-11-17T04:23:36.9287063Z Progress: 96% - Saving 14.65 MB of 15.25 MB
+2026-11-17T04:23:36.9306593Z Progress: 97% - Saving 14.81 MB of 15.25 MB
+2026-11-17T04:23:36.9324941Z Progress: 98% - Saving 14.96 MB of 15.25 MB
+2026-11-17T04:23:36.9376609Z Progress: 99% - Saving 15.12 MB of 15.25 MB
+2026-11-17T04:23:36.9382729Z Progress: 100% - Saving 15.25 MB of 15.25 MB
+2026-11-17T04:23:36.9388190Z Progress: 100% - Completed download of C:\ProgramData\chocolatey\lib\yq\tools\yq.exe (15.25 MB).
+2026-11-17T04:23:36.9407075Z Download of yq.exe (15.25 MB) completed.
+2026-11-17T04:23:41.6404488Z Hashes match.
+2026-11-17T04:23:41.6738121Z C:\ProgramData\chocolatey\lib\yq\tools\yq.exe
+2026-11-17T04:23:42.6738874Z  ShimGen has successfully created a shim for yq.exe
+2026-11-17T04:23:42.7325084Z  The install of yq was successful.
+2026-11-17T04:23:42.7328279Z   Software install location not explicitly set, it could be in package or
+2026-11-17T04:23:42.7328891Z   default install location of installer.
+2026-11-17T04:23:42.7512031Z 
+2026-11-17T04:23:42.7512404Z Chocolatey installed 1/1 packages. 
+2026-11-17T04:23:42.7513096Z  See the log for details (C:\ProgramData\chocolatey\logs\chocolatey.log).
+2026-11-17T04:23:42.7963915Z ##[end-action id=__subosito_flutter-action.__run;outcome=success;conclusion=success;duration_ms=15752]
+2026-11-17T04:23:42.7966684Z ##[start-action display=Make setup script executable;id=__subosito_flutter-action.__run_2]
+2026-11-17T04:23:42.8106242Z ##[group]Run chmod +x "$GITHUB_ACTION_PATH/setup.sh"
+2026-11-17T04:23:42.8106627Z [36;1mchmod +x "$GITHUB_ACTION_PATH/setup.sh"[0m
+2026-11-17T04:23:42.8124787Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-17T04:23:42.8125679Z ##[endgroup]
+2026-11-17T04:23:42.8942941Z ##[end-action id=__subosito_flutter-action.__run_2;outcome=success;conclusion=success;duration_ms=97]
+2026-11-17T04:23:42.8945661Z ##[start-action display=Set action inputs;id=__subosito_flutter-action.flutter-action]
+2026-11-17T04:23:42.9103679Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh -p \
+2026-11-17T04:23:42.9104076Z [36;1m$GITHUB_ACTION_PATH/setup.sh -p \[0m
+2026-11-17T04:23:42.9104367Z [36;1m  -n '' \[0m
+2026-11-17T04:23:42.9104565Z [36;1m  -f '' \[0m
+2026-11-17T04:23:42.9104750Z [36;1m  -a 'X64' \[0m
+2026-11-17T04:23:42.9104940Z [36;1m  -k '' \[0m
+2026-11-17T04:23:42.9105117Z [36;1m  -c '' \[0m
+2026-11-17T04:23:42.9105290Z [36;1m  -l '' \[0m
+2026-11-17T04:23:42.9105483Z [36;1m  -d 'default' \[0m
+2026-11-17T04:23:42.9105791Z [36;1m  -g 'https://github.com/flutter/flutter.git' \[0m
+2026-11-17T04:23:42.9106127Z [36;1m  stable[0m
+2026-11-17T04:23:42.9122179Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-17T04:23:42.9122610Z ##[endgroup]
+2026-11-17T04:23:45.6684268Z ##[end-action id=__subosito_flutter-action.flutter-action;outcome=success;conclusion=success;duration_ms=2773]
+2026-11-17T04:23:45.6689178Z ##[start-action display=Cache Flutter;id=__subosito_flutter-action.__actions_cache]
+2026-11-17T04:23:45.6864430Z ##[group]Run actions/cache@v4
+2026-11-17T04:23:45.6864666Z with:
+2026-11-17T04:23:45.6864937Z   path: C:\hostedtoolcache\windows\flutter\stable-3.50.0-x64
+2026-11-17T04:23:45.6865434Z   key: flutter-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+2026-11-17T04:23:45.6866067Z   restore-keys: flutter-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+
+2026-11-17T04:23:45.6866547Z   enableCrossOsArchive: false
+2026-11-17T04:23:45.6866797Z   fail-on-cache-miss: false
+2026-11-17T04:23:45.6867179Z   lookup-only: false
+2026-11-17T04:23:45.6867384Z   save-always: false
+2026-11-17T04:23:45.6867580Z ##[endgroup]
+2026-11-17T04:23:45.8189513Z (node:6576) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-17T04:23:45.8190646Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-17T04:23:46.2363520Z Cache hit for: flutter-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+2026-11-17T04:23:46.2486289Z (node:6576) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-17T04:23:47.5086503Z Received 37748736 of 1864606219 (2.0%), 35.9 MBs/sec
+2026-11-17T04:23:48.5122953Z Received 138412032 of 1864606219 (7.4%), 65.8 MBs/sec
+2026-11-17T04:23:49.5127160Z Received 293601280 of 1864606219 (15.7%), 93.1 MBs/sec
+2026-11-17T04:23:50.5133007Z Received 411041792 of 1864606219 (22.0%), 97.8 MBs/sec
+2026-11-17T04:23:51.5276567Z Received 570425344 of 1864606219 (30.6%), 108.3 MBs/sec
+2026-11-17T04:23:52.5397677Z Received 717225984 of 1864606219 (38.5%), 113.4 MBs/sec
+2026-11-17T04:23:53.5609518Z Received 830472192 of 1864606219 (44.5%), 112.3 MBs/sec
+2026-11-17T04:23:54.5713618Z Received 985661440 of 1864606219 (52.9%), 116.6 MBs/sec
+2026-11-17T04:23:55.5649969Z Received 1107296256 of 1864606219 (59.4%), 116.6 MBs/sec
+2026-11-17T04:23:56.5713359Z Received 1237319680 of 1864606219 (66.4%), 117.2 MBs/sec
+2026-11-17T04:23:57.5741646Z Received 1405091840 of 1864606219 (75.4%), 121.1 MBs/sec
+2026-11-17T04:23:58.5807003Z Received 1535115264 of 1864606219 (82.3%), 121.3 MBs/sec
+2026-11-17T04:23:59.5858490Z Received 1694498816 of 1864606219 (90.9%), 123.5 MBs/sec
+2026-11-17T04:24:00.6056501Z Received 1837105152 of 1864606219 (98.5%), 124.3 MBs/sec
+2026-11-17T04:24:00.9091997Z Received 1864606219 of 1864606219 (100.0%), 123.5 MBs/sec
+2026-11-17T04:24:00.9097439Z Cache Size: ~1778 MB (1864606219 B)
+2026-11-17T04:24:00.9144676Z [command]"C:\Program Files\Git\usr\bin\tar.exe" -xf D:/a/_temp/c91d9a1b-fd1f-4658-bc38-54cf08e2105a/cache.tzst -P -C D:/a/ROK/ROK --force-local --use-compress-program "zstd -d"
+2026-11-17T04:24:43.3222838Z Cache restored successfully
+2026-11-17T04:24:43.4323824Z Cache restored from key: flutter-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+2026-11-17T04:24:43.4510283Z ##[end-action id=__subosito_flutter-action.__actions_cache;outcome=success;conclusion=success;duration_ms=57782]
+2026-11-17T04:24:43.4513325Z ##[start-action display=Cache pub dependencies;id=__subosito_flutter-action.__actions_cache_2]
+2026-11-17T04:24:43.7847633Z ##[group]Run actions/cache@v4
+2026-11-17T04:24:43.7847885Z with:
+2026-11-17T04:24:43.7848123Z   path: C:\Users\runneradmin\AppData\Local\Pub\Cache
+2026-11-17T04:24:43.7848641Z   key: flutter-pub-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb-
+2026-11-17T04:24:43.7849684Z   restore-keys: flutter-pub-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb-
+flutter-pub-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+
+2026-11-17T04:24:43.7850524Z   enableCrossOsArchive: false
+2026-11-17T04:24:43.7850777Z   fail-on-cache-miss: false
+2026-11-17T04:24:43.7851009Z   lookup-only: false
+2026-11-17T04:24:43.7851214Z   save-always: false
+2026-11-17T04:24:43.7851423Z ##[endgroup]
+2026-11-17T04:24:43.9171731Z (node:8644) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-17T04:24:43.9172476Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-17T04:24:44.2652638Z Cache hit for: flutter-pub-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb-
+2026-11-17T04:24:44.2768879Z (node:8644) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-17T04:24:45.5974049Z Received 41943040 of 45900679 (91.4%), 39.5 MBs/sec
+2026-11-17T04:24:45.6620326Z Received 45900679 of 45900679 (100.0%), 40.6 MBs/sec
+2026-11-17T04:24:45.6624163Z Cache Size: ~44 MB (45900679 B)
+2026-11-17T04:24:45.6663692Z [command]"C:\Program Files\Git\usr\bin\tar.exe" -xf D:/a/_temp/d382c28d-88e8-4511-ab82-49a84af76e24/cache.tzst -P -C D:/a/ROK/ROK --force-local --use-compress-program "zstd -d"
+2026-11-17T04:25:04.4433662Z Cache restored successfully
+2026-11-17T04:25:04.4593165Z Cache restored from key: flutter-pub-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb-
+2026-11-17T04:25:04.4719635Z ##[end-action id=__subosito_flutter-action.__actions_cache_2;outcome=success;conclusion=success;duration_ms=21020]
+2026-11-17T04:25:04.4723408Z ##[start-action display=Run setup script;id=__subosito_flutter-action.__run_3]
+2026-11-17T04:25:04.4901353Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh \
+2026-11-17T04:25:04.4901910Z [36;1m$GITHUB_ACTION_PATH/setup.sh \[0m
+2026-11-17T04:25:04.4902199Z [36;1m  -n '3.50.0' \[0m
+2026-11-17T04:25:04.4902429Z [36;1m  -a 'x64' \[0m
+2026-11-17T04:25:04.4902770Z [36;1m  -c 'C:\hostedtoolcache\windows\flutter\stable-3.50.0-x64' \[0m
+2026-11-17T04:25:04.4903133Z [36;1m  stable[0m
+2026-11-17T04:25:04.4919579Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-17T04:25:04.4920006Z ##[endgroup]
+2026-11-17T04:25:06.6697464Z ##[end-action id=__subosito_flutter-action.__run_3;outcome=success;conclusion=success;duration_ms=2197]
+2026-11-17T04:25:06.6885467Z ##[group]Run flutter config --enable-windows-desktop
+2026-11-17T04:25:06.6886056Z [36;1mflutter config --enable-windows-desktop[0m
+2026-11-17T04:25:06.6886525Z [36;1mflutter create --platforms=windows .[0m
+2026-11-17T04:25:06.6887058Z [36;1mpwsh -ExecutionPolicy Bypass -File scripts/patch_windows.ps1[0m
+2026-11-17T04:25:06.7633573Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-11-17T04:25:06.7634057Z env:
+2026-11-17T04:25:06.7634418Z   FLUTTER_ROOT: C:\hostedtoolcache\windows\flutter\stable-3.50.0-x64
+2026-11-17T04:25:06.7634942Z   PUB_CACHE: C:\Users\runneradmin\AppData\Local\Pub\Cache
+2026-11-17T04:25:06.7635324Z ##[endgroup]
+2026-11-17T04:25:08.8304592Z Setting "enable-windows-desktop" value to "true".
+2026-11-17T04:25:08.8306745Z 
+2026-11-17T04:25:08.8307301Z You may need to restart any open editors for them to read new settings.
+2026-11-17T04:25:09.8244059Z Recreating project ....
+2026-11-17T04:25:09.8925234Z   .idea\libraries\Dart_SDK.xml (created)
+2026-11-17T04:25:09.9055578Z   .idea\libraries\KotlinJavaRuntime.xml (created)
+2026-11-17T04:25:09.9066692Z   .idea\modules.xml (created)
+2026-11-17T04:25:09.9080523Z   .idea\runConfigurations\main_dart.xml (created)
+2026-11-17T04:25:09.9090775Z   .idea\workspace.xml (created)
+2026-11-17T04:25:09.9106780Z   analysis_options.yaml (created)
+2026-11-17T04:25:09.9143049Z   billing_app.iml (created)
+2026-11-17T04:25:09.9153339Z   README.md (created)
+2026-11-17T04:25:09.9164184Z   windows\.gitignore (created)
+2026-11-17T04:25:09.9189259Z   windows\CMakeLists.txt (created)
+2026-11-17T04:25:09.9221187Z   windows\flutter\CMakeLists.txt (created)
+2026-11-17T04:25:09.9237764Z   windows\runner\CMakeLists.txt (created)
+2026-11-17T04:25:09.9255966Z   windows\runner\flutter_window.cpp (created)
+2026-11-17T04:25:09.9275302Z   windows\runner\flutter_window.h (created)
+2026-11-17T04:25:09.9297052Z   windows\runner\main.cpp (created)
+2026-11-17T04:25:09.9311701Z   windows\runner\resource.h (created)
+2026-11-17T04:25:09.9335275Z   windows\runner\resources\app_icon.ico (created)
+2026-11-17T04:25:09.9363354Z   windows\runner\runner.exe.manifest (created)
+2026-11-17T04:25:09.9385708Z   windows\runner\Runner.rc (created)
+2026-11-17T04:25:09.9406385Z   windows\runner\utils.cpp (created)
+2026-11-17T04:25:09.9421682Z   windows\runner\utils.h (created)
+2026-11-17T04:25:09.9434700Z   windows\runner\win32_window.cpp (created)
+2026-11-17T04:25:09.9448661Z   windows\runner\win32_window.h (created)
+2026-11-17T04:25:09.9461582Z   test\widget_test.dart (created)
+2026-11-17T04:25:11.6232148Z Got dependencies.
+2026-11-17T04:25:11.9068071Z Wrote 24 files.
+2026-11-17T04:25:11.9068809Z 
+2026-11-17T04:25:11.9069002Z All done!
+2026-11-17T04:25:11.9074753Z You can find general documentation for Flutter at: https://docs.flutter.dev/
+2026-11-17T04:25:11.9075617Z Detailed API documentation is available at: https://api.flutter.dev/
+2026-11-17T04:25:11.9076549Z If you prefer video documentation, consider: https://www.youtube.com/c/flutterdev
+2026-11-17T04:25:11.9077129Z 
+2026-11-17T04:25:11.9077306Z In order to run your application, type:
+2026-11-17T04:25:11.9077610Z 
+2026-11-17T04:25:11.9077749Z   $ flutter run
+2026-11-17T04:25:11.9077970Z 
+2026-11-17T04:25:11.9078160Z Your application code is in .\lib\main.dart.
+2026-11-17T04:25:11.9078521Z 
+2026-11-17T04:25:12.3059705Z Patching windows\runner\win32_window.cpp with DPI-aware minimum window size (420x560)...
+2026-11-17T04:25:12.3125493Z Successfully added WM_GETMINMAXINFO guard to windows\runner\win32_window.cpp.
+2026-11-17T04:25:12.5062361Z ##[group]Run flutter pub get
+2026-11-17T04:25:12.5062864Z [36;1mflutter pub get[0m
+2026-11-17T04:25:12.5178044Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-11-17T04:25:12.5178428Z env:
+2026-11-17T04:25:12.5178747Z   FLUTTER_ROOT: C:\hostedtoolcache\windows\flutter\stable-3.50.0-x64
+2026-11-17T04:25:12.5179563Z   PUB_CACHE: C:\Users\runneradmin\AppData\Local\Pub\Cache
+2026-11-17T04:25:12.5180159Z ##[endgroup]
+2026-11-17T04:25:13.8200946Z Resolving dependencies...
+2026-11-17T04:25:14.4791172Z Downloading packages...
+2026-11-17T04:25:14.4942127Z   cross_file 0.3.5+5 (0.4.0 available)
+2026-11-17T04:25:14.4942707Z   file_picker 8.3.7 (13.4.0 available)
+2026-11-17T04:25:14.4943227Z   flutter_lints 4.0.0 (6.0.0 available)
+2026-11-17T04:25:14.4943712Z   flutter_riverpod 2.6.1 (3.5.0 available)
+2026-11-17T04:25:14.4944232Z   intl 0.19.0 (0.20.3 available)
+2026-11-17T04:25:14.4944678Z   lints 4.0.0 (6.1.0 available)
+2026-11-17T04:25:14.4947258Z   material_color_utilities 0.13.0 (0.13.1 available)
+2026-11-17T04:25:14.4947869Z   qr 3.0.3 (4.0.1 available)
+2026-11-17T04:25:14.4948271Z   riverpod 2.6.1 (3.5.0 available)
+2026-11-17T04:25:14.4948672Z   sqlite3 2.9.4 (3.9.1 available)
+2026-11-17T04:25:14.4949153Z   sqlite3_flutter_libs 0.5.42 (0.6.0+eol available)
+2026-11-17T04:25:14.4949693Z   test_api 0.7.14 (0.7.15 available)
+2026-11-17T04:25:14.4950148Z   vector_math 2.4.3 (2.4.4 available)
+2026-11-17T04:25:14.4950592Z   win32 5.15.0 (6.4.0 available)
+2026-11-17T04:25:14.4951043Z Got dependencies!
+2026-11-17T04:25:14.4951625Z 14 packages have newer versions incompatible with dependency constraints.
+2026-11-17T04:25:14.4952390Z Try `flutter pub outdated` for more information.
+2026-11-17T04:25:14.8660143Z ##[group]Run flutter test test/financial_math_test.dart
+2026-11-17T04:25:14.8660655Z [36;1mflutter test test/financial_math_test.dart[0m
+2026-11-17T04:25:14.8733985Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-11-17T04:25:14.8734362Z env:
+2026-11-17T04:25:14.8734660Z   FLUTTER_ROOT: C:\hostedtoolcache\windows\flutter\stable-3.50.0-x64
+2026-11-17T04:25:14.8735092Z   PUB_CACHE: C:\Users\runneradmin\AppData\Local\Pub\Cache
+2026-11-17T04:25:14.8735422Z ##[endgroup]
+2026-11-17T04:25:18.8629695Z 
+2026-11-17T04:25:19.4478052Z lib/features/billing/services/invoice_pdf_service.dart:7:8: Error: Error when reading 'core/utils/money_utils.dart': The system cannot find the path specified
+2026-11-17T04:25:19.4479453Z import '../../../../core/utils/money_utils.dart';
+2026-11-17T04:25:19.4480698Z        ^
+2026-11-17T04:25:19.4483034Z lib/features/business_profile/models/business_profile.dart:3:8: Error: Error when reading 'core/utils/money_utils.dart': The system cannot find the path specified
+2026-11-17T04:25:19.4486406Z import '../../../../core/utils/money_utils.dart';
+2026-11-17T04:25:19.4490676Z        ^
+2026-11-17T04:25:19.4491916Z lib/features/billing/services/invoice_pdf_service.dart:8:8: Error: Error when reading 'core/utils/tax_compliance_utils.dart': The system cannot find the path specified
+2026-11-17T04:25:19.4493197Z import '../../../../core/utils/tax_compliance_utils.dart';
+2026-11-17T04:25:19.4493534Z        ^
+2026-11-17T04:25:24.2652759Z test/financial_math_test.dart:499:34: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2654473Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2655646Z         taxMode: TaxMode.inIntra.value,
+2026-11-17T04:25:24.2656294Z                                  ^^^^^
+2026-11-17T04:25:24.2659530Z test/financial_math_test.dart:509:52: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2661082Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2662869Z       expect(getRegionalTaxIdLabel(TaxMode.inIntra.value), equals('GSTIN'));
+2026-11-17T04:25:24.2663691Z                                                    ^^^^^
+2026-11-17T04:25:24.2664589Z test/financial_math_test.dart:514:34: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2665887Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2667128Z         taxMode: TaxMode.inInter.value,
+2026-11-17T04:25:24.2667624Z                                  ^^^^^
+2026-11-17T04:25:24.2670386Z test/financial_math_test.dart:523:32: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2671606Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2672517Z         taxMode: TaxMode.inLut.value,
+2026-11-17T04:25:24.2672974Z                                ^^^^^
+2026-11-17T04:25:24.2674296Z test/financial_math_test.dart:529:32: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2675540Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2676438Z         taxMode: TaxMode.inLut.value,
+2026-11-17T04:25:24.2676959Z                                ^^^^^
+2026-11-17T04:25:24.2678603Z test/financial_math_test.dart:541:42: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2679530Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2680838Z         taxMode: TaxMode.euReverseCharge.value,
+2026-11-17T04:25:24.2682032Z                                          ^^^^^
+2026-11-17T04:25:24.2694129Z test/financial_math_test.dart:547:42: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2695422Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2696368Z         taxMode: TaxMode.euReverseCharge.value,
+2026-11-17T04:25:24.2696896Z                                          ^^^^^
+2026-11-17T04:25:24.2697717Z test/financial_math_test.dart:553:60: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2698912Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2700226Z       expect(getRegionalTaxIdLabel(TaxMode.euReverseCharge.value, isClient: true), equals('Client VAT ID'));
+2026-11-17T04:25:24.2701241Z                                                            ^^^^^
+2026-11-17T04:25:24.2702100Z test/financial_math_test.dart:559:33: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2703294Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2704191Z         taxMode: TaxMode.caDual.value,
+2026-11-17T04:25:24.2704662Z                                 ^^^^^
+2026-11-17T04:25:24.2705443Z test/financial_math_test.dart:565:33: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2706648Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2708517Z         taxMode: TaxMode.caDual.value,
+2026-11-17T04:25:24.2708913Z                                 ^^^^^
+2026-11-17T04:25:24.2709863Z test/financial_math_test.dart:578:33: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2710942Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2711740Z         taxMode: TaxMode.caDual.value,
+2026-11-17T04:25:24.2712647Z                                 ^^^^^
+2026-11-17T04:25:24.2715355Z test/financial_math_test.dart:587:34: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2717564Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2718920Z         taxMode: TaxMode.gulfVat.value,
+2026-11-17T04:25:24.2719614Z                                  ^^^^^
+2026-11-17T04:25:24.2720379Z test/financial_math_test.dart:596:52: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2721569Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2722629Z       expect(getRegionalTaxIdLabel(TaxMode.gulfVat.value), equals('TRN / VAT ID'));
+2026-11-17T04:25:24.2723363Z                                                    ^^^^^
+2026-11-17T04:25:24.2724125Z test/financial_math_test.dart:600:35: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2725229Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2726006Z         taxMode: TaxMode.usExempt.value,
+2026-11-17T04:25:24.2726289Z                                   ^^^^^
+2026-11-17T04:25:24.2727024Z test/financial_math_test.dart:606:35: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2728492Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2729309Z         taxMode: TaxMode.usExempt.value,
+2026-11-17T04:25:24.2729749Z                                   ^^^^^
+2026-11-17T04:25:24.2732368Z test/financial_math_test.dart:616:35: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:24.2733827Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:24.2734631Z         taxMode: TaxMode.standard.value,
+2026-11-17T04:25:24.2736923Z                                   ^^^^^
+2026-11-17T04:25:24.4296985Z lib/features/billing/services/invoice_pdf_service.dart:126:26: Error: Method not found: 'resolveRegionalTaxBreakdown'.
+2026-11-17T04:25:24.4299803Z     final taxBreakdown = resolveRegionalTaxBreakdown(
+2026-11-17T04:25:24.4303186Z                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:24.4310101Z lib/features/billing/services/invoice_pdf_service.dart:139:30: Error: Method not found: 'getRegionalTaxIdLabel'.
+2026-11-17T04:25:24.4312544Z     final supplierTaxLabel = getRegionalTaxIdLabel(taxBreakdown.effectiveMode);
+2026-11-17T04:25:24.4313398Z                              ^^^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:24.4314362Z lib/features/billing/services/invoice_pdf_service.dart:140:28: Error: Method not found: 'getRegionalTaxIdLabel'.
+2026-11-17T04:25:24.4315742Z     final clientTaxLabel = getRegionalTaxIdLabel(taxBreakdown.effectiveMode, isClient: true);
+2026-11-17T04:25:24.4316607Z                            ^^^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:24.4317473Z lib/features/billing/services/invoice_pdf_service.dart:346:58: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:24.4318527Z                     color: taxBreakdown.effectiveMode == TaxMode.euReverseCharge
+2026-11-17T04:25:24.4319255Z                                                          ^^^^^^^
+2026-11-17T04:25:24.4320109Z lib/features/billing/services/invoice_pdf_service.dart:348:58: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:24.4321425Z                         : (taxBreakdown.effectiveMode == TaxMode.gulfVat
+2026-11-17T04:25:24.4322055Z                                                          ^^^^^^^
+2026-11-17T04:25:24.4322883Z lib/features/billing/services/invoice_pdf_service.dart:353:60: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:24.4323849Z                       color: taxBreakdown.effectiveMode == TaxMode.euReverseCharge
+2026-11-17T04:25:24.4324646Z                                                            ^^^^^^^
+2026-11-17T04:25:24.4331048Z lib/features/billing/services/invoice_pdf_service.dart:355:60: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:24.4353415Z                           : (taxBreakdown.effectiveMode == TaxMode.gulfVat
+2026-11-17T04:25:24.4355530Z                                                            ^^^^^^^
+2026-11-17T04:25:24.4356637Z lib/features/billing/services/invoice_pdf_service.dart:369:66: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:24.4357831Z                             color: taxBreakdown.effectiveMode == TaxMode.euReverseCharge
+2026-11-17T04:25:24.4358712Z                                                                  ^^^^^^^
+2026-11-17T04:25:24.4359733Z lib/features/billing/services/invoice_pdf_service.dart:371:66: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:24.4361248Z                                 : (taxBreakdown.effectiveMode == TaxMode.gulfVat
+2026-11-17T04:25:24.4362090Z                                                                  ^^^^^^^
+2026-11-17T04:25:24.4363123Z lib/features/billing/services/invoice_pdf_service.dart:382:64: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:24.4364297Z                           color: taxBreakdown.effectiveMode == TaxMode.euReverseCharge
+2026-11-17T04:25:24.4365157Z                                                                ^^^^^^^
+2026-11-17T04:25:24.4366152Z lib/features/billing/services/invoice_pdf_service.dart:384:64: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:24.4367391Z                               : (taxBreakdown.effectiveMode == TaxMode.gulfVat
+2026-11-17T04:25:24.4368177Z                                                                ^^^^^^^
+2026-11-17T04:25:24.4369223Z lib/features/billing/services/invoice_pdf_service.dart:449:36: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4370707Z                         _buildCell(formatCents(item.unitPriceCents, symbol: sym, decimals: dec), align: pw.TextAlign.right),
+2026-11-17T04:25:24.4371784Z                                    ^^^^^^^^^^^
+2026-11-17T04:25:24.4373085Z lib/features/billing/services/invoice_pdf_service.dart:450:36: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4374464Z                         _buildCell(formatCents(item.totalCents, symbol: sym, decimals: dec), align: pw.TextAlign.right, isBold: true),
+2026-11-17T04:25:24.4375425Z                                    ^^^^^^^^^^^
+2026-11-17T04:25:24.4376263Z lib/features/billing/services/invoice_pdf_service.dart:496:53: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4377391Z                         if (p.tdsCents > 0) 'TDS: ${formatCents(p.tdsCents, symbol: sym, decimals: dec)}',
+2026-11-17T04:25:24.4378169Z                                                     ^^^^^^^^^^^
+2026-11-17T04:25:24.4379062Z lib/features/billing/services/invoice_pdf_service.dart:509:38: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4380871Z                           _buildCell(formatCents(p.totalCreditCents, symbol: sym, decimals: dec), align: pw.TextAlign.right, isBold: true),
+2026-11-17T04:25:24.4382640Z                                      ^^^^^^^^^^^
+2026-11-17T04:25:24.4383543Z lib/features/billing/services/invoice_pdf_service.dart:525:55: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4389719Z                         _buildSummaryLine('Subtotal', formatCents(invoice.subtotalCents, symbol: sym, decimals: dec)),
+2026-11-17T04:25:24.4390717Z                                                       ^^^^^^^^^^^
+2026-11-17T04:25:24.4391683Z lib/features/billing/services/invoice_pdf_service.dart:530:33: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4392854Z                             '-${formatCents(invoice.discountCents, symbol: sym, decimals: dec)}',
+2026-11-17T04:25:24.4393600Z                                 ^^^^^^^^^^^
+2026-11-17T04:25:24.4394505Z lib/features/billing/services/invoice_pdf_service.dart:537:57: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4395760Z                           _buildSummaryLine(line.label, formatCents(line.cents, symbol: sym, decimals: dec)),
+2026-11-17T04:25:24.4396641Z                                                         ^^^^^^^^^^^
+2026-11-17T04:25:24.4398263Z lib/features/billing/services/invoice_pdf_service.dart:544:27: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4399371Z                           formatCents(invoice.totalCents, symbol: sym, decimals: dec),
+2026-11-17T04:25:24.4400060Z                           ^^^^^^^^^^^
+2026-11-17T04:25:24.4400911Z lib/features/billing/services/invoice_pdf_service.dart:552:33: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4402303Z                             '-${formatCents(invoice.paidCents, symbol: sym, decimals: dec)}',
+2026-11-17T04:25:24.4403011Z                                 ^^^^^^^^^^^
+2026-11-17T04:25:24.4403950Z lib/features/billing/services/invoice_pdf_service.dart:574:29: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4405100Z                             formatCents(invoice.balanceDueCents, symbol: sym, decimals: dec),
+2026-11-17T04:25:24.4405822Z                             ^^^^^^^^^^^
+2026-11-17T04:25:24.4406763Z lib/features/billing/services/invoice_pdf_service.dart:720:43: Error: Method not found: 'generateDynamicQrPayload'.
+2026-11-17T04:25:24.4407852Z                         final dynamicQr = generateDynamicQrPayload(
+2026-11-17T04:25:24.4408471Z                                           ^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:24.4409579Z lib/features/billing/services/invoice_pdf_service.dart:789:26: Error: Method not found: 'resolveRegionalTaxBreakdown'.
+2026-11-17T04:25:24.4411104Z     final estBreakdown = resolveRegionalTaxBreakdown(
+2026-11-17T04:25:24.4411928Z                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:24.4413092Z lib/features/billing/services/invoice_pdf_service.dart:802:33: Error: Method not found: 'getRegionalTaxIdLabel'.
+2026-11-17T04:25:24.4414563Z     final estSupplierTaxLabel = getRegionalTaxIdLabel(estBreakdown.effectiveMode);
+2026-11-17T04:25:24.4415596Z                                 ^^^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:24.4416310Z lib/features/billing/services/invoice_pdf_service.dart:803:31: Error: Method not found: 'getRegionalTaxIdLabel'.
+2026-11-17T04:25:24.4417072Z     final estClientTaxLabel = getRegionalTaxIdLabel(estBreakdown.effectiveMode, isClient: true);
+2026-11-17T04:25:24.4417574Z                               ^^^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:24.4418050Z lib/features/billing/services/invoice_pdf_service.dart:973:58: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:24.4418619Z                     color: estBreakdown.effectiveMode == TaxMode.euReverseCharge
+2026-11-17T04:25:24.4419024Z                                                          ^^^^^^^
+2026-11-17T04:25:24.4419495Z lib/features/billing/services/invoice_pdf_service.dart:978:60: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:24.4420054Z                       color: estBreakdown.effectiveMode == TaxMode.euReverseCharge
+2026-11-17T04:25:24.4420453Z                                                            ^^^^^^^
+2026-11-17T04:25:24.4420965Z lib/features/billing/services/invoice_pdf_service.dart:1044:36: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4422144Z                         _buildCell(formatCents(item.unitPriceCents, symbol: sym, decimals: dec), align: pw.TextAlign.right),
+2026-11-17T04:25:24.4422674Z                                    ^^^^^^^^^^^
+2026-11-17T04:25:24.4423170Z lib/features/billing/services/invoice_pdf_service.dart:1045:36: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4423928Z                         _buildCell(formatCents(item.totalCents, symbol: sym, decimals: dec), align: pw.TextAlign.right, isBold: true),
+2026-11-17T04:25:24.4424489Z                                    ^^^^^^^^^^^
+2026-11-17T04:25:24.4424968Z lib/features/billing/services/invoice_pdf_service.dart:1061:55: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4425683Z                         _buildSummaryLine('Subtotal', formatCents(estimate.subtotalCents, symbol: sym, decimals: dec)),
+2026-11-17T04:25:24.4426208Z                                                       ^^^^^^^^^^^
+2026-11-17T04:25:24.4427329Z lib/features/billing/services/invoice_pdf_service.dart:1066:33: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4428715Z                             '-${formatCents(estimate.discountCents, symbol: sym, decimals: dec)}',
+2026-11-17T04:25:24.4429663Z                                 ^^^^^^^^^^^
+2026-11-17T04:25:24.4430514Z lib/features/billing/services/invoice_pdf_service.dart:1073:57: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4431697Z                           _buildSummaryLine(line.label, formatCents(line.cents, symbol: sym, decimals: dec)),
+2026-11-17T04:25:24.4432778Z                                                         ^^^^^^^^^^^
+2026-11-17T04:25:24.4433673Z lib/features/billing/services/invoice_pdf_service.dart:1080:27: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:24.4434729Z                           formatCents(estimate.totalCents, symbol: sym, decimals: dec),
+2026-11-17T04:25:24.4435391Z                           ^^^^^^^^^^^
+2026-11-17T04:25:24.4436450Z lib/features/billing/services/invoice_pdf_service.dart:1299:50: Error: Method not found: 'formatMoney'.
+2026-11-17T04:25:24.4438548Z                       pw.Text('Total Invoiced: ${formatMoney(totalBilledCents, symbol: sym, decimals: dec)}', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1E293B'))),
+2026-11-17T04:25:24.4440163Z                                                  ^^^^^^^^^^^
+2026-11-17T04:25:24.4441192Z lib/features/billing/services/invoice_pdf_service.dart:1301:46: Error: Method not found: 'formatMoney'.
+2026-11-17T04:25:24.4443446Z                       pw.Text('Total Paid: ${formatMoney(totalPaidCents, symbol: sym, decimals: dec)}', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#047857'))),
+2026-11-17T04:25:24.4446206Z                                              ^^^^^^^^^^^
+2026-11-17T04:25:24.4447308Z lib/features/billing/services/invoice_pdf_service.dart:1305:47: Error: Method not found: 'formatMoney'.
+2026-11-17T04:25:24.4449653Z                       pw.Text('Balance Due: ${formatMoney(balanceDueCents, symbol: sym, decimals: dec)}', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: balanceDueCents > 0 ? PdfColor.fromHex('#BE123C') : PdfColor.fromHex('#047857'))),
+2026-11-17T04:25:24.4451431Z                                               ^^^^^^^^^^^
+2026-11-17T04:25:24.4452307Z lib/features/billing/services/invoice_pdf_service.dart:1341:34: Error: Method not found: 'formatMoney'.
+2026-11-17T04:25:24.4453610Z                       _buildCell(formatMoney(inv.totalCents, symbol: invSym, decimals: invDec), align: pw.TextAlign.right),
+2026-11-17T04:25:24.4454524Z                                  ^^^^^^^^^^^
+2026-11-17T04:25:24.4455367Z lib/features/billing/services/invoice_pdf_service.dart:1342:34: Error: Method not found: 'formatMoney'.
+2026-11-17T04:25:24.4456659Z                       _buildCell(formatMoney(inv.paidCents, symbol: invSym, decimals: invDec), align: pw.TextAlign.right),
+2026-11-17T04:25:24.4457573Z                                  ^^^^^^^^^^^
+2026-11-17T04:25:24.4458895Z lib/features/billing/services/invoice_pdf_service.dart:1343:34: Error: Method not found: 'formatMoney'.
+2026-11-17T04:25:24.4461163Z                       _buildCell(formatMoney(inv.balanceDueCents, symbol: invSym, decimals: invDec), align: pw.TextAlign.right, isBold: true),
+2026-11-17T04:25:24.4462271Z                                  ^^^^^^^^^^^
+2026-11-17T04:25:24.4463243Z lib/features/business_profile/models/business_profile.dart:55:53: Error: Method not found: 'getCurrencyDecimals'.
+2026-11-17T04:25:24.4464599Z     final dec = row['currency_decimals'] as int? ?? getCurrencyDecimals(code.isNotEmpty ? code : sym);
+2026-11-17T04:25:24.4465475Z                                                     ^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:33.2097843Z ##[group]❌ loading D:/a/ROK/ROK/test/financial_math_test.dart (failed)
+2026-11-17T04:25:33.2131738Z Failed to load "D:/a/ROK/ROK/test/financial_math_test.dart":
+2026-11-17T04:25:33.2133863Z Compilation failed for testPath=D:/a/ROK/ROK/test/financial_math_test.dart: lib/features/billing/services/invoice_pdf_service.dart:7:8: Error: Error when reading 'core/utils/money_utils.dart': The system cannot find the path specified
+2026-11-17T04:25:33.2136087Z import '../../../../core/utils/money_utils.dart';
+2026-11-17T04:25:33.2136718Z        ^
+2026-11-17T04:25:33.2138375Z lib/features/business_profile/models/business_profile.dart:3:8: Error: Error when reading 'core/utils/money_utils.dart': The system cannot find the path specified
+2026-11-17T04:25:33.2139999Z import '../../../../core/utils/money_utils.dart';
+2026-11-17T04:25:33.2140582Z        ^
+2026-11-17T04:25:33.2141965Z lib/features/billing/services/invoice_pdf_service.dart:8:8: Error: Error when reading 'core/utils/tax_compliance_utils.dart': The system cannot find the path specified
+2026-11-17T04:25:33.2143372Z import '../../../../core/utils/tax_compliance_utils.dart';
+2026-11-17T04:25:33.2143876Z        ^
+2026-11-17T04:25:33.2144487Z test/financial_math_test.dart:499:34: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2145653Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2146532Z         taxMode: TaxMode.inIntra.value,
+2026-11-17T04:25:33.2147078Z                                  ^^^^^
+2026-11-17T04:25:33.2147852Z test/financial_math_test.dart:509:52: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2148948Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2149945Z       expect(getRegionalTaxIdLabel(TaxMode.inIntra.value), equals('GSTIN'));
+2026-11-17T04:25:33.2150950Z                                                    ^^^^^
+2026-11-17T04:25:33.2151805Z test/financial_math_test.dart:514:34: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2152984Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2153816Z         taxMode: TaxMode.inInter.value,
+2026-11-17T04:25:33.2154249Z                                  ^^^^^
+2026-11-17T04:25:33.2155013Z test/financial_math_test.dart:523:32: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2156237Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2157054Z         taxMode: TaxMode.inLut.value,
+2026-11-17T04:25:33.2158071Z                                ^^^^^
+2026-11-17T04:25:33.2158802Z test/financial_math_test.dart:529:32: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2162789Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2163688Z         taxMode: TaxMode.inLut.value,
+2026-11-17T04:25:33.2164134Z                                ^^^^^
+2026-11-17T04:25:33.2164902Z test/financial_math_test.dart:541:42: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2166077Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2166990Z         taxMode: TaxMode.euReverseCharge.value,
+2026-11-17T04:25:33.2167513Z                                          ^^^^^
+2026-11-17T04:25:33.2168306Z test/financial_math_test.dart:547:42: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2169481Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2170377Z         taxMode: TaxMode.euReverseCharge.value,
+2026-11-17T04:25:33.2170900Z                                          ^^^^^
+2026-11-17T04:25:33.2171695Z test/financial_math_test.dart:553:60: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2173158Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2174459Z       expect(getRegionalTaxIdLabel(TaxMode.euReverseCharge.value, isClient: true), equals('Client VAT ID'));
+2026-11-17T04:25:33.2175853Z                                                            ^^^^^
+2026-11-17T04:25:33.2176655Z test/financial_math_test.dart:559:33: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2177692Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2178345Z         taxMode: TaxMode.caDual.value,
+2026-11-17T04:25:33.2178613Z                                 ^^^^^
+2026-11-17T04:25:33.2179055Z test/financial_math_test.dart:565:33: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2179701Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2180176Z         taxMode: TaxMode.caDual.value,
+2026-11-17T04:25:33.2180429Z                                 ^^^^^
+2026-11-17T04:25:33.2180854Z test/financial_math_test.dart:578:33: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2181852Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2182712Z         taxMode: TaxMode.caDual.value,
+2026-11-17T04:25:33.2183167Z                                 ^^^^^
+2026-11-17T04:25:33.2183906Z test/financial_math_test.dart:587:34: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2185105Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2186269Z         taxMode: TaxMode.gulfVat.value,
+2026-11-17T04:25:33.2186783Z                                  ^^^^^
+2026-11-17T04:25:33.2187582Z test/financial_math_test.dart:596:52: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2188784Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2189834Z       expect(getRegionalTaxIdLabel(TaxMode.gulfVat.value), equals('TRN / VAT ID'));
+2026-11-17T04:25:33.2190565Z                                                    ^^^^^
+2026-11-17T04:25:33.2191325Z test/financial_math_test.dart:600:35: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2192419Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2193224Z         taxMode: TaxMode.usExempt.value,
+2026-11-17T04:25:33.2193655Z                                   ^^^^^
+2026-11-17T04:25:33.2194383Z test/financial_math_test.dart:606:35: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2195826Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2196632Z         taxMode: TaxMode.usExempt.value,
+2026-11-17T04:25:33.2197069Z                                   ^^^^^
+2026-11-17T04:25:33.2197799Z test/financial_math_test.dart:616:35: Error: The getter 'value' isn't defined for the type 'String'.
+2026-11-17T04:25:33.2198877Z Try correcting the name to the name of an existing getter, or defining a getter or field named 'value'.
+2026-11-17T04:25:33.2199663Z         taxMode: TaxMode.standard.value,
+2026-11-17T04:25:33.2200086Z                                   ^^^^^
+2026-11-17T04:25:33.2200979Z lib/features/billing/services/invoice_pdf_service.dart:126:26: Error: Method not found: 'resolveRegionalTaxBreakdown'.
+2026-11-17T04:25:33.2201996Z     final taxBreakdown = resolveRegionalTaxBreakdown(
+2026-11-17T04:25:33.2202547Z                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:33.2203430Z lib/features/billing/services/invoice_pdf_service.dart:139:30: Error: Method not found: 'getRegionalTaxIdLabel'.
+2026-11-17T04:25:33.2204816Z     final supplierTaxLabel = getRegionalTaxIdLabel(taxBreakdown.effectiveMode);
+2026-11-17T04:25:33.2205519Z                              ^^^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:33.2206388Z lib/features/billing/services/invoice_pdf_service.dart:140:28: Error: Method not found: 'getRegionalTaxIdLabel'.
+2026-11-17T04:25:33.2207595Z     final clientTaxLabel = getRegionalTaxIdLabel(taxBreakdown.effectiveMode, isClient: true);
+2026-11-17T04:25:33.2208390Z                            ^^^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:33.2209149Z lib/features/billing/services/invoice_pdf_service.dart:346:58: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:33.2210107Z                     color: taxBreakdown.effectiveMode == TaxMode.euReverseCharge
+2026-11-17T04:25:33.2210758Z                                                          ^^^^^^^
+2026-11-17T04:25:33.2211549Z lib/features/billing/services/invoice_pdf_service.dart:348:58: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:33.2212428Z                         : (taxBreakdown.effectiveMode == TaxMode.gulfVat
+2026-11-17T04:25:33.2213016Z                                                          ^^^^^^^
+2026-11-17T04:25:33.2213806Z lib/features/billing/services/invoice_pdf_service.dart:353:60: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:33.2214756Z                       color: taxBreakdown.effectiveMode == TaxMode.euReverseCharge
+2026-11-17T04:25:33.2215683Z                                                            ^^^^^^^
+2026-11-17T04:25:33.2216508Z lib/features/billing/services/invoice_pdf_service.dart:355:60: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:33.2217396Z                           : (taxBreakdown.effectiveMode == TaxMode.gulfVat
+2026-11-17T04:25:33.2217975Z                                                            ^^^^^^^
+2026-11-17T04:25:33.2218942Z lib/features/billing/services/invoice_pdf_service.dart:369:66: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:33.2219943Z                             color: taxBreakdown.effectiveMode == TaxMode.euReverseCharge
+2026-11-17T04:25:33.2220619Z                                                                  ^^^^^^^
+2026-11-17T04:25:33.2221435Z lib/features/billing/services/invoice_pdf_service.dart:371:66: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:33.2222314Z                                 : (taxBreakdown.effectiveMode == TaxMode.gulfVat
+2026-11-17T04:25:33.2222905Z                                                                  ^^^^^^^
+2026-11-17T04:25:33.2223708Z lib/features/billing/services/invoice_pdf_service.dart:382:64: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:33.2224666Z                           color: taxBreakdown.effectiveMode == TaxMode.euReverseCharge
+2026-11-17T04:25:33.2225333Z                                                                ^^^^^^^
+2026-11-17T04:25:33.2226123Z lib/features/billing/services/invoice_pdf_service.dart:384:64: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:33.2227072Z                               : (taxBreakdown.effectiveMode == TaxMode.gulfVat
+2026-11-17T04:25:33.2227660Z                                                                ^^^^^^^
+2026-11-17T04:25:33.2228515Z lib/features/billing/services/invoice_pdf_service.dart:449:36: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2229773Z                         _buildCell(formatCents(item.unitPriceCents, symbol: sym, decimals: dec), align: pw.TextAlign.right),
+2026-11-17T04:25:33.2230653Z                                    ^^^^^^^^^^^
+2026-11-17T04:25:33.2231456Z lib/features/billing/services/invoice_pdf_service.dart:450:36: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2232740Z                         _buildCell(formatCents(item.totalCents, symbol: sym, decimals: dec), align: pw.TextAlign.right, isBold: true),
+2026-11-17T04:25:33.2233658Z                                    ^^^^^^^^^^^
+2026-11-17T04:25:33.2234589Z lib/features/billing/services/invoice_pdf_service.dart:496:53: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2235938Z                         if (p.tdsCents > 0) 'TDS: ${formatCents(p.tdsCents, symbol: sym, decimals: dec)}',
+2026-11-17T04:25:33.2236689Z                                                     ^^^^^^^^^^^
+2026-11-17T04:25:33.2237513Z lib/features/billing/services/invoice_pdf_service.dart:509:38: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2238861Z                           _buildCell(formatCents(p.totalCreditCents, symbol: sym, decimals: dec), align: pw.TextAlign.right, isBold: true),
+2026-11-17T04:25:33.2239820Z                                      ^^^^^^^^^^^
+2026-11-17T04:25:33.2240618Z lib/features/billing/services/invoice_pdf_service.dart:525:55: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2241836Z                         _buildSummaryLine('Subtotal', formatCents(invoice.subtotalCents, symbol: sym, decimals: dec)),
+2026-11-17T04:25:33.2242718Z                                                       ^^^^^^^^^^^
+2026-11-17T04:25:33.2243572Z lib/features/billing/services/invoice_pdf_service.dart:530:33: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2244602Z                             '-${formatCents(invoice.discountCents, symbol: sym, decimals: dec)}',
+2026-11-17T04:25:33.2245263Z                                 ^^^^^^^^^^^
+2026-11-17T04:25:33.2246042Z lib/features/billing/services/invoice_pdf_service.dart:537:57: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2247258Z                           _buildSummaryLine(line.label, formatCents(line.cents, symbol: sym, decimals: dec)),
+2026-11-17T04:25:33.2248058Z                                                         ^^^^^^^^^^^
+2026-11-17T04:25:33.2248944Z lib/features/billing/services/invoice_pdf_service.dart:544:27: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2250953Z                           formatCents(invoice.totalCents, symbol: sym, decimals: dec),
+2026-11-17T04:25:33.2251639Z                           ^^^^^^^^^^^
+2026-11-17T04:25:33.2252424Z lib/features/billing/services/invoice_pdf_service.dart:552:33: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2253458Z                             '-${formatCents(invoice.paidCents, symbol: sym, decimals: dec)}',
+2026-11-17T04:25:33.2254105Z                                 ^^^^^^^^^^^
+2026-11-17T04:25:33.2254886Z lib/features/billing/services/invoice_pdf_service.dart:574:29: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2256216Z                             formatCents(invoice.balanceDueCents, symbol: sym, decimals: dec),
+2026-11-17T04:25:33.2256873Z                             ^^^^^^^^^^^
+2026-11-17T04:25:33.2257735Z lib/features/billing/services/invoice_pdf_service.dart:720:43: Error: Method not found: 'generateDynamicQrPayload'.
+2026-11-17T04:25:33.2258716Z                         final dynamicQr = generateDynamicQrPayload(
+2026-11-17T04:25:33.2259277Z                                           ^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:33.2260224Z lib/features/billing/services/invoice_pdf_service.dart:789:26: Error: Method not found: 'resolveRegionalTaxBreakdown'.
+2026-11-17T04:25:33.2261215Z     final estBreakdown = resolveRegionalTaxBreakdown(
+2026-11-17T04:25:33.2261747Z                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:33.2262601Z lib/features/billing/services/invoice_pdf_service.dart:802:33: Error: Method not found: 'getRegionalTaxIdLabel'.
+2026-11-17T04:25:33.2263746Z     final estSupplierTaxLabel = getRegionalTaxIdLabel(estBreakdown.effectiveMode);
+2026-11-17T04:25:33.2264467Z                                 ^^^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:33.2265323Z lib/features/billing/services/invoice_pdf_service.dart:803:31: Error: Method not found: 'getRegionalTaxIdLabel'.
+2026-11-17T04:25:33.2266552Z     final estClientTaxLabel = getRegionalTaxIdLabel(estBreakdown.effectiveMode, isClient: true);
+2026-11-17T04:25:33.2267358Z                               ^^^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:33.2268925Z lib/features/billing/services/invoice_pdf_service.dart:973:58: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:33.2269881Z                     color: estBreakdown.effectiveMode == TaxMode.euReverseCharge
+2026-11-17T04:25:33.2270521Z                                                          ^^^^^^^
+2026-11-17T04:25:33.2271317Z lib/features/billing/services/invoice_pdf_service.dart:978:60: Error: Undefined name 'TaxMode'.
+2026-11-17T04:25:33.2272253Z                       color: estBreakdown.effectiveMode == TaxMode.euReverseCharge
+2026-11-17T04:25:33.2272907Z                                                            ^^^^^^^
+2026-11-17T04:25:33.2273749Z lib/features/billing/services/invoice_pdf_service.dart:1044:36: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2275003Z                         _buildCell(formatCents(item.unitPriceCents, symbol: sym, decimals: dec), align: pw.TextAlign.right),
+2026-11-17T04:25:33.2276231Z                                    ^^^^^^^^^^^
+2026-11-17T04:25:33.2277044Z lib/features/billing/services/invoice_pdf_service.dart:1045:36: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2278333Z                         _buildCell(formatCents(item.totalCents, symbol: sym, decimals: dec), align: pw.TextAlign.right, isBold: true),
+2026-11-17T04:25:33.2279251Z                                    ^^^^^^^^^^^
+2026-11-17T04:25:33.2280047Z lib/features/billing/services/invoice_pdf_service.dart:1061:55: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2281247Z                         _buildSummaryLine('Subtotal', formatCents(estimate.subtotalCents, symbol: sym, decimals: dec)),
+2026-11-17T04:25:33.2282127Z                                                       ^^^^^^^^^^^
+2026-11-17T04:25:33.2282964Z lib/features/billing/services/invoice_pdf_service.dart:1066:33: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2284194Z                             '-${formatCents(estimate.discountCents, symbol: sym, decimals: dec)}',
+2026-11-17T04:25:33.2284894Z                                 ^^^^^^^^^^^
+2026-11-17T04:25:33.2285654Z lib/features/billing/services/invoice_pdf_service.dart:1073:57: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2286792Z                           _buildSummaryLine(line.label, formatCents(line.cents, symbol: sym, decimals: dec)),
+2026-11-17T04:25:33.2287580Z                                                         ^^^^^^^^^^^
+2026-11-17T04:25:33.2288403Z lib/features/billing/services/invoice_pdf_service.dart:1080:27: Error: Method not found: 'formatCents'.
+2026-11-17T04:25:33.2289406Z                           formatCents(estimate.totalCents, symbol: sym, decimals: dec),
+2026-11-17T04:25:33.2289999Z                           ^^^^^^^^^^^
+2026-11-17T04:25:33.2290741Z lib/features/billing/services/invoice_pdf_service.dart:1299:50: Error: Method not found: 'formatMoney'.
+2026-11-17T04:25:33.2292492Z                       pw.Text('Total Invoiced: ${formatMoney(totalBilledCents, symbol: sym, decimals: dec)}', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1E293B'))),
+2026-11-17T04:25:33.2293879Z                                                  ^^^^^^^^^^^
+2026-11-17T04:25:33.2294709Z lib/features/billing/services/invoice_pdf_service.dart:1301:46: Error: Method not found: 'formatMoney'.
+2026-11-17T04:25:33.2296644Z                       pw.Text('Total Paid: ${formatMoney(totalPaidCents, symbol: sym, decimals: dec)}', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#047857'))),
+2026-11-17T04:25:33.2298005Z                                              ^^^^^^^^^^^
+2026-11-17T04:25:33.2298827Z lib/features/billing/services/invoice_pdf_service.dart:1305:47: Error: Method not found: 'formatMoney'.
+2026-11-17T04:25:33.2300856Z                       pw.Text('Balance Due: ${formatMoney(balanceDueCents, symbol: sym, decimals: dec)}', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: balanceDueCents > 0 ? PdfColor.fromHex('#BE123C') : PdfColor.fromHex('#047857'))),
+2026-11-17T04:25:33.2303997Z                                               ^^^^^^^^^^^
+2026-11-17T04:25:33.2304847Z lib/features/billing/services/invoice_pdf_service.dart:1341:34: Error: Method not found: 'formatMoney'.
+2026-11-17T04:25:33.2306107Z                       _buildCell(formatMoney(inv.totalCents, symbol: invSym, decimals: invDec), align: pw.TextAlign.right),
+2026-11-17T04:25:33.2306987Z                                  ^^^^^^^^^^^
+2026-11-17T04:25:33.2307800Z lib/features/billing/services/invoice_pdf_service.dart:1342:34: Error: Method not found: 'formatMoney'.
+2026-11-17T04:25:33.2309030Z                       _buildCell(formatMoney(inv.paidCents, symbol: invSym, decimals: invDec), align: pw.TextAlign.right),
+2026-11-17T04:25:33.2309888Z                                  ^^^^^^^^^^^
+2026-11-17T04:25:33.2310675Z lib/features/billing/services/invoice_pdf_service.dart:1343:34: Error: Method not found: 'formatMoney'.
+2026-11-17T04:25:33.2312053Z                       _buildCell(formatMoney(inv.balanceDueCents, symbol: invSym, decimals: invDec), align: pw.TextAlign.right, isBold: true),
+2026-11-17T04:25:33.2313029Z                                  ^^^^^^^^^^^
+2026-11-17T04:25:33.2313880Z lib/features/business_profile/models/business_profile.dart:55:53: Error: Method not found: 'getCurrencyDecimals'.
+2026-11-17T04:25:33.2315095Z     final dec = row['currency_decimals'] as int? ?? getCurrencyDecimals(code.isNotEmpty ? code : sym);
+2026-11-17T04:25:33.2315882Z                                                     ^^^^^^^^^^^^^^^^^^^
+2026-11-17T04:25:33.2316711Z .
+2026-11-17T04:25:33.2316866Z 
+2026-11-17T04:25:33.2317382Z ##[endgroup]
+2026-11-17T04:25:33.2317564Z 
+2026-11-17T04:25:33.2336436Z ##[error]0 tests passed, 1 failed.
+2026-11-17T04:25:33.3793082Z ##[error]Process completed with exit code 1.
+2026-11-17T04:25:33.4128488Z Post job cleanup.
+2026-11-17T04:25:33.4132822Z ##[start-action display=Cache pub dependencies;id=__cf3e2717-0a40-4421-a9e7-fcb4a67304a5.__actions_cache_2]
+2026-11-17T04:25:33.4136573Z ##[end-action id=__cf3e2717-0a40-4421-a9e7-fcb4a67304a5.__actions_cache_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-17T04:25:33.4139013Z ##[start-action display=Cache Flutter;id=__cf3e2717-0a40-4421-a9e7-fcb4a67304a5.__actions_cache]
+2026-11-17T04:25:33.4141556Z ##[end-action id=__cf3e2717-0a40-4421-a9e7-fcb4a67304a5.__actions_cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-17T04:25:33.4340223Z Post job cleanup.
+2026-11-17T04:25:33.6442957Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-11-17T04:25:33.6799334Z git version 2.56.0.windows.4
+2026-11-17T04:25:33.6870827Z Temporarily overriding HOME='D:\a\_temp\2ad305da-f0b3-4018-83a2-159a0782a010' before making global git config changes
+2026-11-17T04:25:33.6871891Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-17T04:25:33.6882422Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\ROK\ROK
+2026-11-17T04:25:33.7278540Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-11-17T04:25:33.7666173Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-11-17T04:25:34.3656576Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-17T04:25:34.4009375Z http.https://github.com/.extraheader
+2026-11-17T04:25:34.4054426Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+2026-11-17T04:25:34.4459249Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-11-17T04:25:35.0561463Z Cleaning up orphan processes
+2026-11-17T04:25:35.0652016Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, actions/checkout@v4.2.2. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
