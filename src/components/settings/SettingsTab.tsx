@@ -33,6 +33,11 @@ const CURRENCY_SYMBOL_MAP: Record<string, string> = {
   AUD: 'A$',
   AED: 'AED',
   SAR: 'SAR',
+  KWD: 'KWD',
+  BHD: 'BHD',
+  OMR: 'OMR',
+  JOD: 'JOD',
+  TND: 'TND',
 };
 
 interface SettingsTabProps {
@@ -262,6 +267,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 <option value="AUD">AUD (A$)</option>
                 <option value="AED">AED (UAE)</option>
                 <option value="SAR">SAR (KSA)</option>
+                <option value="KWD">KWD (Kuwait - 3 dec)</option>
+                <option value="BHD">BHD (Bahrain - 3 dec)</option>
+                <option value="OMR">OMR (Oman - 3 dec)</option>
+                <option value="JOD">JOD (Jordan - 3 dec)</option>
+                <option value="TND">TND (Tunisia - 3 dec)</option>
               </select>
             </div>
             <div>

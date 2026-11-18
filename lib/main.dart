@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-import 'app.dart';
-import 'core/database/local_db.dart';
+import 'package:billing_app/app.dart';
+import 'package:billing_app/core/database/local_db.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

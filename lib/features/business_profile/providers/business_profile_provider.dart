@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-import '../../../core/database/database_provider.dart';
-import '../models/business_profile.dart';
+import 'package:billing_app/core/database/database_provider.dart';
+import 'package:billing_app/features/business_profile/models/business_profile.dart';
 
 class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
   final Database _db;

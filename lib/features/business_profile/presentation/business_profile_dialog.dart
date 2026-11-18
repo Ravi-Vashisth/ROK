@@ -4,8 +4,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/tax_compliance_utils.dart';
-import '../providers/business_profile_provider.dart';
+import 'package:billing_app/core/utils/file_validation_utils.dart';
+import 'package:billing_app/core/utils/tax_compliance_utils.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
 
 class BusinessProfileDialog extends ConsumerStatefulWidget {
   const BusinessProfileDialog({super.key});
@@ -44,6 +45,11 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     {'code': 'AUD', 'symbol': 'A\$', 'decimals': 2, 'label': 'AUD (A\$) - Australian Dollar'},
     {'code': 'AED', 'symbol': 'AED', 'decimals': 2, 'label': 'AED - UAE Dirham'},
     {'code': 'SAR', 'symbol': 'SAR', 'decimals': 2, 'label': 'SAR - Saudi Riyal'},
+    {'code': 'KWD', 'symbol': 'KWD', 'decimals': 3, 'label': 'KWD (3 dec) - Kuwaiti Dinar'},
+    {'code': 'BHD', 'symbol': 'BHD', 'decimals': 3, 'label': 'BHD (3 dec) - Bahraini Dinar'},
+    {'code': 'OMR', 'symbol': 'OMR', 'decimals': 3, 'label': 'OMR (3 dec) - Omani Rial'},
+    {'code': 'JOD', 'symbol': 'JOD', 'decimals': 3, 'label': 'JOD (3 dec) - Jordanian Dinar'},
+    {'code': 'TND', 'symbol': 'TND', 'decimals': 3, 'label': 'TND (3 dec) - Tunisian Dinar'},
     {'code': 'JPY', 'symbol': '¥', 'decimals': 0, 'label': 'JPY (¥) - Japanese Yen'},
     {'code': 'KRW', 'symbol': '₩', 'decimals': 0, 'label': 'KRW (₩) - S. Korean Won'},
     {'code': 'VND', 'symbol': '₫', 'decimals': 0, 'label': 'VND (₫) - Vietnamese Dong'},
@@ -92,19 +98,51 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     super.dispose();
   }
 
+  Future<String?> _pickValidatedImageDataUri() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return null;
+
+    final picked = result.files.single;
+    final bytes = picked.bytes ??
+        (picked.path != null ? await File(picked.path!).readAsBytes() : null);
+    if (!mounted) return null;
+
+    if (bytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not read the selected image file.')),
+      );
+      return null;
+    }
+
+    final validation = validateUploadedFileBytes(
+      bytes: bytes,
+      filename: picked.name,
+      allowPdf: false,
+    );
+    if (!validation.isValid || validation.mimeType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(validation.errorMessage ?? 'Invalid image file selected.'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return null;
+    }
+
+    return 'data:${validation.mimeType};base64,${base64Encode(bytes)}';
+  }
+
   Future<void> _pickLogoFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
-      );
-      if (result != null && result.files.single.path != null) {
-        final bytes = await File(result.files.single.path!).readAsBytes();
-        final b64 = 'data:image/png;base64,${base64Encode(bytes)}';
-        setState(() {
-          _logoBase64 = b64;
-        });
-      }
+      final dataUri = await _pickValidatedImageDataUri();
+      if (!mounted || dataUri == null) return;
+      setState(() {
+        _logoBase64 = dataUri;
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -116,17 +154,11 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
 
   Future<void> _pickSignatureFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
-      );
-      if (result != null && result.files.single.path != null) {
-        final bytes = await File(result.files.single.path!).readAsBytes();
-        final b64 = 'data:image/png;base64,${base64Encode(bytes)}';
-        setState(() {
-          _signatureBase64 = b64;
-        });
-      }
+      final dataUri = await _pickValidatedImageDataUri();
+      if (!mounted || dataUri == null) return;
+      setState(() {
+        _signatureBase64 = dataUri;
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

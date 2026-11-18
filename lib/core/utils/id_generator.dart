@@ -1,8 +1,26 @@
 import 'dart:math';
 
-/// Generates a local unique ID using timestamp and high-entropy randomness.
-String generateUniqueId() {
-  final timestamp = DateTime.now().microsecondsSinceEpoch;
-  final random = Random().nextInt(999999).toString().padLeft(6, '0');
-  return '$timestamp-$random';
+final Random _secureRandom = _createRandom();
+
+Random _createRandom() {
+  try {
+    return Random.secure();
+  } catch (_) {
+    return Random();
+  }
 }
+
+/// Generates a globally unique RFC-4122 UUID v4 string for sync-ready primary keys.
+String generateUniqueId() {
+  final bytes = List<int>.generate(16, (_) => _secureRandom.nextInt(256));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  String hex(int start, int end) => bytes
+      .sublist(start, end)
+      .map((b) => b.toRadixString(16).padLeft(2, '0'))
+      .join();
+
+  return '${hex(0, 4)}-${hex(4, 6)}-${hex(6, 8)}-${hex(8, 10)}-${hex(10, 16)}';
+}
+

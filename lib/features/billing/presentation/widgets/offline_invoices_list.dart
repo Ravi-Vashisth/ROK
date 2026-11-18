@@ -3,17 +3,17 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/utils/money_utils.dart';
-import '../../../business_profile/providers/business_profile_provider.dart';
-import '../../../clients/models/client.dart';
-import '../../../clients/providers/clients_provider.dart';
-import '../../../invoices/models/invoice_record.dart';
-import '../../../invoices/providers/invoices_provider.dart';
-import '../../../payments/presentation/record_payment_dialog.dart';
-import '../../../invoices/presentation/invoice_editor_screen.dart';
-import '../../services/invoice_pdf_service.dart';
-import 'payment_reminder_modal.dart';
-import 'pdf_preview_dialog.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
+import 'package:billing_app/features/clients/models/client.dart';
+import 'package:billing_app/features/clients/providers/clients_provider.dart';
+import 'package:billing_app/features/invoices/models/invoice_record.dart';
+import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
+import 'package:billing_app/features/payments/presentation/record_payment_dialog.dart';
+import 'package:billing_app/features/invoices/presentation/invoice_editor_screen.dart';
+import 'package:billing_app/features/billing/services/invoice_pdf_service.dart';
+import 'package:billing_app/features/billing/presentation/widgets/payment_reminder_modal.dart';
+import 'package:billing_app/features/billing/presentation/widgets/pdf_preview_dialog.dart';
 
 class OfflineInvoicesList extends ConsumerWidget {
   final String searchQuery;
@@ -103,6 +103,8 @@ class OfflineInvoicesList extends ConsumerWidget {
         if (statusFilter == 'Draft' && !inv.isDraft) return false;
         if (statusFilter == 'Void' && inv.status != 'VOID') return false;
       }
+
+      if (!matchesDateFilter(inv.issueDate, dateFilter)) return false;
       return true;
     }).toList();
 

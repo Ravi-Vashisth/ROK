@@ -1,6 +1,12 @@
 import React from 'react';
 import { TrendingUp, CheckCircle, Clock, AlertTriangle, ArrowUpRight, ArrowDownRight, Plus, Send } from 'lucide-react';
-import { calculateDashboardMetrics } from '../../billingRules';
+import {
+  calculateDashboardMetrics,
+  calculateDaysOverdue,
+  formatMoney as formatMoneyUnits,
+  getCurrencyDecimals,
+  resolveEffectiveCurrency,
+} from '../../billingRules';
 
 interface DashboardTabProps {
   invoices: any[];
@@ -8,6 +14,8 @@ interface DashboardTabProps {
   clients: any[];
   isDarkMode: boolean;
   currencySymbol: string;
+  currencyCode?: string;
+  currencyDecimals?: number;
   formatMoney: (cents: number) => string;
   onNavigateToSales: () => void;
   onNavigateToExpenses: () => void;
@@ -21,29 +29,57 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   clients,
   isDarkMode,
   currencySymbol,
+  currencyCode = 'USD',
+  currencyDecimals,
   formatMoney,
   onNavigateToSales,
   onNavigateToExpenses,
   onCreateInvoice,
   onSendReminder,
 }) => {
-  const metrics = calculateDashboardMetrics(invoices, expenses);
+  const resolvedDefaultDecimals =
+    currencyDecimals ?? getCurrencyDecimals(currencyCode || currencySymbol);
+
+  const metrics = calculateDashboardMetrics(invoices, expenses, undefined, {
+    code: currencyCode,
+    symbol: currencySymbol,
+    decimals: resolvedDefaultDecimals,
+  });
   const {
-    totalInvoicedCents,
-    totalCollectedCents,
-    pendingBalanceCents,
-    overdueAmountCents,
+    activeInvoiceCount,
     overdueInvoices,
-    netRevenueExclTaxCents,
-    netExpenseExclTaxCents,
-    taxLiabilityCents,
     netProfitCents,
+    formattedTotalInvoiced,
+    formattedTotalCollected,
+    formattedPendingBalance,
+    formattedOverdueAmount,
+    formattedNetProfit,
+    formattedNetRevenueExclTax,
+    formattedNetExpenseExclTax,
+    formattedTaxLiability,
   } = metrics;
 
-  const todayDate = new Date();
-  todayDate.setHours(0, 0, 0, 0);
+  const fmtDocMoney = (doc: any, units: number): string => {
+    const recCode = doc?.currency_code ?? doc?.currencyCode ?? '';
+    const recSym = doc?.currency_symbol ?? doc?.currencySymbol ?? '';
+    const recDec = doc?.currency_decimals ?? doc?.currencyDecimals;
+    const cur = resolveEffectiveCurrency({
+      recordCode: recCode,
+      recordSymbol: recSym,
+      recordDecimals: String(recCode).trim() ? recDec : undefined,
+      defaultCode: currencyCode,
+      defaultSymbol: currencySymbol,
+      defaultDecimals: resolvedDefaultDecimals,
+    });
+    return formatMoneyUnits(units, cur.symbol, cur.decimals);
+  };
 
-  const recentInvoices = invoices.filter((i) => i.status !== 'DRAFT').slice(0, 5);
+  const recentInvoices = invoices
+    .filter((i) => {
+      const st = String(i.computed_status || i.status || '').toUpperCase();
+      return st !== 'DRAFT' && st !== 'VOID';
+    })
+    .slice(0, 5);
   const recentExpenses = expenses.slice(0, 5);
 
   return (
@@ -70,8 +106,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <TrendingUp className="w-4 h-4 text-indigo-500" />
             <span>Total Invoiced</span>
           </div>
-          <div className="text-xl font-extrabold font-mono tabular-nums break-words">{formatMoney(totalInvoicedCents)}</div>
-          <p className="text-[11px] text-slate-400 mt-1">{invoices.length} invoices issued</p>
+          <div className="text-xl font-extrabold font-mono tabular-nums break-words">{formattedTotalInvoiced}</div>
+          <p className="text-[11px] text-slate-400 mt-1">
+            {activeInvoiceCount === 1 ? '1 invoice issued' : `${activeInvoiceCount} invoices issued`}
+          </p>
         </div>
 
         <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-emerald-950/30 border-emerald-900/50 text-emerald-300' : 'bg-emerald-50/60 border-emerald-200 text-emerald-900'}`}>
@@ -79,7 +117,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <CheckCircle className="w-4 h-4 text-emerald-600" />
             <span>Total Collected</span>
           </div>
-          <div className="text-xl font-extrabold font-mono tabular-nums break-words">{formatMoney(totalCollectedCents)}</div>
+          <div className="text-xl font-extrabold font-mono tabular-nums break-words">{formattedTotalCollected}</div>
           <p className="text-[11px] opacity-80 mt-1">Settled payments</p>
         </div>
 
@@ -88,7 +126,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <Clock className="w-4 h-4 text-amber-500" />
             <span>Pending Balance</span>
           </div>
-          <div className="text-xl font-extrabold font-mono tabular-nums break-words">{formatMoney(pendingBalanceCents)}</div>
+          <div className="text-xl font-extrabold font-mono tabular-nums break-words">{formattedPendingBalance}</div>
           <p className="text-[11px] text-slate-400 mt-1">Awaiting client payment</p>
         </div>
 
@@ -97,7 +135,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <AlertTriangle className="w-4 h-4 text-rose-600" />
             <span>Overdue Amount</span>
           </div>
-          <div className="text-xl font-extrabold font-mono tabular-nums break-words">{formatMoney(overdueAmountCents)}</div>
+          <div className="text-xl font-extrabold font-mono tabular-nums break-words">{formattedOverdueAmount}</div>
           <p className="text-[11px] opacity-80 mt-1">Passed payment terms</p>
         </div>
       </div>
@@ -110,9 +148,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
           <div className="min-w-0">
             <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Net Operating Profit (Excl. Tax)</span>
-            <div className="text-2xl font-black font-mono tabular-nums mt-0.5">{formatMoney(netProfitCents)}</div>
-            <p className="text-xs text-slate-400 mt-0.5 tabular-nums">
-              Net Revenue ({formatMoney(netRevenueExclTaxCents)}) − Net Expenses ({formatMoney(netExpenseExclTaxCents)}) • Net Tax Liability: {formatMoney(taxLiabilityCents)}
+            <div className="text-2xl font-black font-mono tabular-nums mt-0.5 break-words">{formattedNetProfit}</div>
+            <p className="text-xs text-slate-400 mt-0.5 tabular-nums break-words">
+              Net Revenue ({formattedNetRevenueExclTax}) − Net Expenses ({formattedNetExpenseExclTax}) • Net Tax Liability: {formattedTaxLiability}
             </p>
           </div>
         </div>
@@ -143,13 +181,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         ) : (
           <div className="space-y-2">
             {overdueInvoices.map((inv) => {
-              const due = new Date(inv.due_date);
-              const diffMs = todayDate.getTime() - due.getTime();
-              const days = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+              const days = Math.max(1, calculateDaysOverdue(inv.due_date));
               return (
                 <div key={inv.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
                   <span className="text-slate-700 dark:text-slate-300">
-                    Invoice <strong className="text-indigo-600">{inv.invoice_number}</strong> for {inv.client_name || 'Client'} is {days} {days === 1 ? 'day' : 'days'} overdue ({formatMoney(inv.balance_due_cents || 0)} balance due).
+                    Invoice <strong className="text-indigo-600">{inv.invoice_number}</strong> for {inv.client_name || 'Client'} is {days} {days === 1 ? 'day' : 'days'} overdue ({fmtDocMoney(inv, inv.balance_due_cents || 0)} balance due).
                   </span>
                   <div className="flex items-center gap-2 shrink-0">
                     {onSendReminder && (
@@ -186,7 +222,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </button>
           </div>
           {recentInvoices.length === 0 ? (
-            <p className="text-xs text-slate-400 py-6 text-center">No invoices created yet.</p>
+            <p className="text-xs text-slate-400 py-6 text-center">No finalized invoices created yet.</p>
           ) : (
             <div className="space-y-2">
               {recentInvoices.map((inv) => (
@@ -196,7 +232,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     <div className="text-slate-500 text-[11px] mt-0.5 truncate">{inv.client_name || 'Client'}</div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="font-bold font-mono tabular-nums">{formatMoney(inv.total_cents)}</div>
+                    <div className="font-bold font-mono tabular-nums">{fmtDocMoney(inv, inv.total_cents || 0)}</div>
                     <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
                       {inv.computed_status || inv.status}
                     </span>

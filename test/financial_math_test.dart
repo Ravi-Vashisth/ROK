@@ -1,17 +1,19 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/core/utils/backup_service.dart';
-import '../lib/core/utils/csv_export_service.dart';
-import '../lib/core/utils/money_utils.dart';
-import '../lib/core/utils/tax_compliance_utils.dart';
-import '../lib/core/utils/telephony_utils.dart';
-import '../lib/features/billing/services/invoice_pdf_service.dart';
-import '../lib/features/business_profile/models/business_profile.dart';
-import '../lib/features/clients/models/client.dart';
-import '../lib/features/expenses/models/expense_record.dart';
-import '../lib/features/invoices/models/invoice_item.dart';
-import '../lib/features/invoices/models/invoice_record.dart';
+import 'package:billing_app/core/utils/backup_service.dart';
+import 'package:billing_app/core/utils/csv_export_service.dart';
+import 'package:billing_app/core/utils/file_validation_utils.dart';
+import 'package:billing_app/core/utils/id_generator.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/core/utils/tax_compliance_utils.dart';
+import 'package:billing_app/core/utils/telephony_utils.dart';
+import 'package:billing_app/features/billing/services/invoice_pdf_service.dart';
+import 'package:billing_app/features/business_profile/models/business_profile.dart';
+import 'package:billing_app/features/clients/models/client.dart';
+import 'package:billing_app/features/expenses/models/expense_record.dart';
+import 'package:billing_app/features/invoices/models/invoice_item.dart';
+import 'package:billing_app/features/invoices/models/invoice_record.dart';
 
 void main() {
   group('Group 1: MoneyUtils & Integer Cents Math', () {
@@ -620,6 +622,357 @@ void main() {
         fallbackAutoDetect: true,
       );
       expect(legacyEu.effectiveMode, equals('eu_reverse_charge'));
+    });
+  });
+
+  group('Group 9: Task 2 3-Decimal Currencies, Parser Hardening & Pure Integer Formatting', () {
+    test('getCurrencyDecimals supports 3-decimal currencies (KWD, BHD, OMR, JOD, TND)', () {
+      expect(getCurrencyDecimals('KWD'), equals(3));
+      expect(getCurrencyDecimals('bhd'), equals(3));
+      expect(getCurrencyDecimals('OMR'), equals(3));
+      expect(getCurrencyDecimals('JOD'), equals(3));
+      expect(getCurrencyDecimals('TND'), equals(3));
+      expect(getCurrencyDecimals('USD'), equals(2));
+      expect(getCurrencyDecimals('JPY'), equals(0));
+    });
+
+    test('3-decimal currency parsing, pure integer formatting & dynamic QR generation', () {
+      expect(parsePriceToUnits('15.500', 3), equals(15500));
+      expect(parsePriceToUnits('KWD 1,234.567', 3), equals(1234567));
+      expect(parsePriceToUnits('0.005', 3), equals(5));
+      expect(parsePriceToUnits('15.5', 3), equals(15500));
+
+      expect(formatMoney(1234567, symbol: 'KWD', decimals: 3), equals('KWD1,234.567'));
+      expect(formatMoney(5, symbol: 'BHD', decimals: 3), equals('BHD0.005'));
+      expect(formatMoney(-15500, symbol: 'OMR', decimals: 3), equals('-OMR15.500'));
+      expect(formatDecimalUnits(1234567, 3), equals('1234.567'));
+      expect(formatDecimalUnits(5, 3), equals('0.005'));
+      expect(formatDecimalUnits(-50, 3), equals('-0.050'));
+
+      final kwdQr = generateDynamicQrPayload(
+        rawPayload: 'gulf@upi',
+        businessName: 'Kuwait Co',
+        balanceDueUnits: 15500,
+        currencyDecimals: 3,
+        invoiceNumber: 'INV-0777',
+        currencyCode: 'KWD',
+      );
+      expect(
+        kwdQr,
+        equals('upi://pay?pa=gulf%40upi&pn=Kuwait%20Co&am=15.500&tn=Invoice-INV-0777&cu=KWD'),
+      );
+    });
+
+    test('parsePriceToUnits rejects negative inputs cleanly and applies round-half-up on extra decimals', () {
+      expect(parsePriceToUnits('-15.50', 2), equals(0));
+      expect(parsePriceToUnits('-\$15.50', 2), equals(0));
+      expect(parsePriceToUnits('\$-100', 0), equals(0));
+      expect(parsePriceToUnits('-50.000', 3), equals(0));
+
+      expect(parsePriceToUnits('10.124', 2), equals(1012));
+      expect(parsePriceToUnits('10.125', 2), equals(1013));
+      expect(parsePriceToUnits('10.129', 2), equals(1013));
+      expect(parsePriceToUnits('10.999', 2), equals(1100));
+      expect(parsePriceToUnits('10.4', 0), equals(10));
+      expect(parsePriceToUnits('10.5', 0), equals(11));
+      expect(parsePriceToUnits('1.2344', 3), equals(1234));
+      expect(parsePriceToUnits('1.2345', 3), equals(1235));
+      expect(parsePriceToUnits('1.9999', 3), equals(2000));
+    });
+
+    test('formatMoney and formatDecimalUnits format negative integers deterministically without float division', () {
+      expect(formatMoney(-1550, symbol: '\$', decimals: 2), equals('-\$15.50'));
+      expect(formatMoney(-50000, symbol: '¥', decimals: 0), equals('-¥50,000'));
+      expect(formatDecimalUnits(-1550, 2), equals('-15.50'));
+      expect(formatDecimalUnits(-5, 2), equals('-0.05'));
+    });
+  });
+
+  group('Group 10: Task 3 Mixed-Currency Dashboard & Client Rollup Aggregation', () {
+    test('computeDashboardCashFlow aggregates USD + INR + JPY + KWD cleanly per currencyCode', () {
+      const entries = [
+        CurrencyLedgerEntry(
+          currencyCode: 'USD',
+          currencySymbol: '\$',
+          currencyDecimals: 2,
+          totalUnits: 100000,
+          paidUnits: 100000,
+          balanceDueUnits: 0,
+          taxUnits: 10000,
+          isOverdue: false,
+        ),
+        CurrencyLedgerEntry(
+          currencyCode: 'JPY',
+          currencySymbol: '¥',
+          currencyDecimals: 0,
+          totalUnits: 50000,
+          paidUnits: 0,
+          balanceDueUnits: 50000,
+          taxUnits: 5000,
+          isOverdue: true,
+        ),
+        CurrencyLedgerEntry(
+          currencyCode: 'KWD',
+          currencySymbol: 'KWD',
+          currencyDecimals: 3,
+          totalUnits: 25500,
+          paidUnits: 5000,
+          balanceDueUnits: 20500,
+          taxUnits: 0,
+          isOverdue: false,
+        ),
+        CurrencyLedgerEntry(
+          currencyCode: 'INR',
+          currencySymbol: '₹',
+          currencyDecimals: 2,
+          totalUnits: 500000,
+          paidUnits: 500000,
+          balanceDueUnits: 0,
+          taxUnits: 90000,
+          isOverdue: false,
+        ),
+      ];
+
+      final summary = computeDashboardCashFlow(
+        entries,
+        expenseGrossUnits: 22000,
+        expenseTaxUnits: 2000,
+        defaultCode: 'USD',
+        defaultSymbol: '\$',
+        defaultDecimals: 2,
+      );
+
+      expect(summary.byCurrency.map((b) => b.code).toList(), equals(['USD', 'INR', 'JPY', 'KWD']));
+      expect(summary.formattedInvoiced, equals('\$1,000.00 + ₹5,000.00 + ¥50,000 + KWD25.500'));
+      expect(summary.formattedCollected, equals('\$1,000.00 + ₹5,000.00 + KWD5.000'));
+      expect(summary.formattedUnpaid, equals('¥50,000 + KWD20.500'));
+      expect(summary.formattedOverdue, equals('¥50,000'));
+      expect(summary.hasAnyNegativeTaxLiability, isFalse);
+      expect(summary.hasNetLoss, isFalse);
+
+      final homeUsd = summary.byCurrency.first;
+      expect(homeUsd.netRevenueExclTaxUnits, equals(90000));
+      expect(homeUsd.netExpenseExclTaxUnits, equals(20000));
+      expect(homeUsd.taxLiabilityUnits, equals(8000));
+      expect(homeUsd.netProfitUnits, equals(70000));
+    });
+
+    test('computeClientRollup groups mixed currencies & handles all-zero emptyFallback', () {
+      const entries = [
+        CurrencyLedgerEntry(
+          currencyCode: '',
+          currencySymbol: '',
+          totalUnits: 12000,
+          paidUnits: 12000,
+        ),
+        CurrencyLedgerEntry(
+          currencyCode: 'JPY',
+          currencySymbol: '¥',
+          currencyDecimals: 0,
+          totalUnits: 35000,
+          paidUnits: 0,
+        ),
+        CurrencyLedgerEntry(
+          currencyCode: 'KWD',
+          currencySymbol: 'KWD',
+          currencyDecimals: 3,
+          totalUnits: 10500,
+          paidUnits: 2500,
+        ),
+      ];
+
+      final rollup = computeClientRollup(
+        entries,
+        defaultCode: 'EUR',
+        defaultSymbol: '€',
+        defaultDecimals: 2,
+      );
+
+      expect(rollup.hasOutstandingBalance, isTrue);
+      expect(rollup.formattedTotalBilled, equals('€120.00 + ¥35,000 + KWD10.500'));
+      expect(rollup.formattedTotalPaid, equals('€120.00 + KWD2.500'));
+      expect(rollup.formattedOutstandingBalance, equals('¥35,000 + KWD8.000'));
+
+      final emptyRollup = computeClientRollup(
+        const [],
+        defaultCode: 'JPY',
+        defaultSymbol: '¥',
+        defaultDecimals: 0,
+      );
+      expect(emptyRollup.hasOutstandingBalance, isFalse);
+      expect(emptyRollup.formattedTotalBilled, equals('¥0'));
+      expect(emptyRollup.formattedOutstandingBalance, equals('¥0'));
+    });
+  });
+
+  group('Group 11: Task 4 Date Filter, ISO Validation, UUID v4 & Sequence minNext', () {
+    test('matchesDateFilter handles All Time, This Month, and This Quarter across boundaries', () {
+      final refQ4 = DateTime(2026, 10, 20, 14, 0);
+      expect(matchesDateFilter('2024-01-01', 'All Time', referenceNow: refQ4), isTrue);
+      expect(matchesDateFilter('invalid', 'All Time', referenceNow: refQ4), isTrue);
+
+      // This Month (October 2026)
+      expect(matchesDateFilter('2026-10-01', 'This Month', referenceNow: refQ4), isTrue);
+      expect(matchesDateFilter('2026-10-31', 'This Month', referenceNow: refQ4), isTrue);
+      expect(matchesDateFilter('2026-09-30', 'This Month', referenceNow: refQ4), isFalse);
+      expect(matchesDateFilter('2026-11-01', 'This Month', referenceNow: refQ4), isFalse);
+      expect(matchesDateFilter('2025-10-20', 'This Month', referenceNow: refQ4), isFalse);
+      expect(matchesDateFilter('', 'This Month', referenceNow: refQ4), isFalse);
+
+      // This Quarter (Q4 2026: Oct-Dec)
+      expect(matchesDateFilter('2026-10-01', 'This Quarter', referenceNow: refQ4), isTrue);
+      expect(matchesDateFilter('2026-11-15', 'This Quarter', referenceNow: refQ4), isTrue);
+      expect(matchesDateFilter('2026-12-31', 'This Quarter', referenceNow: refQ4), isTrue);
+      expect(matchesDateFilter('2026-09-30', 'This Quarter', referenceNow: refQ4), isFalse);
+      expect(matchesDateFilter('2025-10-15', 'This Quarter', referenceNow: refQ4), isFalse);
+
+      // Q1 boundary check
+      final refQ1 = DateTime(2026, 3, 15, 9, 0);
+      expect(matchesDateFilter('2026-01-01', 'This Quarter', referenceNow: refQ1), isTrue);
+      expect(matchesDateFilter('2026-03-31', 'This Quarter', referenceNow: refQ1), isTrue);
+      expect(matchesDateFilter('2026-04-01', 'This Quarter', referenceNow: refQ1), isFalse);
+    });
+
+    test('isValidIsoCalendarDate strictly validates YYYY-MM-DD calendar dates', () {
+      expect(isValidIsoCalendarDate('2026-02-28'), isTrue);
+      expect(isValidIsoCalendarDate('2024-02-29'), isTrue);
+      expect(isValidIsoCalendarDate('2026-10-15'), isTrue);
+
+      expect(isValidIsoCalendarDate('2026-02-29'), isFalse);
+      expect(isValidIsoCalendarDate('2026-02-30'), isFalse);
+      expect(isValidIsoCalendarDate('2026-13-01'), isFalse);
+      expect(isValidIsoCalendarDate('2026-2-5'), isFalse);
+      expect(isValidIsoCalendarDate('2026-10-15T00:00:00Z'), isFalse);
+      expect(isValidIsoCalendarDate(''), isFalse);
+    });
+
+    test('generateUniqueId produces collision-free RFC-4122 UUID v4 strings & minNext aligns numbering', () {
+      final uuidRegex = RegExp(
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        caseSensitive: false,
+      );
+      final generated = <String>{};
+      for (int i = 0; i < 50; i++) {
+        final id = generateUniqueId();
+        expect(uuidRegex.hasMatch(id), isTrue);
+        generated.add(id);
+      }
+      expect(generated.length, equals(50));
+
+      expect(
+        getNextSequentialDocNumber(['INV-0001', 'DRAFT-AABBCCDD'], 'INV-', minNext: 10),
+        equals('INV-0010'),
+      );
+      expect(
+        getNextSequentialDocNumber(['INV-0001', 'INV-0015'], 'INV-', minNext: 5),
+        equals('INV-0016'),
+      );
+    });
+  });
+
+  group('Group 11: Task 5 Cross-OS Telephony Delimiter, WhatsApp Validation & Desktop Fallback', () {
+    test('buildSmsUri handles Android (?) vs iOS (&) body delimiter quirks', () {
+      expect(
+        buildSmsUri(phone: '+1 555-0192', body: 'Hello & Pay', isIos: false).toString(),
+        equals('sms:+15550192?body=Hello%20%26%20Pay'),
+      );
+      expect(
+        buildSmsUri(phone: '+1 555-0192', body: 'Hello & Pay', isIos: true).toString(),
+        equals('sms:+15550192&body=Hello%20%26%20Pay'),
+      );
+      expect(
+        buildSmsUri(phone: '+1 555-0192', body: '', isIos: true).toString(),
+        equals('sms:+15550192'),
+      );
+      expect(buildSmsUri(phone: '   ', body: 'Hi', isIos: true), isNull);
+    });
+
+    test('validateWhatsAppPhone detects missing country codes and leading trunk zeros', () {
+      final validIn = validateWhatsAppPhone('+91 98765 43210');
+      expect(validIn.isValid, isTrue);
+      expect(validIn.normalizedDigits, equals('919876543210'));
+      expect(validIn.warningMessage, isNull);
+
+      final validUs = validateWhatsAppPhone('+1 (555) 019-2834');
+      expect(validUs.isValid, isTrue);
+
+      final trunkZero = validateWhatsAppPhone('09876543210');
+      expect(trunkZero.isValid, isFalse);
+      expect(trunkZero.warningMessage, contains("starts with '0'"));
+
+      final missingPlusLocal = validateWhatsAppPhone('9876543210');
+      expect(missingPlusLocal.isValid, isFalse);
+      expect(missingPlusLocal.warningMessage, contains("Missing '+'"));
+
+      final tooShort = validateWhatsAppPhone('+12345');
+      expect(tooShort.isValid, isFalse);
+
+      final emptyNum = validateWhatsAppPhone('   ');
+      expect(emptyNum.isValid, isFalse);
+      expect(emptyNum.warningMessage, contains('No phone number'));
+    });
+
+    test('getDesktopTelephonyFallbackNote gives clear desktop fallback copy', () {
+      expect(
+        getDesktopTelephonyFallbackNote(hasPhone: false, hasEmail: false),
+        contains('No client phone or email'),
+      );
+      expect(
+        getDesktopTelephonyFallbackNote(hasPhone: true, hasEmail: true),
+        contains('Copy Reminder Message'),
+      );
+    });
+  });
+
+  group('Group 12: Task 6 SAF Attachment Byte, Header & Size Validation', () {
+    test('validateUploadedFileBytes validates PNG/JPEG/WEBP/PDF signatures and rejects corrupt or oversized files', () {
+      const pngHeader = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+      const jpgHeader = [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10];
+      const webpHeader = [0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50];
+      const pdfHeader = [0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34];
+
+      final pngRes = validateUploadedFileBytes(bytes: pngHeader, filename: 'logo.png', allowPdf: false);
+      expect(pngRes.isValid, isTrue);
+      expect(pngRes.mimeType, equals('image/png'));
+
+      final jpgRes = validateUploadedFileBytes(bytes: jpgHeader, filename: 'sig.jpg', allowPdf: false);
+      expect(jpgRes.isValid, isTrue);
+      expect(jpgRes.mimeType, equals('image/jpeg'));
+
+      final webpRes = validateUploadedFileBytes(bytes: webpHeader, filename: 'receipt.webp', allowPdf: true);
+      expect(webpRes.isValid, isTrue);
+      expect(webpRes.mimeType, equals('image/webp'));
+
+      // PDF rejected for logo/signature, accepted for expense receipts
+      final pdfAsLogo = validateUploadedFileBytes(bytes: pdfHeader, filename: 'fake.png', allowPdf: false);
+      expect(pdfAsLogo.isValid, isFalse);
+
+      final pdfAsReceipt = validateUploadedFileBytes(bytes: pdfHeader, filename: 'bill.pdf', allowPdf: true);
+      expect(pdfAsReceipt.isValid, isTrue);
+      expect(pdfAsReceipt.mimeType, equals('application/pdf'));
+
+      // Spoofed/corrupt header rejected
+      final fakePng = validateUploadedFileBytes(
+        bytes: [0x3C, 0x68, 0x74, 0x6D, 0x6C, 0x3E],
+        filename: 'malicious.png',
+        allowPdf: true,
+      );
+      expect(fakePng.isValid, isFalse);
+
+      // Empty bytes rejected
+      expect(
+        validateUploadedFileBytes(bytes: const [], filename: 'empty.png', allowPdf: true).isValid,
+        isFalse,
+      );
+
+      // Oversized (> 5 MB) rejected
+      final oversized = List<int>.filled(maxAttachmentSizeBytes + 1, 0);
+      for (int i = 0; i < pngHeader.length; i++) {
+        oversized[i] = pngHeader[i];
+      }
+      final sizeRes = validateUploadedFileBytes(bytes: oversized, filename: 'huge.png', allowPdf: false);
+      expect(sizeRes.isValid, isFalse);
+      expect(sizeRes.errorMessage, contains('5 MB'));
     });
   });
 }

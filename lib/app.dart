@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqlite3/sqlite3.dart' hide Row;
 
-import 'core/database/database_provider.dart';
-import 'core/database/local_db.dart';
-import 'core/theme/app_theme.dart';
-import 'core/theme/theme_provider.dart';
-import 'features/billing/presentation/billing_dashboard_screen.dart';
+import 'package:billing_app/core/database/database_provider.dart';
+import 'package:billing_app/core/database/local_db.dart';
+import 'package:billing_app/core/theme/app_theme.dart';
+import 'package:billing_app/core/theme/theme_provider.dart';
+import 'package:billing_app/features/billing/presentation/billing_dashboard_screen.dart';
 
 class DatabaseBootstrapApp extends StatefulWidget {
   final Database? initialDb;

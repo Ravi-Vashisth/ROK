@@ -2,11 +2,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/currency_formatter_provider.dart';
-import '../../../core/utils/money_utils.dart';
-import '../../business_profile/providers/business_profile_provider.dart';
-import '../models/saved_item.dart';
-import '../providers/saved_items_provider.dart';
+import 'package:billing_app/core/utils/currency_formatter_provider.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
+import 'package:billing_app/features/items/models/saved_item.dart';
+import 'package:billing_app/features/items/providers/saved_items_provider.dart';
 
 class ItemsCatalogTab extends ConsumerStatefulWidget {
   const ItemsCatalogTab({super.key});
@@ -66,94 +66,9 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
   }
 
   void _showEditItemDialog(BuildContext context, SavedItem item) {
-    final decimals = ref.read(businessProfileProvider).currencyDecimals;
-    final titleCtrl = TextEditingController(text: item.title);
-    final sacHsnCtrl = TextEditingController(text: item.sacHsn);
-    final priceCtrl = TextEditingController(text: formatDecimalUnits(item.defaultPriceCents, decimals));
-    final descCtrl = TextEditingController(text: item.description);
-    final formKey = GlobalKey<FormState>();
-
     showDialog(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Row(
-          children: [
-            Icon(Icons.edit_outlined),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text('Edit Catalog Item', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-        content: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: 440,
-            maxHeight: MediaQuery.sizeOf(context).height * 0.78,
-          ),
-          child: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: titleCtrl,
-                    decoration: const InputDecoration(labelText: 'Item / Service Title *'),
-                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter a title' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: sacHsnCtrl,
-                    decoration: const InputDecoration(labelText: 'SAC / HSN Code (e.g. 998311)'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: priceCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Default Unit Price *'),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) return 'Please enter a price';
-                      if (parsePriceToUnits(val, decimals) < 0) return 'Invalid price';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: descCtrl,
-                    maxLines: 2,
-                    decoration: const InputDecoration(labelText: 'Description'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton.icon(
-            icon: const Icon(Icons.check, size: 16),
-            label: const Text('Save Item'),
-            onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-              ref.read(savedItemsProvider.notifier).updateItem(
-                    id: item.id,
-                    title: titleCtrl.text.trim(),
-                    sacHsn: sacHsnCtrl.text.trim(),
-                    defaultPriceCents: parsePriceToUnits(priceCtrl.text, decimals),
-                    description: descCtrl.text.trim(),
-                  );
-              Navigator.of(dialogCtx).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Catalog item updated.')),
-              );
-            },
-          ),
-        ],
-      ),
+      builder: (_) => _EditCatalogItemDialog(item: item),
     );
   }
 
@@ -187,7 +102,9 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
   @override
   Widget build(BuildContext context) {
     final savedItems = ref.watch(savedItemsProvider);
+    final decimals = ref.watch(businessProfileProvider).currencyDecimals;
     final formatCurrency = ref.watch(currencyFormatterProvider);
+    final priceHint = decimals == 0 ? '100' : decimals == 3 ? '100.000' : '100.00';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,10 +143,10 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                     );
                     final priceField = TextField(
                       controller: _priceController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
+                      keyboardType: TextInputType.numberWithOptions(decimal: decimals > 0),
+                      decoration: InputDecoration(
                         labelText: 'Default Price',
-                        hintText: '100.00',
+                        hintText: priceHint,
                       ),
                     );
                     final descField = TextField(
@@ -457,3 +374,131 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
     );
   }
 }
+
+class _EditCatalogItemDialog extends ConsumerStatefulWidget {
+  final SavedItem item;
+
+  const _EditCatalogItemDialog({required this.item});
+
+  @override
+  ConsumerState<_EditCatalogItemDialog> createState() => _EditCatalogItemDialogState();
+}
+
+class _EditCatalogItemDialogState extends ConsumerState<_EditCatalogItemDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _titleController;
+  late final TextEditingController _sacHsnController;
+  late final TextEditingController _priceController;
+  late final TextEditingController _descController;
+
+  @override
+  void initState() {
+    super.initState();
+    final decimals = ref.read(businessProfileProvider).currencyDecimals;
+    _titleController = TextEditingController(text: widget.item.title);
+    _sacHsnController = TextEditingController(text: widget.item.sacHsn);
+    _priceController = TextEditingController(
+      text: formatDecimalUnits(widget.item.defaultPriceCents, decimals),
+    );
+    _descController = TextEditingController(text: widget.item.description);
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _sacHsnController.dispose();
+    _priceController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final decimals = ref.watch(businessProfileProvider).currencyDecimals;
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      title: const Row(
+        children: [
+          Icon(Icons.edit_outlined),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Edit Catalog Item',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 440,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+        ),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(labelText: 'Item / Service Title *'),
+                  validator: (val) =>
+                      val == null || val.trim().isEmpty ? 'Please enter a title' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _sacHsnController,
+                  decoration: const InputDecoration(labelText: 'SAC / HSN Code (e.g. 998311)'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _priceController,
+                  keyboardType: TextInputType.numberWithOptions(decimal: decimals > 0),
+                  decoration: const InputDecoration(labelText: 'Default Unit Price *'),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) return 'Please enter a price';
+                    if (parsePriceToUnits(val, decimals) < 0) return 'Invalid price';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _descController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          icon: const Icon(Icons.check, size: 16),
+          label: const Text('Save Item'),
+          onPressed: () {
+            if (!_formKey.currentState!.validate()) return;
+            ref.read(savedItemsProvider.notifier).updateItem(
+                  id: widget.item.id,
+                  title: _titleController.text.trim(),
+                  sacHsn: _sacHsnController.text.trim(),
+                  defaultPriceCents: parsePriceToUnits(_priceController.text, decimals),
+                  description: _descController.text.trim(),
+                );
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Catalog item updated.')),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+

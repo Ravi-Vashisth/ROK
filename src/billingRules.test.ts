@@ -22,6 +22,10 @@ import {
   extractSequenceNumber,
   getNextSequentialDocNumber,
   formatDecimalUnits,
+  formatLocalCalendarDate,
+  getCurrencyDecimals,
+  parseLocalCalendarDate,
+  calculateDaysOverdue,
   calculateTaxCents,
   calculateCollectedTaxPortion,
   calculateDashboardMetrics,
@@ -40,6 +44,16 @@ import {
   computeRegionalTaxCents,
   resolveRegionalTaxBreakdown,
   getRegionalTaxIdLabel,
+  resolveEffectiveCurrency,
+  computeClientRollup,
+  isValidIsoCalendarDate,
+  matchesDateFilter,
+  generateUniqueId,
+  validateWhatsAppPhone,
+  getDesktopTelephonyFallbackNote,
+  isIosDevice,
+  validateUploadedFileBytes,
+  MAX_ATTACHMENT_SIZE_BYTES,
 } from './billingRules';
 
 // ============================================================================
@@ -577,5 +591,451 @@ test('P2: Gulf VAT TRN display, US Tax-Exempt Certificate ID & legacy fallback a
     fallbackAutoDetect: true,
   });
   assert.equal(legacyEu.effectiveMode, 'eu_reverse_charge');
+});
+
+// ============================================================================
+// TASK 2 REGRESSION TESTS: 3-DECIMAL CURRENCIES, PARSER HARDENING & TIMEZONES
+// ============================================================================
+
+test('Task 2: 3-decimal currencies (KWD, BHD, OMR, JOD, TND) parsing, formatting & QR', () => {
+  assert.equal(getCurrencyDecimals('KWD'), 3);
+  assert.equal(getCurrencyDecimals('bhd'), 3);
+  assert.equal(getCurrencyDecimals('OMR'), 3);
+  assert.equal(getCurrencyDecimals('JOD'), 3);
+  assert.equal(getCurrencyDecimals('TND'), 3);
+  assert.equal(getCurrencyDecimals('USD'), 2);
+  assert.equal(getCurrencyDecimals('JPY'), 0);
+
+  assert.equal(parsePriceToUnits('15.500', 3), 15500);
+  assert.equal(parsePriceToUnits('KWD 1,234.567', 3), 1234567);
+  assert.equal(parsePriceToUnits('0.005', 3), 5);
+  assert.equal(parsePriceToUnits('15.5', 3), 15500);
+
+  assert.equal(formatMoney(1234567, 'KWD', 3), 'KWD1,234.567');
+  assert.equal(formatMoney(5, 'BHD', 3), 'BHD0.005');
+  assert.equal(formatMoney(-15500, 'OMR', 3), '-OMR15.500');
+  assert.equal(formatDecimalUnits(1234567, 3), '1234.567');
+  assert.equal(formatDecimalUnits(5, 3), '0.005');
+  assert.equal(formatDecimalUnits(-50, 3), '-0.050');
+
+  const kwdQr = generateDynamicQrPayload('gulf@upi', 'Kuwait Co', 15500, 3, 'INV-0777', 'KWD');
+  assert.equal(kwdQr, 'upi://pay?pa=gulf%40upi&pn=Kuwait%20Co&am=15.500&tn=Invoice-INV-0777&cu=KWD');
+});
+
+test('Task 2: Negative price input rejection & round-half-up extra fractional digits', () => {
+  // Reject negative price strings cleanly (never strip '-' into positive)
+  assert.equal(parsePriceToUnits('-15.50', 2), 0);
+  assert.equal(parsePriceToUnits('-$15.50', 2), 0);
+  assert.equal(parsePriceToUnits('$-100', 0), 0);
+  assert.equal(parsePriceToUnits('-50.000', 3), 0);
+  assert.equal(parseZeroDecimalPrice('-5000'), 0);
+
+  // Round-half-up instead of silent truncation
+  assert.equal(parsePriceToUnits('10.124', 2), 1012);
+  assert.equal(parsePriceToUnits('10.125', 2), 1013);
+  assert.equal(parsePriceToUnits('10.129', 2), 1013);
+  assert.equal(parsePriceToUnits('10.999', 2), 1100);
+  assert.equal(parsePriceToUnits('10.4', 0), 10);
+  assert.equal(parsePriceToUnits('10.5', 0), 11);
+  assert.equal(parsePriceToUnits('1.2344', 3), 1234);
+  assert.equal(parsePriceToUnits('1.2345', 3), 1235);
+  assert.equal(parsePriceToUnits('1.9999', 3), 2000);
+
+  // Pure integer negative money formatting (used for net operating losses / negative tax liability)
+  assert.equal(formatMoney(-1550, '$', 2), '-$15.50');
+  assert.equal(formatMoney(-50000, '¥', 0), '-¥50,000');
+  assert.equal(formatDecimalUnits(-1550, 2), '-15.50');
+  assert.equal(formatDecimalUnits(-5, 2), '-0.05');
+});
+
+test('Task 2: Local calendar date parsing eliminates UTC-midnight -1 day shift & DST drift', () => {
+  const parsed = parseLocalCalendarDate('2026-10-15');
+  assert.ok(parsed);
+  assert.equal(parsed.getFullYear(), 2026);
+  assert.equal(parsed.getMonth(), 9); // October (0-indexed)
+  assert.equal(parsed.getDate(), 15);
+  assert.equal(formatLocalCalendarDate(parsed), '2026-10-15');
+
+  // Invalid calendar dates rejected
+  assert.equal(parseLocalCalendarDate('2026-02-30'), null);
+  assert.equal(parseLocalCalendarDate(''), null);
+
+  // Due date calendar math (safe across UTC-8 and DST fallback)
+  assert.equal(calculateDueDate('2026-10-01', 'Net 15 Days'), '2026-10-16');
+  assert.equal(calculateDueDate('2026-10-31', 'Net 30 Days'), '2026-11-30');
+  assert.equal(calculateDueDate('2026-11-01', 'Net 15 Days'), '2026-11-16');
+
+  // Boundary check: invoice due ON 2026-10-15 is NOT overdue at 23:59 local on 2026-10-15
+  const sameDayLate = new Date(2026, 9, 15, 23, 59, 0);
+  const nextDayEarly = new Date(2026, 9, 16, 0, 1, 0);
+  assert.equal(isInvoiceOverdue('PENDING', '2026-10-15', false, sameDayLate), false);
+  assert.equal(isInvoiceOverdue('PENDING', '2026-10-15', false, nextDayEarly), true);
+  assert.equal(resolveDynamicStatus(10000, 0, '2026-10-15', 'PENDING', sameDayLate), 'PENDING');
+  assert.equal(resolveDynamicStatus(10000, 0, '2026-10-15', 'PENDING', nextDayEarly), 'OVERDUE');
+
+  // DST spring-forward day difference (2026-03-08 -> 2026-03-09 in US timezones is 23h, must still be 1 day)
+  assert.equal(calculateDaysOverdue('2026-03-08', new Date(2026, 2, 9, 12, 0)), 1);
+
+  // Dashboard metrics uses local calendar date comparison
+  const sampleInvoices = [
+    { id: '1', status: 'PENDING', total_cents: 10000, paid_cents: 0, balance_due_cents: 10000, tax_cents: 0, due_date: '2026-10-15' },
+  ];
+  assert.equal(calculateDashboardMetrics(sampleInvoices, [], sameDayLate).overdueInvoices.length, 0);
+  assert.equal(calculateDashboardMetrics(sampleInvoices, [], nextDayEarly).overdueInvoices.length, 1);
+});
+
+// ============================================================================
+// TASK 3 REGRESSION TESTS: MIXED-CURRENCY DASHBOARD & CLIENT ROLLUP ACCURACY
+// ============================================================================
+
+test('Task 3: calculateDashboardMetrics groups USD + JPY + INR + KWD without scalar corruption & excludes DRAFT/VOID', () => {
+  const refNow = new Date(2026, 9, 20, 12, 0); // 2026-10-20 local
+  const mixedInvoices = [
+    // Home USD invoice (PAID $1,000.00 incl $100.00 tax)
+    {
+      id: 'inv-usd',
+      status: 'PAID',
+      currency_code: 'USD',
+      currency_symbol: '$',
+      currency_decimals: 2,
+      total_cents: 100000,
+      paid_cents: 100000,
+      balance_due_cents: 0,
+      tax_cents: 10000,
+      due_date: '2026-10-10',
+    },
+    // Foreign JPY 0-decimal invoice (OVERDUE ¥50,000 unpaid)
+    {
+      id: 'inv-jpy',
+      status: 'PENDING',
+      currency_code: 'JPY',
+      currency_symbol: '¥',
+      currency_decimals: 0,
+      total_cents: 50000,
+      paid_cents: 0,
+      balance_due_cents: 50000,
+      tax_cents: 5000,
+      due_date: '2026-10-05',
+    },
+    // Foreign KWD 3-decimal invoice (PENDING KWD 25.500 paid KWD 5.000, due KWD 20.500, not overdue)
+    {
+      id: 'inv-kwd',
+      status: 'PARTIALLY_PAID',
+      currency_code: 'KWD',
+      currency_symbol: 'KWD ',
+      currency_decimals: 3,
+      total_cents: 25500,
+      paid_cents: 5000,
+      balance_due_cents: 20500,
+      tax_cents: 0,
+      due_date: '2026-10-25',
+    },
+    // Foreign INR invoice with legacy missing symbol/decimals? Explicit INR
+    {
+      id: 'inv-inr',
+      status: 'PAID',
+      currency_code: 'INR',
+      currency_symbol: '₹',
+      currency_decimals: 2,
+      total_cents: 500000,
+      paid_cents: 500000,
+      balance_due_cents: 0,
+      tax_cents: 90000,
+      due_date: '2026-10-01',
+    },
+    // DRAFT and VOID MUST be completely ignored in counts & sums
+    {
+      id: 'inv-draft',
+      status: 'DRAFT',
+      currency_code: 'USD',
+      currency_symbol: '$',
+      currency_decimals: 2,
+      total_cents: 999900,
+      paid_cents: 0,
+      balance_due_cents: 999900,
+      tax_cents: 0,
+      due_date: '2026-10-01',
+    },
+    {
+      id: 'inv-void',
+      status: 'VOID',
+      currency_code: 'JPY',
+      currency_symbol: '¥',
+      currency_decimals: 0,
+      total_cents: 88888,
+      paid_cents: 0,
+      balance_due_cents: 88888,
+      tax_cents: 0,
+      due_date: '2026-10-01',
+    },
+  ];
+
+  // Expenses belong strictly to home currency (USD: $220.00 gross incl $20.00 tax)
+  const expenses = [
+    { id: 'exp-1', total_cents: 22000, tax_cents: 2000 },
+  ];
+
+  const m = calculateDashboardMetrics(mixedInvoices, expenses, refNow, {
+    code: 'USD',
+    symbol: '$',
+    decimals: 2,
+  });
+
+  // Excludes DRAFT & VOID from activeInvoiceCount
+  assert.equal(m.activeInvoiceCount, 4);
+
+  // Home scalar fields ONLY count USD — never polluted by JPY 50,000, KWD 25,500, or INR 500,000
+  assert.equal(m.totalInvoicedCents, 100000);
+  assert.equal(m.totalCollectedCents, 100000);
+  assert.equal(m.pendingBalanceCents, 0);
+  assert.equal(m.overdueAmountCents, 0);
+  assert.equal(m.netRevenueExclTaxCents, 90000); // $1000 - $100 tax
+  assert.equal(m.netExpenseExclTaxCents, 20000); // $220 - $20 tax
+  assert.equal(m.taxLiabilityCents, 8000);       // $100 - $20
+  assert.equal(m.netProfitCents, 70000);         // $900 - $200
+
+  // Per-currency buckets ordered home USD first, then alphabetical INR, JPY, KWD
+  assert.deepEqual(
+    m.byCurrency.map((b) => b.currencyCode),
+    ['USD', 'INR', 'JPY', 'KWD']
+  );
+  assert.equal(m.formattedTotalInvoiced, '$1,000.00 + ₹5,000.00 + ¥50,000 + KWD25.500');
+  assert.equal(m.formattedTotalCollected, '$1,000.00 + ₹5,000.00 + KWD5.000');
+  assert.equal(m.formattedPendingBalance, '¥50,000 + KWD20.500');
+  assert.equal(m.formattedOverdueAmount, '¥50,000');
+  assert.equal(m.overdueInvoices.length, 1);
+  assert.equal(m.overdueInvoices[0].id, 'inv-jpy');
+});
+
+test('Task 3: computeClientRollup groups mixed currencies & resolves empty legacy currency fields cleanly', () => {
+  const clientInvoices = [
+    // Legacy empty currency falls back to profile (EUR / € / 2)
+    {
+      id: 'c-1',
+      status: 'PAID',
+      currency_code: '',
+      currency_symbol: '',
+      total_cents: 12000,
+      paid_cents: 12000,
+    },
+    {
+      id: 'c-2',
+      status: 'PENDING',
+      currency_code: 'JPY',
+      currency_symbol: '¥',
+      currency_decimals: 0,
+      total_cents: 35000,
+      paid_cents: 0,
+    },
+    {
+      id: 'c-3',
+      status: 'PARTIALLY_PAID',
+      currency_code: 'KWD',
+      currency_symbol: 'KWD',
+      currency_decimals: 3,
+      total_cents: 10500,
+      paid_cents: 2500,
+    },
+    // Ignored VOID & DRAFT
+    {
+      id: 'c-draft',
+      status: 'DRAFT',
+      currency_code: 'USD',
+      currency_symbol: '$',
+      currency_decimals: 2,
+      total_cents: 50000,
+      paid_cents: 0,
+    },
+    {
+      id: 'c-void',
+      status: 'VOID',
+      currency_code: 'JPY',
+      currency_symbol: '¥',
+      currency_decimals: 0,
+      total_cents: 99000,
+      paid_cents: 0,
+    },
+  ];
+
+  const rollup = computeClientRollup(clientInvoices, {
+    code: 'EUR',
+    symbol: '€',
+    decimals: 2,
+  });
+
+  assert.equal(rollup.hasOutstandingBalance, true);
+  assert.equal(rollup.formattedTotalBilled, '€120.00 + ¥35,000 + KWD10.500');
+  assert.equal(rollup.formattedTotalPaid, '€120.00 + KWD2.500');
+  assert.equal(rollup.formattedOutstandingBalance, '¥35,000 + KWD8.000');
+
+  const resolvedLegacy = resolveEffectiveCurrency({
+    recordCode: '',
+    recordSymbol: '',
+    defaultCode: 'JPY',
+    defaultSymbol: '¥',
+    defaultDecimals: 0,
+  });
+  assert.deepEqual(resolvedLegacy, { code: 'JPY', symbol: '¥', decimals: 0 });
+});
+
+// ============================================================================
+// TASK 4 REGRESSION TESTS: DATE FILTER, ISO DATE VALIDATION, UUID & MIN-NEXT
+// ============================================================================
+
+test('Task 4: matchesDateFilter handles All Time, This Month, and This Quarter across quarter & year boundaries', () => {
+  const refQ4 = new Date(2026, 9, 20, 14, 0); // 2026-10-20 local
+  assert.equal(matchesDateFilter('2024-01-01', 'All Time', refQ4), true);
+  assert.equal(matchesDateFilter('invalid', 'All Time', refQ4), true);
+
+  // This Month (October 2026)
+  assert.equal(matchesDateFilter('2026-10-01', 'This Month', refQ4), true);
+  assert.equal(matchesDateFilter('2026-10-31', 'This Month', refQ4), true);
+  assert.equal(matchesDateFilter('2026-09-30', 'This Month', refQ4), false);
+  assert.equal(matchesDateFilter('2026-11-01', 'This Month', refQ4), false);
+  assert.equal(matchesDateFilter('2025-10-20', 'This Month', refQ4), false);
+  assert.equal(matchesDateFilter('', 'This Month', refQ4), false);
+
+  // This Quarter (Q4 2026: Oct-Dec)
+  assert.equal(matchesDateFilter('2026-10-01', 'This Quarter', refQ4), true);
+  assert.equal(matchesDateFilter('2026-11-15', 'This Quarter', refQ4), true);
+  assert.equal(matchesDateFilter('2026-12-31', 'This Quarter', refQ4), true);
+  assert.equal(matchesDateFilter('2026-09-30', 'This Quarter', refQ4), false);
+  assert.equal(matchesDateFilter('2025-10-15', 'This Quarter', refQ4), false);
+
+  // Quarter 1 boundary check (Jan-Mar 2026)
+  const refQ1 = new Date(2026, 2, 15, 9, 0); // 2026-03-15
+  assert.equal(matchesDateFilter('2026-01-01', 'This Quarter', refQ1), true);
+  assert.equal(matchesDateFilter('2026-03-31', 'This Quarter', refQ1), true);
+  assert.equal(matchesDateFilter('2026-04-01', 'This Quarter', refQ1), false);
+});
+
+test('Task 4: isValidIsoCalendarDate strictly validates YYYY-MM-DD calendar dates', () => {
+  assert.equal(isValidIsoCalendarDate('2026-02-28'), true);
+  assert.equal(isValidIsoCalendarDate('2024-02-29'), true);
+  assert.equal(isValidIsoCalendarDate('2026-10-15'), true);
+
+  assert.equal(isValidIsoCalendarDate('2026-02-29'), false);
+  assert.equal(isValidIsoCalendarDate('2026-02-30'), false);
+  assert.equal(isValidIsoCalendarDate('2026-13-01'), false);
+  assert.equal(isValidIsoCalendarDate('2026-2-5'), false);
+  assert.equal(isValidIsoCalendarDate('2026-10-15T00:00:00Z'), false);
+  assert.equal(isValidIsoCalendarDate(''), false);
+});
+
+test('Task 4: generateUniqueId produces collision-free RFC-4122 UUID v4 strings & minNext aligns numbering', () => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const generated = new Set<string>();
+  for (let i = 0; i < 50; i++) {
+    const id = generateUniqueId();
+    assert.match(id, uuidRegex);
+    generated.add(id);
+  }
+  assert.equal(generated.size, 50);
+
+  assert.equal(getNextSequentialDocNumber(['INV-0001', 'DRAFT-AABBCCDD'], 'INV-', 10), 'INV-0010');
+  assert.equal(getNextSequentialDocNumber(['INV-0001', 'INV-0015'], 'INV-', 5), 'INV-0016');
+});
+
+// ============================================================================
+// TASK 5 REGRESSION TESTS: TELEPHONY IOS DELIMITER, WHATSAPP VALIDATION & FALLBACK
+// ============================================================================
+
+test('Task 5: buildSmsUrl applies iOS &body= quirk cleanly and rejects empty phones', () => {
+  assert.equal(
+    buildSmsUrl('+1 555-0192', 'Hello & Pay', false),
+    'sms:+15550192?body=Hello%20%26%20Pay'
+  );
+  assert.equal(
+    buildSmsUrl('+1 555-0192', 'Hello & Pay', true),
+    'sms:+15550192&body=Hello%20%26%20Pay'
+  );
+  assert.equal(buildSmsUrl('+1 555-0192', '', true), 'sms:+15550192');
+  assert.equal(buildSmsUrl('   ', 'Hi', true), null);
+  assert.equal(typeof isIosDevice(), 'boolean');
+});
+
+test('Task 5: validateWhatsAppPhone detects missing country codes and trunk zeros', () => {
+  const validIn = validateWhatsAppPhone('+91 98765 43210');
+  assert.equal(validIn.isValid, true);
+  assert.equal(validIn.normalizedDigits, '919876543210');
+  assert.equal(validIn.warningMessage, undefined);
+
+  const validUs = validateWhatsAppPhone('+1 (555) 019-2834');
+  assert.equal(validUs.isValid, true);
+
+  const trunkZero = validateWhatsAppPhone('09876543210');
+  assert.equal(trunkZero.isValid, false);
+  assert.ok(trunkZero.warningMessage?.includes("starts with '0'"));
+
+  const missingPlusLocal = validateWhatsAppPhone('9876543210');
+  assert.equal(missingPlusLocal.isValid, false);
+  assert.ok(missingPlusLocal.warningMessage?.includes("Missing '+'"));
+
+  const tooShort = validateWhatsAppPhone('+12345');
+  assert.equal(tooShort.isValid, false);
+
+  const emptyNum = validateWhatsAppPhone('   ');
+  assert.equal(emptyNum.isValid, false);
+  assert.ok(emptyNum.warningMessage?.includes('No phone number'));
+});
+
+test('Task 5: getDesktopTelephonyFallbackNote gives clear desktop fallback copy', () => {
+  assert.ok(getDesktopTelephonyFallbackNote(false, false).includes('No client phone or email'));
+  assert.ok(getDesktopTelephonyFallbackNote(true, true).includes('Copy Reminder Message'));
+});
+
+// ============================================================================
+// TASK 6 REGRESSION TESTS: ATTACHMENT BYTE, MIME HEADER & SIZE VALIDATION
+// ============================================================================
+
+test('Task 6: validateUploadedFileBytes validates PNG/JPEG/WEBP/PDF headers and rejects invalid or oversized files', () => {
+  const pngHeader = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const jpgHeader = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+  const webpHeader = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]);
+  const pdfHeader = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34]);
+
+  assert.deepEqual(
+    validateUploadedFileBytes({ bytes: pngHeader, filename: 'logo.png', allowPdf: false }),
+    { isValid: true, mimeType: 'image/png' }
+  );
+  assert.deepEqual(
+    validateUploadedFileBytes({ bytes: jpgHeader, filename: 'sig.jpg', allowPdf: false }),
+    { isValid: true, mimeType: 'image/jpeg' }
+  );
+  assert.deepEqual(
+    validateUploadedFileBytes({ bytes: webpHeader, filename: 'receipt.webp', allowPdf: true }),
+    { isValid: true, mimeType: 'image/webp' }
+  );
+
+  // PDF only accepted when allowPdf is true
+  const pdfAsLogo = validateUploadedFileBytes({ bytes: pdfHeader, filename: 'fake.png', allowPdf: false });
+  assert.equal(pdfAsLogo.isValid, false);
+  const pdfAsReceipt = validateUploadedFileBytes({ bytes: pdfHeader, filename: 'bill.pdf', allowPdf: true });
+  assert.deepEqual(pdfAsReceipt, { isValid: true, mimeType: 'application/pdf' });
+
+  // Corrupt/text payload disguised as .png
+  const fakePng = validateUploadedFileBytes({
+    bytes: new Uint8Array([0x3c, 0x68, 0x74, 0x6d, 0x6c, 0x3e]),
+    filename: 'malicious.png',
+    allowPdf: true,
+  });
+  assert.equal(fakePng.isValid, false);
+
+  // Empty file
+  assert.equal(
+    validateUploadedFileBytes({ bytes: new Uint8Array([]), filename: 'empty.png', allowPdf: true }).isValid,
+    false
+  );
+
+  // Oversized file (> 5 MB)
+  const oversized = new Uint8Array(MAX_ATTACHMENT_SIZE_BYTES + 1);
+  oversized.set(pngHeader, 0);
+  const sizeResult = validateUploadedFileBytes({
+    bytes: oversized,
+    filename: 'huge.png',
+    allowPdf: false,
+  });
+  assert.equal(sizeResult.isValid, false);
+  assert.ok(sizeResult.errorMessage?.includes('5 MB'));
 });
 

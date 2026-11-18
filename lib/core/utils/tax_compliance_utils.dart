@@ -1,4 +1,4 @@
-import 'money_utils.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
 
 class TaxMode {
   static const String standard = 'standard';

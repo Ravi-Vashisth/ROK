@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqlite3/sqlite3.dart';
-import '../../../core/database/database_provider.dart';
-import '../../../core/utils/id_generator.dart';
-import '../models/expense_record.dart';
+import 'package:billing_app/core/database/database_provider.dart';
+import 'package:billing_app/core/utils/id_generator.dart';
+import 'package:billing_app/features/expenses/models/expense_record.dart';
 
 class ExpensesNotifier extends StateNotifier<List<ExpenseRecord>> {
   final Database _db;
@@ -35,6 +35,40 @@ class ExpensesNotifier extends StateNotifier<List<ExpenseRecord>> {
     ''');
     try {
       stmt.execute([id, category, vendor, amountCents, taxCents, expenseDate, notes, receiptBase64, receiptName, createdAt]);
+    } finally {
+      stmt.dispose();
+    }
+    loadExpenses();
+  }
+
+  void updateExpense({
+    required String id,
+    required String category,
+    required String vendor,
+    required int amountCents,
+    int taxCents = 0,
+    required String expenseDate,
+    String notes = '',
+    String receiptBase64 = '',
+    String receiptName = '',
+  }) {
+    final stmt = _db.prepare('''
+      UPDATE expenses
+      SET category = ?, vendor = ?, amount_cents = ?, tax_cents = ?, expense_date = ?, notes = ?, receipt_base64 = ?, receipt_name = ?
+      WHERE id = ?
+    ''');
+    try {
+      stmt.execute([
+        category,
+        vendor,
+        amountCents,
+        taxCents,
+        expenseDate,
+        notes,
+        receiptBase64,
+        receiptName,
+        id,
+      ]);
     } finally {
       stmt.dispose();
     }

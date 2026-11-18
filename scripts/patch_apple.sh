@@ -3,10 +3,10 @@ set -e
 
 echo "Applying Apple (iOS Info.plist & macOS Entitlements) patches..."
 
-# 1. Patch iOS Info.plist with LSApplicationQueriesSchemes for url_launcher
+# 1. Patch iOS Info.plist with LSApplicationQueriesSchemes & Files/PhotoLibrary keys idempotently
 IOS_PLIST="ios/Runner/Info.plist"
 if [ -f "$IOS_PLIST" ]; then
-  echo "Patching $IOS_PLIST with LSApplicationQueriesSchemes..."
+  echo "Patching $IOS_PLIST with LSApplicationQueriesSchemes, file sharing, and photo library usage..."
   python3 - "$IOS_PLIST" << 'PYEOF'
 import plistlib
 import sys
@@ -24,15 +24,22 @@ for scheme in required_schemes:
         existing.append(scheme)
 data['LSApplicationQueriesSchemes'] = existing
 
+data['UIFileSharingEnabled'] = True
+data['LSSupportsOpeningDocumentsInPlace'] = True
+data.setdefault(
+    'NSPhotoLibraryUsageDescription',
+    'Select a business logo image for invoices, quotes, and statements.'
+)
+
 with open(path, 'wb') as f:
     plistlib.dump(data, f)
 PYEOF
 fi
 
-# 2. Patch macOS Entitlements for outbound network links & user-selected file save/open dialogs
+# 2. Patch macOS Entitlements for outbound network links, file dialogs, and sandboxed printing
 for ENT in "macos/Runner/Release.entitlements" "macos/Runner/DebugProfile.entitlements"; do
   if [ -f "$ENT" ]; then
-    echo "Patching $ENT with network client and file access entitlements..."
+    echo "Patching $ENT with network client, file access, and print entitlements..."
     python3 - "$ENT" << 'PYEOF'
 import plistlib
 import sys
@@ -43,6 +50,7 @@ with open(path, 'rb') as f:
 
 data['com.apple.security.network.client'] = True
 data['com.apple.security.files.user-selected.read-write'] = True
+data['com.apple.security.print'] = True
 
 with open(path, 'wb') as f:
     plistlib.dump(data, f)

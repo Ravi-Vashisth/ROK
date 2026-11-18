@@ -2,16 +2,16 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/money_utils.dart';
-import '../../billing/presentation/widgets/pdf_preview_dialog.dart';
-import '../../billing/services/invoice_pdf_service.dart';
-import '../../business_profile/providers/business_profile_provider.dart';
-import '../../clients/models/client.dart';
-import '../../clients/providers/clients_provider.dart';
-import '../../invoices/presentation/invoice_editor_screen.dart';
-import '../../invoices/providers/invoices_provider.dart';
-import '../models/estimate_record.dart';
-import '../providers/estimates_provider.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/features/billing/presentation/widgets/pdf_preview_dialog.dart';
+import 'package:billing_app/features/billing/services/invoice_pdf_service.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
+import 'package:billing_app/features/clients/models/client.dart';
+import 'package:billing_app/features/clients/providers/clients_provider.dart';
+import 'package:billing_app/features/invoices/presentation/invoice_editor_screen.dart';
+import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
+import 'package:billing_app/features/estimates/models/estimate_record.dart';
+import 'package:billing_app/features/estimates/providers/estimates_provider.dart';
 
 class OfflineEstimatesList extends ConsumerWidget {
   final String searchQuery;
@@ -53,6 +53,8 @@ class OfflineEstimatesList extends ConsumerWidget {
         if (filterUpper == 'DECLINED' && estStatusUpper != 'DECLINED') return false;
         if (filterUpper == 'CONVERTED' && !est.isConverted && estStatusUpper != 'CONVERTED') return false;
       }
+
+      if (!matchesDateFilter(est.issueDate, dateFilter)) return false;
       return true;
     }).toList();
 

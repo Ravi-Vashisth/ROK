@@ -4,13 +4,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/utils/currency_formatter_provider.dart';
-import '../../../core/utils/money_utils.dart';
-import '../../../core/utils/telephony_utils.dart';
-import '../../invoices/providers/invoices_provider.dart';
-import '../models/client.dart';
-import '../providers/clients_provider.dart';
-import 'client_statement_dialog.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/core/utils/telephony_utils.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
+import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
+import 'package:billing_app/features/clients/models/client.dart';
+import 'package:billing_app/features/clients/providers/clients_provider.dart';
+import 'package:billing_app/features/clients/presentation/client_statement_dialog.dart';
 
 class ClientsTab extends ConsumerStatefulWidget {
   const ClientsTab({super.key});
@@ -55,161 +55,16 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
   }
 
   void _showAddClientDialog() {
-    final nameCtrl = TextEditingController();
-    final emailCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
-    final addressCtrl = TextEditingController();
-    final taxIdCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text('Add New Client'),
-        content: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: 440,
-            maxHeight: MediaQuery.sizeOf(context).height * 0.78,
-          ),
-          child: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: nameCtrl,
-                    decoration: const InputDecoration(labelText: 'Client / Company Name *'),
-                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter a name' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: emailCtrl,
-                    decoration: const InputDecoration(labelText: 'Billing Email'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: phoneCtrl,
-                    decoration: const InputDecoration(labelText: 'Phone Number'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: addressCtrl,
-                    maxLines: 2,
-                    decoration: const InputDecoration(labelText: 'Billing Address'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: taxIdCtrl,
-                    decoration: const InputDecoration(labelText: 'GSTIN / Tax ID'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-              ref.read(clientsProvider.notifier).addClient(
-                    name: nameCtrl.text.trim(),
-                    email: emailCtrl.text.trim(),
-                    phone: phoneCtrl.text.trim(),
-                    address: addressCtrl.text.trim(),
-                    taxId: taxIdCtrl.text.trim(),
-                  );
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Client added successfully!')),
-              );
-            },
-            child: const Text('Save Client'),
-          ),
-        ],
-      ),
+      builder: (_) => const _ClientFormDialog(),
     );
   }
 
   void _showEditClientDialog(Client client) {
-    final nameCtrl = TextEditingController(text: client.name);
-    final emailCtrl = TextEditingController(text: client.email);
-    final phoneCtrl = TextEditingController(text: client.phone);
-    final addressCtrl = TextEditingController(text: client.address);
-    final taxIdCtrl = TextEditingController(text: client.taxId);
-    final formKey = GlobalKey<FormState>();
-
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text('Edit Client Details'),
-        content: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: 440,
-            maxHeight: MediaQuery.sizeOf(context).height * 0.78,
-          ),
-          child: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: nameCtrl,
-                    decoration: const InputDecoration(labelText: 'Client Name *'),
-                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter a name' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: emailCtrl,
-                    decoration: const InputDecoration(labelText: 'Billing Email'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: phoneCtrl,
-                    decoration: const InputDecoration(labelText: 'Phone Number'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: addressCtrl,
-                    maxLines: 2,
-                    decoration: const InputDecoration(labelText: 'Billing Address'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: taxIdCtrl,
-                    decoration: const InputDecoration(labelText: 'GSTIN / Tax ID'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-              ref.read(clientsProvider.notifier).updateClient(
-                    id: client.id,
-                    name: nameCtrl.text.trim(),
-                    email: emailCtrl.text.trim(),
-                    phone: phoneCtrl.text.trim(),
-                    address: addressCtrl.text.trim(),
-                    taxId: taxIdCtrl.text.trim(),
-                  );
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Client details updated!')),
-              );
-            },
-            child: const Text('Save Changes'),
-          ),
-        ],
-      ),
+      builder: (_) => _ClientFormDialog(initialClient: client),
     );
   }
 
@@ -409,7 +264,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
     }
 
     final invoices = ref.watch(invoicesProvider);
-    final formatCurrency = ref.watch(currencyFormatterProvider);
+    final profile = ref.watch(businessProfileProvider);
 
     return ListView.separated(
       shrinkWrap: true,
@@ -419,8 +274,21 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
       itemBuilder: (_, i) {
         final c = clients[i];
         final isSelected = _selectedClientId == c.id;
-        final clientInvoices = invoices.where((inv) => inv.clientId == c.id && !inv.isVoid && !inv.isDraft).toList();
-        final balanceDue = clientInvoices.fold(0, (sum, inv) => sum + inv.balanceDueCents);
+        final clientInvoices = invoices.where((inv) => inv.clientId == c.id && !inv.isVoid && !inv.isDraft);
+        final rollup = computeClientRollup(
+          clientInvoices.map((inv) => CurrencyLedgerEntry(
+                currencyCode: inv.currencyCode,
+                currencySymbol: inv.currencySymbol,
+                currencyDecimals: inv.currencyDecimals,
+                totalUnits: inv.totalCents,
+                paidUnits: inv.paidCents,
+                balanceDueUnits: inv.balanceDueCents,
+              )),
+          defaultCode: profile.currencyCode,
+          defaultSymbol: profile.currencySymbol,
+          defaultDecimals: profile.currencyDecimals,
+        );
+        final hasDue = rollup.hasOutstandingBalance;
 
         return ListTile(
           selected: isSelected,
@@ -428,13 +296,19 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           subtitle: Text(c.email.isNotEmpty ? c.email : (c.phone.isNotEmpty ? c.phone : 'No contact info'), style: const TextStyle(fontSize: 11)),
-          trailing: Text(
-            balanceDue > 0 ? '${formatCurrency(balanceDue)} Due' : '✓ Settled',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              fontFeatures: const [FontFeature.tabularFigures()],
-              color: balanceDue > 0 ? Colors.amber.shade900 : Colors.green.shade700,
+          trailing: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 132),
+            child: Text(
+              hasDue ? '${rollup.formattedOutstandingBalance} Due' : '✓ Settled',
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                fontFeatures: const [FontFeature.tabularFigures()],
+                color: hasDue ? Colors.amber.shade900 : Colors.green.shade700,
+              ),
             ),
           ),
           onTap: () => onSelect(c.id),
@@ -460,15 +334,34 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
 
     final allClientInvoices = ref.watch(invoicesProvider).where((i) => i.clientId == client.id).toList();
     final activeInvoices = allClientInvoices.where((i) => !i.isVoid && !i.isDraft).toList();
-    final formatCurrency = ref.watch(currencyFormatterProvider);
+    final profile = ref.watch(businessProfileProvider);
 
-    int totalBilled = 0;
-    int totalPaid = 0;
-    for (final inv in activeInvoices) {
-      totalBilled += inv.totalCents;
-      totalPaid += inv.paidCents;
+    final rollup = computeClientRollup(
+      activeInvoices.map((inv) => CurrencyLedgerEntry(
+            currencyCode: inv.currencyCode,
+            currencySymbol: inv.currencySymbol,
+            currencyDecimals: inv.currencyDecimals,
+            totalUnits: inv.totalCents,
+            paidUnits: inv.paidCents,
+            balanceDueUnits: inv.balanceDueCents,
+          )),
+      defaultCode: profile.currencyCode,
+      defaultSymbol: profile.currencySymbol,
+      defaultDecimals: profile.currencyDecimals,
+    );
+    final hasDue = rollup.hasOutstandingBalance;
+
+    String formatInvMoney(int units, String code, String symbol, int decimals) {
+      final resolved = resolveEffectiveCurrency(
+        recordCode: code,
+        recordSymbol: symbol,
+        recordDecimals: code.trim().isNotEmpty ? decimals : null,
+        defaultCode: profile.currencyCode,
+        defaultSymbol: profile.currencySymbol,
+        defaultDecimals: profile.currencyDecimals,
+      );
+      return formatMoney(units, symbol: resolved.symbol, decimals: resolved.decimals);
     }
-    final balanceDue = totalBilled - totalPaid;
 
     final metricCards = [
       Container(
@@ -487,7 +380,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(
-                formatCurrency(totalBilled),
+                rollup.formattedTotalBilled,
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
               ),
             ),
@@ -510,7 +403,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(
-                formatCurrency(totalPaid),
+                rollup.formattedTotalPaid,
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()], color: Colors.green.shade800),
               ),
             ),
@@ -520,25 +413,25 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
       Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: balanceDue > 0 ? Colors.amber.shade50.withValues(alpha: 0.4) : Colors.green.shade50.withValues(alpha: 0.2),
+          color: hasDue ? Colors.amber.shade50.withValues(alpha: 0.4) : Colors.green.shade50.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: balanceDue > 0 ? Colors.amber.shade300 : Colors.green.shade200),
+          border: Border.all(color: hasDue ? Colors.amber.shade300 : Colors.green.shade200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Outstanding Balance', style: TextStyle(fontSize: 11, color: balanceDue > 0 ? Colors.amber.shade900 : Colors.green)),
+            Text('Outstanding Balance', style: TextStyle(fontSize: 11, color: hasDue ? Colors.amber.shade900 : Colors.green)),
             const SizedBox(height: 4),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(
-                formatCurrency(balanceDue),
+                rollup.formattedOutstandingBalance,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   fontFeatures: const [FontFeature.tabularFigures()],
-                  color: balanceDue > 0 ? Colors.amber.shade900 : Colors.green.shade800,
+                  color: hasDue ? Colors.amber.shade900 : Colors.green.shade800,
                 ),
               ),
             ),
@@ -629,7 +522,11 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                       fallbackCopyValue: normalizePhoneForUri(client.phone),
                     ),
                   ),
-                if (buildSmsUri(phone: client.phone) != null)
+                if (buildSmsUri(
+                      phone: client.phone,
+                      isIos: Theme.of(context).platform == TargetPlatform.iOS,
+                    ) !=
+                    null)
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
@@ -638,7 +535,10 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                     icon: const Icon(Icons.sms_outlined, size: 14),
                     label: const Text('SMS', style: TextStyle(fontSize: 12)),
                     onPressed: () => _launchClientIntent(
-                      uri: buildSmsUri(phone: client.phone),
+                      uri: buildSmsUri(
+                        phone: client.phone,
+                        isIos: Theme.of(context).platform == TargetPlatform.iOS,
+                      ),
                       actionLabel: 'SMS',
                       fallbackCopyValue: normalizePhoneForUri(client.phone),
                     ),
@@ -763,13 +663,20 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              formatCurrency(inv.totalCents),
+                              formatInvMoney(
+                                inv.totalCents,
+                                inv.currencyCode,
+                                inv.currencySymbol,
+                                inv.currencyDecimals,
+                              ),
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, fontFeatures: [FontFeature.tabularFigures()]),
                             ),
                             Text(
                               isVoid
                                   ? 'Voided'
-                                  : (inv.balanceDueCents > 0 ? 'Bal: ${formatCurrency(inv.balanceDueCents)}' : '✓ Paid'),
+                                  : (inv.balanceDueCents > 0
+                                      ? 'Bal: ${formatInvMoney(inv.balanceDueCents, inv.currencyCode, inv.currencySymbol, inv.currencyDecimals)}'
+                                      : '✓ Paid'),
                               style: TextStyle(
                                 fontSize: 11,
                                 fontFeatures: const [FontFeature.tabularFigures()],
@@ -827,7 +734,12 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                                   title: Text('Invoice ${inv.invoiceNumber}'),
                                   subtitle: Text(inv.issueDate),
                                   trailing: Text(
-                                    formatCurrency(inv.totalCents),
+                                    formatInvMoney(
+                                      inv.totalCents,
+                                      inv.currencyCode,
+                                      inv.currencySymbol,
+                                      inv.currencyDecimals,
+                                    ),
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
                                   ),
                                 );
@@ -864,3 +776,136 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
     );
   }
 }
+
+class _ClientFormDialog extends ConsumerStatefulWidget {
+  final Client? initialClient;
+
+  const _ClientFormDialog({this.initialClient});
+
+  @override
+  ConsumerState<_ClientFormDialog> createState() => _ClientFormDialogState();
+}
+
+class _ClientFormDialogState extends ConsumerState<_ClientFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _addressController;
+  late final TextEditingController _taxIdController;
+
+  @override
+  void initState() {
+    super.initState();
+    final c = widget.initialClient;
+    _nameController = TextEditingController(text: c?.name ?? '');
+    _emailController = TextEditingController(text: c?.email ?? '');
+    _phoneController = TextEditingController(text: c?.phone ?? '');
+    _addressController = TextEditingController(text: c?.address ?? '');
+    _taxIdController = TextEditingController(text: c?.taxId ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    _taxIdController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEdit = widget.initialClient != null;
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      title: Text(isEdit ? 'Edit Client Details' : 'Add New Client'),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 440,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+        ),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    labelText: isEdit ? 'Client Name *' : 'Client / Company Name *',
+                  ),
+                  validator: (val) =>
+                      val == null || val.trim().isEmpty ? 'Please enter a name' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'Billing Email'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Phone Number'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _addressController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Billing Address'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _taxIdController,
+                  decoration: const InputDecoration(labelText: 'GSTIN / Tax ID'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (!_formKey.currentState!.validate()) return;
+            final notifier = ref.read(clientsProvider.notifier);
+            if (isEdit) {
+              notifier.updateClient(
+                id: widget.initialClient!.id,
+                name: _nameController.text.trim(),
+                email: _emailController.text.trim(),
+                phone: _phoneController.text.trim(),
+                address: _addressController.text.trim(),
+                taxId: _taxIdController.text.trim(),
+              );
+            } else {
+              notifier.addClient(
+                name: _nameController.text.trim(),
+                email: _emailController.text.trim(),
+                phone: _phoneController.text.trim(),
+                address: _addressController.text.trim(),
+                taxId: _taxIdController.text.trim(),
+              );
+            }
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(isEdit ? 'Client details updated!' : 'Client added successfully!'),
+              ),
+            );
+          },
+          child: Text(isEdit ? 'Save Changes' : 'Save Client'),
+        ),
+      ],
+    );
+  }
+}
+

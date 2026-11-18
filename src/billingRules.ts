@@ -153,7 +153,7 @@ export interface RegionalTaxBreakdown {
 }
 
 /**
- * Determines decimal exponent (0 or 2) for currency code or symbol.
+ * Determines decimal exponent (0, 2, or 3) for currency code or symbol.
  */
 export function getCurrencyDecimals(codeOrSymbol: string): number {
   const upper = codeOrSymbol.trim().toUpperCase();
@@ -168,33 +168,75 @@ export function getCurrencyDecimals(codeOrSymbol: string): number {
   ) {
     return 0;
   }
+  if (
+    upper === 'KWD' ||
+    upper === 'BHD' ||
+    upper === 'OMR' ||
+    upper === 'JOD' ||
+    upper === 'TND'
+  ) {
+    return 3;
+  }
   return 2;
+}
+
+function clampDecimals(decimals: number): number {
+  const safe = Math.floor(decimals);
+  if (safe < 0) return 0;
+  if (safe > 6) return 6;
+  return safe;
+}
+
+function pow10Int(decimals: number): number {
+  const safe = clampDecimals(decimals);
+  let scale = 1;
+  for (let i = 0; i < safe; i++) {
+    scale *= 10;
+  }
+  return scale;
 }
 
 /**
  * Parses user input price into minor units based on currency decimals exponent.
+ * Rejects negative inputs cleanly (returns 0) and applies round-half-up on extra fractional digits
+ * instead of silently truncating.
  */
 export function parsePriceToUnits(input: string, decimals: number = 2): number {
-  const cleaned = input.trim().replace(/[^\d.]/g, '');
+  const trimmed = input.trim();
+  if (!trimmed) return 0;
+
+  // Reject negative sign anywhere before digits cleanly
+  if (/^[^\d.]*-/.test(trimmed)) return 0;
+
+  const cleaned = trimmed.replace(/[^\d.]/g, '');
   if (!cleaned) return 0;
 
-  if (decimals === 0) {
-    const wholeStr = cleaned.split('.')[0];
-    return parseInt(wholeStr, 10) || 0;
+  const safeDecimals = clampDecimals(decimals);
+  const dotIdx = cleaned.indexOf('.');
+  const wholeStr = dotIdx === -1 ? cleaned : cleaned.slice(0, dotIdx);
+  const rawFrac = dotIdx === -1 ? '' : cleaned.slice(dotIdx + 1).replace(/\./g, '');
+  const whole = wholeStr ? (parseInt(wholeStr, 10) || 0) : 0;
+
+  if (safeDecimals === 0) {
+    const roundUp = rawFrac.length > 0 && rawFrac.charCodeAt(0) >= 53;
+    return whole + (roundUp ? 1 : 0);
   }
 
-  const parts = cleaned.split('.');
-  const dollars = parseInt(parts[0], 10) || 0;
-  let cents = 0;
-  if (parts.length > 1) {
-    const centsPart = (parts[1] + '00').slice(0, 2);
-    cents = parseInt(centsPart, 10) || 0;
+  const scale = pow10Int(safeDecimals);
+  const padded = rawFrac.padEnd(safeDecimals, '0');
+  const fracSlice = padded.slice(0, safeDecimals);
+  let fracUnits = parseInt(fracSlice, 10) || 0;
+
+  // Round half-up on the (decimals + 1)-th fractional digit instead of silent truncation
+  if (rawFrac.length > safeDecimals && rawFrac.charCodeAt(safeDecimals) >= 53) {
+    fracUnits += 1;
   }
-  return dollars * 100 + cents;
+
+  return whole * scale + fracUnits;
 }
 
 /**
- * Parses user input price (e.g. "15.50" or "$15.50") into integer cents without float imprecision.
+ * Parses user input price (e.g. "15.50" or "$15.50") into integer minor units without float imprecision.
  */
 export function parsePriceToCents(input: string, decimals: number = 2): number {
   return parsePriceToUnits(input, decimals);
@@ -310,49 +352,84 @@ export function formatNextEstimateNumber(existingCount: number): string {
 }
 
 /**
+ * Parses a YYYY-MM-DD string as a local calendar Date (eliminates UTC-midnight -1 day shift).
+ * Falls back cleanly for full ISO timestamps and rejects invalid calendar dates (e.g., 2026-02-31).
+ */
+export function parseLocalCalendarDate(dateStr: string): Date | null {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const trimmed = dateStr.trim();
+  if (!trimmed) return null;
+
+  const ymdMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(trimmed);
+  if (ymdMatch) {
+    const y = parseInt(ymdMatch[1], 10);
+    const m = parseInt(ymdMatch[2], 10);
+    const d = parseInt(ymdMatch[3], 10);
+    const parsed = new Date(y, m - 1, d);
+    if (
+      parsed.getFullYear() !== y ||
+      parsed.getMonth() !== m - 1 ||
+      parsed.getDate() !== d
+    ) {
+      return null;
+    }
+    return parsed;
+  }
+
+  const parsed = new Date(trimmed);
+  if (isNaN(parsed.getTime())) return null;
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+}
+
+/**
+ * Formats a Date into local calendar YYYY-MM-DD (never uses UTC toISOString()).
+ */
+export function formatLocalCalendarDate(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
  * Calculates due date string (YYYY-MM-DD) based on issue date and payment terms.
  */
-export function calculateDueDate(issueDateStr: string, paymentTerms: string): string {
-  let issueDate: Date;
-  try {
-    issueDate = new Date(issueDateStr);
-    if (isNaN(issueDate.getTime())) {
-      issueDate = new Date();
-    }
-  } catch {
-    issueDate = new Date();
-  }
+export function calculateDueDate(
+  issueDateStr: string,
+  paymentTerms: string,
+  referenceNow?: Date
+): string {
+  const baseDate = parseLocalCalendarDate(issueDateStr) ?? (referenceNow ? new Date(referenceNow) : new Date());
 
   let daysToAdd = 0;
   if (paymentTerms === 'Net 15 Days') daysToAdd = 15;
   if (paymentTerms === 'Net 30 Days') daysToAdd = 30;
   if (paymentTerms === 'Net 60 Days') daysToAdd = 60;
 
-  const due = new Date(issueDate);
-  due.setDate(due.getDate() + daysToAdd);
+  const due = new Date(
+    baseDate.getFullYear(),
+    baseDate.getMonth(),
+    baseDate.getDate() + daysToAdd
+  );
 
-  const y = due.getFullYear();
-  const m = String(due.getMonth() + 1).padStart(2, '0');
-  const d = String(due.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return formatLocalCalendarDate(due);
 }
 
 /**
  * Determines whether an invoice is overdue based on status, paid state, and due date.
  */
-export function isInvoiceOverdue(status: string, dueDateStr: string, isFullyPaid = false): boolean {
+export function isInvoiceOverdue(
+  status: string,
+  dueDateStr: string,
+  isFullyPaid = false,
+  referenceNow?: Date
+): boolean {
   if (isFullyPaid || status.toUpperCase() === 'PAID' || status.toUpperCase() === 'DRAFT' || status.toUpperCase() === 'VOID') return false;
-  if (!dueDateStr) return false;
-  try {
-    const due = new Date(dueDateStr);
-    if (isNaN(due.getTime())) return false;
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-    return today.getTime() > dueDay.getTime();
-  } catch {
-    return false;
-  }
+  const dueDay = parseLocalCalendarDate(dueDateStr);
+  if (!dueDay) return false;
+  const now = referenceNow ?? new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return today.getTime() > dueDay.getTime();
 }
 
 /**
@@ -362,7 +439,8 @@ export function resolveDynamicStatus(
   totalCents: number,
   paidCents: number,
   dueDateStr: string,
-  manualStatus = 'PENDING'
+  manualStatus = 'PENDING',
+  referenceNow?: Date
 ): 'DRAFT' | 'PAID' | 'PARTIALLY_PAID' | 'OVERDUE' | 'PENDING' | 'VOID' {
   if (manualStatus.toUpperCase() === 'VOID') {
     return 'VOID';
@@ -376,58 +454,67 @@ export function resolveDynamicStatus(
   if (paidCents > 0 && paidCents < totalCents) {
     return 'PARTIALLY_PAID';
   }
-  if (isInvoiceOverdue(manualStatus, dueDateStr, false)) {
+  if (isInvoiceOverdue(manualStatus, dueDateStr, false, referenceNow)) {
     return 'OVERDUE';
   }
   return 'PENDING';
 }
 
 /**
- * Calculates number of days an invoice is past due.
+ * Calculates number of days an invoice is past due using DST-safe calendar day arithmetic.
  */
-export function calculateDaysOverdue(dueDateStr: string): number {
-  try {
-    const due = new Date(dueDateStr);
-    if (isNaN(due.getTime())) return 0;
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-    const diffMs = today.getTime() - dueDay.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    return diffDays > 0 ? diffDays : 0;
-  } catch {
-    return 0;
-  }
+export function calculateDaysOverdue(dueDateStr: string, referenceNow?: Date): number {
+  const dueDay = parseLocalCalendarDate(dueDateStr);
+  if (!dueDay) return 0;
+  const now = referenceNow ?? new Date();
+  const todayUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const dueUtc = Date.UTC(dueDay.getFullYear(), dueDay.getMonth(), dueDay.getDate());
+  const diffDays = Math.floor((todayUtc - dueUtc) / 86400000);
+  return diffDays > 0 ? diffDays : 0;
 }
 
 /**
- * Formats minor units as formatted currency string.
+ * Formats minor units as formatted currency string using integer division/modulo.
  */
 export function formatMoney(units: number, symbol = '$', decimals = 2): string {
   const safeUnits = Math.round(units);
-  if (decimals === 0) {
-    const formatted = new Intl.NumberFormat('en-US', {
-      maximumFractionDigits: 0,
-      minimumFractionDigits: 0,
-    }).format(safeUnits);
-    return `${symbol}${formatted}`;
+  const safeDecimals = clampDecimals(decimals);
+  const isNegative = safeUnits < 0;
+  const absUnits = isNegative ? -safeUnits : safeUnits;
+  const intFormatter = new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+  });
+
+  if (safeDecimals === 0) {
+    const wholeFormatted = intFormatter.format(absUnits);
+    return `${isNegative ? '-' : ''}${symbol}${wholeFormatted}`;
   }
-  const formatted = new Intl.NumberFormat('en-US', {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
-  }).format(safeUnits / 100);
-  return `${symbol}${formatted}`;
+
+  const scale = pow10Int(safeDecimals);
+  const whole = Math.floor(absUnits / scale);
+  const frac = absUnits % scale;
+  const wholeFormatted = intFormatter.format(whole);
+  const fracStr = String(frac).padStart(safeDecimals, '0');
+  return `${isNegative ? '-' : ''}${symbol}${wholeFormatted}.${fracStr}`;
 }
 
 /**
- * Formats minor units into an input-friendly or CSV decimal string (0 or 2 decimals).
+ * Formats minor units into an input-friendly or CSV decimal string (0, 2, or 3 decimals).
  */
 export function formatDecimalUnits(units: number, decimals = 2): string {
   const safeUnits = Math.round(units);
-  if (decimals === 0) {
+  const safeDecimals = clampDecimals(decimals);
+  if (safeDecimals === 0) {
     return String(safeUnits);
   }
-  return (safeUnits / 100).toFixed(2);
+  const isNegative = safeUnits < 0;
+  const absUnits = isNegative ? -safeUnits : safeUnits;
+  const scale = pow10Int(safeDecimals);
+  const whole = Math.floor(absUnits / scale);
+  const frac = absUnits % scale;
+  const fracStr = String(frac).padStart(safeDecimals, '0');
+  return `${isNegative ? '-' : ''}${whole}.${fracStr}`;
 }
 
 /**
@@ -468,17 +555,19 @@ export function generateInvoicesCsvString(
 
   for (const inv of invoices) {
     const clientTaxId = clientTaxMap[inv.clientId] || '';
+    const dec = inv.currencyDecimals ?? getCurrencyDecimals(inv.currencyCode || symbol);
+    const invSym = inv.currencySymbol || symbol;
     rows.push([
       inv.invoiceNumber,
       inv.issueDate,
       inv.dueDate,
       inv.clientName,
       clientTaxId,
-      formatCents(inv.subtotalCents, symbol),
-      formatCents(inv.taxCents, symbol),
-      formatCents(inv.totalCents, symbol),
-      formatCents(inv.paidCents || 0, symbol),
-      formatCents(inv.balanceDueCents || inv.totalCents, symbol),
+      formatCents(inv.subtotalCents, invSym, dec),
+      formatCents(inv.taxCents, invSym, dec),
+      formatCents(inv.totalCents, invSym, dec),
+      formatCents(inv.paidCents || 0, invSym, dec),
+      formatCents(inv.balanceDueCents ?? inv.totalCents, invSym, dec),
       inv.status,
     ]);
   }
@@ -571,9 +660,7 @@ export function calculateCanadaTax(
  * Parses zero-decimal currencies (JPY, KRW) without fractional cent division.
  */
 export function parseZeroDecimalPrice(input: string): number {
-  const cleaned = input.trim().replace(/[^\d]/g, '');
-  if (!cleaned) return 0;
-  return parseInt(cleaned, 10) || 0;
+  return parsePriceToUnits(input, 0);
 }
 
 /**
@@ -611,7 +698,176 @@ export function getNextSequentialDocNumber(
   return `${prefix}${String(nextNum).padStart(4, '0')}`;
 }
 
+export interface ResolvedCurrency {
+  code: string;
+  symbol: string;
+  decimals: number;
+}
+
+export interface CurrencyAmount {
+  code: string;
+  symbol: string;
+  decimals: number;
+  amountUnits: number;
+}
+
+export interface ClientRollupSummary {
+  totalBilledByCurrency: CurrencyAmount[];
+  totalPaidByCurrency: CurrencyAmount[];
+  outstandingByCurrency: CurrencyAmount[];
+  formattedTotalBilled: string;
+  formattedTotalPaid: string;
+  formattedOutstandingBalance: string;
+  hasOutstandingBalance: boolean;
+}
+
+export interface CurrencyDashboardMetrics {
+  currencyCode: string;
+  currencySymbol: string;
+  currencyDecimals: number;
+  totalInvoicedCents: number;
+  totalCollectedCents: number;
+  pendingBalanceCents: number;
+  overdueAmountCents: number;
+  taxCollectedOnPaymentsCents: number;
+  totalExpenseGrossCents: number;
+  totalExpenseTaxCents: number;
+  taxLiabilityCents: number;
+  netRevenueExclTaxCents: number;
+  netExpenseExclTaxCents: number;
+  netProfitCents: number;
+}
+
+export function resolveEffectiveCurrency(params: {
+  recordCode?: string;
+  recordSymbol?: string;
+  recordDecimals?: number;
+  defaultCode?: string;
+  defaultSymbol?: string;
+  defaultDecimals?: number;
+}): ResolvedCurrency {
+  const fallbackCode = (params.defaultCode || '').trim().toUpperCase() || 'USD';
+  const fallbackSymbol = (params.defaultSymbol || '').trim() || '$';
+  const fallbackDecimals =
+    params.defaultDecimals !== undefined && params.defaultDecimals !== null
+      ? clampDecimals(params.defaultDecimals)
+      : getCurrencyDecimals(fallbackCode);
+
+  const trimmedCode = (params.recordCode || '').trim().toUpperCase();
+  const trimmedSym = (params.recordSymbol || '').trim();
+
+  const code = trimmedCode || fallbackCode;
+  const symbol = trimmedSym || fallbackSymbol;
+  const decimals = trimmedCode
+    ? clampDecimals(
+        params.recordDecimals !== undefined && params.recordDecimals !== null
+          ? params.recordDecimals
+          : getCurrencyDecimals(code)
+      )
+    : fallbackDecimals;
+
+  return { code, symbol, decimals };
+}
+
+export function formatMultiCurrencyAmounts(
+  amounts: CurrencyAmount[],
+  emptyFallback: string,
+  separator = ' + '
+): string {
+  const nonZero = amounts.filter((a) => a.amountUnits !== 0);
+  if (nonZero.length === 0) return emptyFallback;
+  return nonZero
+    .map((a) => formatMoney(a.amountUnits, a.symbol, a.decimals))
+    .join(separator);
+}
+
+function compareCurrencyOrder(a: string, b: string, defaultCode: string): number {
+  if (a === defaultCode && b !== defaultCode) return -1;
+  if (b === defaultCode && a !== defaultCode) return 1;
+  return a.localeCompare(b);
+}
+
+/**
+ * Groups active (non-draft, non-void) client invoices by currencyCode so
+ * mixed currencies (e.g. USD + JPY + INR) are never summed into corrupt scalars.
+ */
+export function computeClientRollup(
+  invoices: any[],
+  defaultCurrency?: { code?: string; symbol?: string; decimals?: number }
+): ClientRollupSummary {
+  const base = resolveEffectiveCurrency({
+    defaultCode: defaultCurrency?.code,
+    defaultSymbol: defaultCurrency?.symbol,
+    defaultDecimals: defaultCurrency?.decimals,
+  });
+  const zeroFallback = formatMoney(0, base.symbol, base.decimals);
+
+  const meta: Record<string, ResolvedCurrency> = {};
+  const billedMap: Record<string, number> = {};
+  const paidMap: Record<string, number> = {};
+  const dueMap: Record<string, number> = {};
+
+  for (const inv of invoices) {
+    const s = String(inv.computed_status || inv.status || '').toUpperCase();
+    if (s === 'DRAFT' || s === 'VOID') continue;
+
+    const recCode = inv.currency_code ?? inv.currencyCode ?? '';
+    const recSym = inv.currency_symbol ?? inv.currencySymbol ?? '';
+    const recDec = inv.currency_decimals ?? inv.currencyDecimals;
+
+    const cur = resolveEffectiveCurrency({
+      recordCode: recCode,
+      recordSymbol: recSym,
+      recordDecimals: String(recCode).trim() ? recDec : undefined,
+      defaultCode: base.code,
+      defaultSymbol: base.symbol,
+      defaultDecimals: base.decimals,
+    });
+
+    const total = inv.total_cents ?? inv.totalCents ?? 0;
+    const paid = inv.paid_cents ?? inv.paidCents ?? 0;
+    const due = Math.max(0, total - paid);
+
+    meta[cur.code] = cur;
+    billedMap[cur.code] = (billedMap[cur.code] || 0) + total;
+    paidMap[cur.code] = (paidMap[cur.code] || 0) + paid;
+    dueMap[cur.code] = (dueMap[cur.code] || 0) + due;
+  }
+
+  const codes = Object.keys(meta).sort((a, b) => compareCurrencyOrder(a, b, base.code));
+
+  const billedList: CurrencyAmount[] = codes.map((c) => ({
+    code: c,
+    symbol: meta[c].symbol,
+    decimals: meta[c].decimals,
+    amountUnits: billedMap[c] || 0,
+  }));
+  const paidList: CurrencyAmount[] = codes.map((c) => ({
+    code: c,
+    symbol: meta[c].symbol,
+    decimals: meta[c].decimals,
+    amountUnits: paidMap[c] || 0,
+  }));
+  const dueList: CurrencyAmount[] = codes.map((c) => ({
+    code: c,
+    symbol: meta[c].symbol,
+    decimals: meta[c].decimals,
+    amountUnits: dueMap[c] || 0,
+  }));
+
+  return {
+    totalBilledByCurrency: billedList,
+    totalPaidByCurrency: paidList,
+    outstandingByCurrency: dueList,
+    formattedTotalBilled: formatMultiCurrencyAmounts(billedList, zeroFallback),
+    formattedTotalPaid: formatMultiCurrencyAmounts(paidList, zeroFallback),
+    formattedOutstandingBalance: formatMultiCurrencyAmounts(dueList, zeroFallback),
+    hasOutstandingBalance: dueList.some((d) => d.amountUnits > 0),
+  };
+}
+
 export interface DashboardMetrics {
+  activeInvoiceCount: number;
   totalInvoicedCents: number;
   totalCollectedCents: number;
   pendingBalanceCents: number;
@@ -624,46 +880,81 @@ export interface DashboardMetrics {
   netRevenueExclTaxCents: number;
   netExpenseExclTaxCents: number;
   netProfitCents: number;
+  byCurrency: CurrencyDashboardMetrics[];
+  formattedTotalInvoiced: string;
+  formattedTotalCollected: string;
+  formattedPendingBalance: string;
+  formattedOverdueAmount: string;
+  formattedNetProfit: string;
+  formattedNetRevenueExclTax: string;
+  formattedNetExpenseExclTax: string;
+  formattedTaxLiability: string;
 }
 
 /**
- * Computes executive dashboard cash-flow metrics with strict Net Profit tax isolation.
+ * Computes executive dashboard cash-flow metrics grouped strictly by currencyCode
+ * with Net Profit tax isolation. Home-currency scalar fields never sum foreign currencies.
  */
-export function calculateDashboardMetrics(invoices: any[], expenses: any[]): DashboardMetrics {
+export function calculateDashboardMetrics(
+  invoices: any[],
+  expenses: any[],
+  referenceNow?: Date,
+  defaultCurrency?: { code?: string; symbol?: string; decimals?: number }
+): DashboardMetrics {
+  const base = resolveEffectiveCurrency({
+    defaultCode: defaultCurrency?.code,
+    defaultSymbol: defaultCurrency?.symbol,
+    defaultDecimals: defaultCurrency?.decimals,
+  });
+  const zeroFallback = formatMoney(0, base.symbol, base.decimals);
+
   const activeInvoices = invoices.filter((inv) => {
     const st = String(inv.status || '').toUpperCase();
     return st !== 'DRAFT' && st !== 'VOID';
   });
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = referenceNow ?? new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  let totalInvoicedCents = 0;
-  let totalCollectedCents = 0;
-  let pendingBalanceCents = 0;
-  let overdueAmountCents = 0;
-  let taxCollectedOnPaymentsCents = 0;
+  const meta: Record<string, ResolvedCurrency> = { [base.code]: base };
+  const invoicedMap: Record<string, number> = {};
+  const collectedMap: Record<string, number> = {};
+  const pendingMap: Record<string, number> = {};
+  const overdueMap: Record<string, number> = {};
+  const taxCollectedMap: Record<string, number> = {};
   const overdueInvoices: any[] = [];
 
   for (const inv of activeInvoices) {
+    const recCode = inv.currency_code ?? inv.currencyCode ?? '';
+    const recSym = inv.currency_symbol ?? inv.currencySymbol ?? '';
+    const recDec = inv.currency_decimals ?? inv.currencyDecimals;
+
+    const cur = resolveEffectiveCurrency({
+      recordCode: recCode,
+      recordSymbol: recSym,
+      recordDecimals: String(recCode).trim() ? recDec : undefined,
+      defaultCode: base.code,
+      defaultSymbol: base.symbol,
+      defaultDecimals: base.decimals,
+    });
+    meta[cur.code] = cur;
+
     const total = inv.total_cents || 0;
     const paid = inv.paid_cents || 0;
     const balance = inv.balance_due_cents ?? Math.max(0, total - paid);
     const tax = inv.tax_cents || 0;
 
-    totalInvoicedCents += total;
-    totalCollectedCents += paid;
-    pendingBalanceCents += balance;
-    taxCollectedOnPaymentsCents += calculateCollectedTaxPortion(paid, tax, total);
+    invoicedMap[cur.code] = (invoicedMap[cur.code] || 0) + total;
+    collectedMap[cur.code] = (collectedMap[cur.code] || 0) + paid;
+    pendingMap[cur.code] = (pendingMap[cur.code] || 0) + balance;
+    taxCollectedMap[cur.code] =
+      (taxCollectedMap[cur.code] || 0) + calculateCollectedTaxPortion(paid, tax, total);
 
     if (inv.due_date && balance > 0) {
-      const due = new Date(inv.due_date);
-      if (!isNaN(due.getTime())) {
-        due.setHours(0, 0, 0, 0);
-        if (today > due) {
-          overdueInvoices.push(inv);
-          overdueAmountCents += balance;
-        }
+      const due = parseLocalCalendarDate(inv.due_date);
+      if (due && today.getTime() > due.getTime()) {
+        overdueInvoices.push(inv);
+        overdueMap[cur.code] = (overdueMap[cur.code] || 0) + balance;
       }
     }
   }
@@ -675,24 +966,97 @@ export function calculateDashboardMetrics(invoices: any[], expenses: any[]): Das
     totalExpenseTaxCents += exp.tax_cents || 0;
   }
 
-  const netRevenueExclTaxCents = totalCollectedCents - taxCollectedOnPaymentsCents;
-  const netExpenseExclTaxCents = Math.max(0, totalExpenseGrossCents - totalExpenseTaxCents);
-  const taxLiabilityCents = taxCollectedOnPaymentsCents - totalExpenseTaxCents;
-  const netProfitCents = netRevenueExclTaxCents - netExpenseExclTaxCents;
+  const codes = Object.keys(meta).sort((a, b) => compareCurrencyOrder(a, b, base.code));
+
+  const byCurrency: CurrencyDashboardMetrics[] = codes.map((code) => {
+    const cur = meta[code];
+    const totalInvoiced = invoicedMap[code] || 0;
+    const totalCollected = collectedMap[code] || 0;
+    const pendingBalance = pendingMap[code] || 0;
+    const overdueAmount = overdueMap[code] || 0;
+    const taxCollected = taxCollectedMap[code] || 0;
+    const expGross = code === base.code ? totalExpenseGrossCents : 0;
+    const expTax = code === base.code ? totalExpenseTaxCents : 0;
+    const netRevenueExclTax = totalCollected - taxCollected;
+    const netExpenseExclTax = Math.max(0, expGross - expTax);
+    const taxLiability = taxCollected - expTax;
+    const netProfit = netRevenueExclTax - netExpenseExclTax;
+
+    return {
+      currencyCode: code,
+      currencySymbol: cur.symbol,
+      currencyDecimals: cur.decimals,
+      totalInvoicedCents: totalInvoiced,
+      totalCollectedCents: totalCollected,
+      pendingBalanceCents: pendingBalance,
+      overdueAmountCents: overdueAmount,
+      taxCollectedOnPaymentsCents: taxCollected,
+      totalExpenseGrossCents: expGross,
+      totalExpenseTaxCents: expTax,
+      taxLiabilityCents: taxLiability,
+      netRevenueExclTaxCents: netRevenueExclTax,
+      netExpenseExclTaxCents: netExpenseExclTax,
+      netProfitCents: netProfit,
+    };
+  });
+
+  const homeBucket = byCurrency.find((b) => b.currencyCode === base.code)!;
+
+  const pickAmounts = (picker: (b: CurrencyDashboardMetrics) => number): CurrencyAmount[] =>
+    byCurrency.map((b) => ({
+      code: b.currencyCode,
+      symbol: b.currencySymbol,
+      decimals: b.currencyDecimals,
+      amountUnits: picker(b),
+    }));
 
   return {
-    totalInvoicedCents,
-    totalCollectedCents,
-    pendingBalanceCents,
-    overdueAmountCents,
+    activeInvoiceCount: activeInvoices.length,
+    totalInvoicedCents: homeBucket.totalInvoicedCents,
+    totalCollectedCents: homeBucket.totalCollectedCents,
+    pendingBalanceCents: homeBucket.pendingBalanceCents,
+    overdueAmountCents: homeBucket.overdueAmountCents,
     overdueInvoices,
-    taxCollectedOnPaymentsCents,
-    totalExpenseGrossCents,
-    totalExpenseTaxCents,
-    taxLiabilityCents,
-    netRevenueExclTaxCents,
-    netExpenseExclTaxCents,
-    netProfitCents,
+    taxCollectedOnPaymentsCents: homeBucket.taxCollectedOnPaymentsCents,
+    totalExpenseGrossCents: homeBucket.totalExpenseGrossCents,
+    totalExpenseTaxCents: homeBucket.totalExpenseTaxCents,
+    taxLiabilityCents: homeBucket.taxLiabilityCents,
+    netRevenueExclTaxCents: homeBucket.netRevenueExclTaxCents,
+    netExpenseExclTaxCents: homeBucket.netExpenseExclTaxCents,
+    netProfitCents: homeBucket.netProfitCents,
+    byCurrency,
+    formattedTotalInvoiced: formatMultiCurrencyAmounts(
+      pickAmounts((b) => b.totalInvoicedCents),
+      zeroFallback
+    ),
+    formattedTotalCollected: formatMultiCurrencyAmounts(
+      pickAmounts((b) => b.totalCollectedCents),
+      zeroFallback
+    ),
+    formattedPendingBalance: formatMultiCurrencyAmounts(
+      pickAmounts((b) => b.pendingBalanceCents),
+      zeroFallback
+    ),
+    formattedOverdueAmount: formatMultiCurrencyAmounts(
+      pickAmounts((b) => b.overdueAmountCents),
+      zeroFallback
+    ),
+    formattedNetProfit: formatMultiCurrencyAmounts(
+      pickAmounts((b) => b.netProfitCents),
+      zeroFallback
+    ),
+    formattedNetRevenueExclTax: formatMultiCurrencyAmounts(
+      pickAmounts((b) => b.netRevenueExclTaxCents),
+      zeroFallback
+    ),
+    formattedNetExpenseExclTax: formatMultiCurrencyAmounts(
+      pickAmounts((b) => b.netExpenseExclTaxCents),
+      zeroFallback
+    ),
+    formattedTaxLiability: formatMultiCurrencyAmounts(
+      pickAmounts((b) => b.taxLiabilityCents),
+      zeroFallback
+    ),
   };
 }
 
@@ -725,9 +1089,8 @@ export function generateDynamicQrPayload(
 
   if (vpa) {
     const encodedName = encodeURIComponent(businessName.trim() || 'Business');
-    const amountStr = currencyDecimals === 0
-      ? Math.max(0, Math.round(balanceDueUnits)).toString()
-      : (Math.max(0, Math.round(balanceDueUnits)) / 100).toFixed(2);
+    const safeUnits = Math.max(0, Math.round(balanceDueUnits));
+    const amountStr = formatDecimalUnits(safeUnits, currencyDecimals);
     const safeInv = encodeURIComponent(`Invoice-${invoiceNumber}`);
     const safeCu = encodeURIComponent(currencyCode || 'INR');
     return `upi://pay?pa=${encodeURIComponent(vpa)}&pn=${encodedName}&am=${amountStr}&tn=${safeInv}&cu=${safeCu}`;
@@ -806,6 +1169,12 @@ export function validateBackupPayload(data: unknown): {
   return { valid: true };
 }
 
+export interface WhatsAppPhoneValidation {
+  isValid: boolean;
+  normalizedDigits: string;
+  warningMessage?: string;
+}
+
 /**
  * Normalizes a raw phone string for tel:/sms: URIs.
  * Preserves a single leading '+' for E.164 numbers and strips formatting characters.
@@ -824,6 +1193,60 @@ export function normalizePhoneForUri(phone: string): string {
  */
 export function buildWhatsAppDigits(phone: string): string {
   return phone.replace(/[^0-9]/g, '');
+}
+
+/**
+ * Validates whether a phone number includes an international country code for wa.me links.
+ * Flags empty numbers, leading trunk/IDD zeros (0 / 00), and local <=10-digit numbers without '+'.
+ */
+export function validateWhatsAppPhone(phone: string): WhatsAppPhoneValidation {
+  const trimmed = phone.trim();
+  const digits = buildWhatsAppDigits(trimmed);
+
+  if (!digits) {
+    return {
+      isValid: false,
+      normalizedDigits: '',
+      warningMessage: 'No phone number on file — WhatsApp will open contact picker instead.',
+    };
+  }
+
+  if (digits.startsWith('0')) {
+    return {
+      isValid: false,
+      normalizedDigits: digits,
+      warningMessage:
+        "Number starts with '0'. WhatsApp requires an international country code (e.g. +1 or +91) without leading zeros.",
+    };
+  }
+
+  if (trimmed.startsWith('+')) {
+    if (digits.length < 7) {
+      return {
+        isValid: false,
+        normalizedDigits: digits,
+        warningMessage: 'Phone number looks too short for an international WhatsApp link.',
+      };
+    }
+    return {
+      isValid: true,
+      normalizedDigits: digits,
+    };
+  }
+
+  if (digits.length <= 10) {
+    return {
+      isValid: false,
+      normalizedDigits: digits,
+      warningMessage:
+        "Missing '+' country code prefix (e.g. +1 or +91). WhatsApp links may not resolve local-only numbers.",
+    };
+  }
+
+  return {
+    isValid: true,
+    normalizedDigits: digits,
+  };
 }
 
 /**
@@ -868,12 +1291,22 @@ export function buildMailtoUrl(email: string, subject: string, body: string): st
 
 /**
  * Builds an sms: URL for a normalized phone number, or null when phone is empty.
+ * Applies Apple's '&body=' delimiter quirk when isIos is true.
  */
-export function buildSmsUrl(phone: string, body = ''): string | null {
+export function buildSmsUrl(phone: string, body = '', isIos = false): string | null {
   const normalized = normalizePhoneForUri(phone);
   if (!normalized) return null;
   if (!body) return `sms:${normalized}`;
-  return `sms:${normalized}?body=${encodeURIComponent(body)}`;
+  const delimiter = isIos ? '&' : '?';
+  return `sms:${normalized}${delimiter}body=${encodeURIComponent(body)}`;
+}
+
+/**
+ * Detects Apple mobile iOS/iPadOS user agents safely in browser environments.
+ */
+export function isIosDevice(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /iPad|iPhone|iPod/i.test(navigator.userAgent || '');
 }
 
 /**
@@ -883,6 +1316,112 @@ export function buildTelUrl(phone: string): string | null {
   const normalized = normalizePhoneForUri(phone);
   if (!normalized) return null;
   return `tel:${normalized}`;
+}
+
+/**
+ * Returns cross-platform desktop/web fallback guidance when native SMS/dialer apps are absent.
+ */
+export function getDesktopTelephonyFallbackNote(hasPhone: boolean, hasEmail: boolean): string {
+  if (!hasPhone && !hasEmail) {
+    return 'No client phone or email saved. Copy the reminder message above or open WhatsApp to pick a contact.';
+  }
+  return 'Desktop systems without a registered SMS/dialer app may ignore external links — use Copy Reminder Message as an instant fallback.';
+}
+
+export const MAX_ATTACHMENT_SIZE_BYTES = 5 * 1024 * 1024;
+export const MAX_BACKUP_SIZE_BYTES = 50 * 1024 * 1024;
+
+export interface FileUploadValidationResult {
+  isValid: boolean;
+  mimeType?: string;
+  errorMessage?: string;
+}
+
+/**
+ * Inspects file header magic bytes to determine real image/PDF MIME type.
+ */
+export function detectMimeFromHeaderBytes(bytes: Uint8Array | number[]): string | null {
+  if (
+    bytes.length >= 4 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  ) {
+    return 'image/png';
+  }
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  ) {
+    return 'image/webp';
+  }
+  if (
+    bytes.length >= 5 &&
+    bytes[0] === 0x25 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x44 &&
+    bytes[3] === 0x46 &&
+    bytes[4] === 0x2d
+  ) {
+    return 'application/pdf';
+  }
+  return null;
+}
+
+/**
+ * Validates uploaded image/receipt file bytes by checking empty/size bounds
+ * and verifying file magic header signatures before base64 encoding.
+ */
+export function validateUploadedFileBytes(params: {
+  bytes: Uint8Array | number[];
+  filename: string;
+  allowPdf?: boolean;
+  maxBytes?: number;
+}): FileUploadValidationResult {
+  const { bytes, filename, allowPdf = false, maxBytes = MAX_ATTACHMENT_SIZE_BYTES } = params;
+  if (!bytes || bytes.length === 0) {
+    return {
+      isValid: false,
+      errorMessage: 'Selected file is empty (0 bytes).',
+    };
+  }
+  if (bytes.length > maxBytes) {
+    const limitMb = Math.floor(maxBytes / (1024 * 1024));
+    return {
+      isValid: false,
+      errorMessage: `File exceeds maximum allowed size of ${limitMb} MB.`,
+    };
+  }
+
+  const detectedMime = detectMimeFromHeaderBytes(bytes);
+  if (
+    detectedMime === 'image/png' ||
+    detectedMime === 'image/jpeg' ||
+    detectedMime === 'image/webp'
+  ) {
+    return { isValid: true, mimeType: detectedMime };
+  }
+  if (allowPdf && detectedMime === 'application/pdf') {
+    return { isValid: true, mimeType: 'application/pdf' };
+  }
+
+  return {
+    isValid: false,
+    errorMessage: allowPdf
+      ? `Unsupported or invalid file "${filename}". Choose a valid PNG, JPG, WEBP, or PDF.`
+      : `Unsupported or invalid image "${filename}". Choose a valid PNG, JPG, or WEBP image.`,
+  };
 }
 
 export function normalizeTaxMode(raw?: string | null): TaxMode {
@@ -1162,5 +1701,63 @@ export function getRegionalTaxIdLabel(taxMode?: string | null, isClient = false)
   }
   return `${prefix}Tax ID`;
 }
+
+/**
+ * Returns true only when dateStr is strictly formatted as YYYY-MM-DD and represents a real calendar date.
+ */
+export function isValidIsoCalendarDate(dateStr: string): boolean {
+  if (!dateStr || typeof dateStr !== 'string') return false;
+  const trimmed = dateStr.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return false;
+  return parseLocalCalendarDate(trimmed) !== null;
+}
+
+/**
+ * Filters a document's issue date against 'All Time', 'This Month', or 'This Quarter'.
+ */
+export function matchesDateFilter(
+  isoDateStr: string,
+  dateFilter: string,
+  referenceNow?: Date
+): boolean {
+  const trimmedFilter = (dateFilter || '').trim();
+  if (!trimmedFilter || trimmedFilter === 'All Time') return true;
+
+  const parsed = parseLocalCalendarDate(isoDateStr);
+  if (!parsed) return false;
+
+  const now = referenceNow ?? new Date();
+  if (trimmedFilter === 'This Month') {
+    return parsed.getFullYear() === now.getFullYear() && parsed.getMonth() === now.getMonth();
+  }
+  if (trimmedFilter === 'This Quarter') {
+    const refQuarter = Math.floor(now.getMonth() / 3);
+    const itemQuarter = Math.floor(parsed.getMonth() / 3);
+    return parsed.getFullYear() === now.getFullYear() && itemQuarter === refQuarter;
+  }
+  return true;
+}
+
+/**
+ * Generates a globally unique RFC-4122 UUID v4 string without Date.now() collisions.
+ */
+export function generateUniqueId(): string {
+  if (typeof globalThis.crypto !== 'undefined' && typeof globalThis.crypto.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  if (typeof globalThis.crypto !== 'undefined' && typeof globalThis.crypto.getRandomValues === 'function') {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 16; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
 
 

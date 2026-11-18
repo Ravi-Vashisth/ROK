@@ -24,9 +24,12 @@ import {
   calculateTaxCents,
   computeRegionalTaxCents,
   formatDecimalUnits,
+  formatLocalCalendarDate,
   formatMoney as formatMoneyUnits,
+  generateUniqueId,
   getCurrencyDecimals,
   getRegionalTaxIdLabel,
+  isValidIsoCalendarDate,
   isZeroRatedTaxMode,
   normalizeTaxMode,
   parsePriceToUnits,
@@ -44,6 +47,11 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   AUD: 'A$',
   AED: 'AED',
   SAR: 'SAR',
+  KWD: 'KWD',
+  BHD: 'BHD',
+  OMR: 'OMR',
+  JOD: 'JOD',
+  TND: 'TND',
 };
 
 const TAX_SLAB_OPTIONS = [0, 5, 10, 12, 15, 18, 20];
@@ -74,7 +82,6 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
   clients,
   savedItems,
   currencySymbol,
-  formatMoney,
   onSave,
   onCancel,
   onAddClientModal,
@@ -87,7 +94,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState<boolean>(false);
 
   const [issueDate, setIssueDate] = useState<string>(
-    initialData?.issue_date || new Date().toISOString().split('T')[0]
+    initialData?.issue_date || formatLocalCalendarDate()
   );
   const [paymentTerms, setPaymentTerms] = useState<string>(
     initialData?.payment_terms || (isQuote ? 'Net 30 Days' : 'Due on Receipt')
@@ -171,9 +178,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
   const [newClientAddress, setNewClientAddress] = useState<string>('');
 
   const [items, setItems] = useState<any[]>(
-    initialData?.items?.length
-      ? initialData.items
-      : [{ id: '1', description: 'Full Stack Web Development', sacHsn: '998314', quantity: 1, unitPriceCents: 150000, taxSlab: 10 }]
+    initialData?.items?.length ? initialData.items : []
   );
 
   const selectedClient = clients.find((c) => c.id === selectedClientId);
@@ -282,7 +287,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
     setValidationError('');
     const q = Math.max(1, parseInt(itemQty, 10) || 1);
     const newItem = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       description: itemDesc.trim(),
       sacHsn: itemSacHsn.trim(),
       quantity: q,
@@ -308,7 +313,6 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
   };
 
   const handleRemoveItem = (id: string) => {
-    if (items.length <= 1) return;
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
@@ -317,11 +321,11 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
     if (!preset) return;
     setValidationError('');
     const newItem = {
-      id: Date.now().toString(),
+      id: generateUniqueId(),
       description: preset.title,
-      sacHsn: preset.sacHsn || '',
+      sacHsn: preset.sacHsn || preset.sac_hsn || '',
       quantity: 1,
-      unitPriceCents: preset.defaultPriceCents || 0,
+      unitPriceCents: preset.defaultPriceCents ?? preset.default_price_cents ?? 0,
       taxSlab: isZeroRated ? 0 : (preset.taxSlab ?? 10),
     };
     setItems((prev) => {
@@ -358,6 +362,10 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
   const handleSaveDoc = (isDraft: boolean) => {
     if (!selectedClientId) {
       reportValidationError('Please select a client first.');
+      return;
+    }
+    if (!isValidIsoCalendarDate(issueDate)) {
+      reportValidationError('Please enter a valid Issue Date in YYYY-MM-DD format.');
       return;
     }
     const validItems = items.filter((i) => i.description.trim().length > 0);
@@ -604,6 +612,11 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
                   <option value="AUD">AUD (A$)</option>
                   <option value="AED">AED (UAE)</option>
                   <option value="SAR">SAR (KSA)</option>
+                  <option value="KWD">KWD (Kuwait - 3 dec)</option>
+                  <option value="BHD">BHD (Bahrain - 3 dec)</option>
+                  <option value="OMR">OMR (Oman - 3 dec)</option>
+                  <option value="JOD">JOD (Jordan - 3 dec)</option>
+                  <option value="TND">TND (Tunisia - 3 dec)</option>
                 </select>
               </div>
             </div>
@@ -679,7 +692,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
                   <option value="">Select a preset service to 1-click auto-fill...</option>
                   {savedItems.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.title} ({formatMoney(item.defaultPriceCents || 0)})
+                      {item.title} ({formatDocMoney(item.defaultPriceCents ?? item.default_price_cents ?? 0)})
                     </option>
                   ))}
                 </select>

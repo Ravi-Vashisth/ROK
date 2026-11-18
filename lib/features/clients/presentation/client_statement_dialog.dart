@@ -2,11 +2,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
-import '../../../core/utils/currency_formatter_provider.dart';
-import '../../business_profile/providers/business_profile_provider.dart';
-import '../../billing/services/invoice_pdf_service.dart';
-import '../../clients/models/client.dart';
-import '../../invoices/providers/invoices_provider.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
+import 'package:billing_app/features/billing/services/invoice_pdf_service.dart';
+import 'package:billing_app/features/clients/models/client.dart';
+import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
 
 class ClientStatementDialog extends ConsumerWidget {
   final Client client;
@@ -22,16 +22,35 @@ class ClientStatementDialog extends ConsumerWidget {
         .watch(invoicesProvider)
         .where((i) => i.clientId == client.id && !i.isDraft && !i.isVoid)
         .toList();
-    final formatCurrency = ref.watch(currencyFormatterProvider);
+    final profile = ref.watch(businessProfileProvider);
 
-    int totalInvoiced = 0;
-    int totalPaid = 0;
-    for (final inv in invoices) {
-      if (inv.isVoid || inv.isDraft || inv.status == 'VOID' || inv.status == 'DRAFT') continue;
-      totalInvoiced += inv.totalCents;
-      totalPaid += inv.paidCents;
+    final rollup = computeClientRollup(
+      invoices.map((inv) => CurrencyLedgerEntry(
+            currencyCode: inv.currencyCode,
+            currencySymbol: inv.currencySymbol,
+            currencyDecimals: inv.currencyDecimals,
+            totalUnits: inv.totalCents,
+            paidUnits: inv.paidCents,
+            balanceDueUnits: inv.balanceDueCents,
+          )),
+      defaultCode: profile.currencyCode,
+      defaultSymbol: profile.currencySymbol,
+      defaultDecimals: profile.currencyDecimals,
+    );
+    final hasDue = rollup.hasOutstandingBalance;
+
+    String formatInvMoney(int units, String code, String symbol, int decimals) {
+      final resolved = resolveEffectiveCurrency(
+        recordCode: code,
+        recordSymbol: symbol,
+        recordDecimals: code.trim().isNotEmpty ? decimals : null,
+        defaultCode: profile.currencyCode,
+        defaultSymbol: profile.currencySymbol,
+        defaultDecimals: profile.currencyDecimals,
+      );
+      return formatMoney(units, symbol: resolved.symbol, decimals: resolved.decimals);
     }
-    final balanceDue = totalInvoiced - totalPaid;
+
     final screenSize = MediaQuery.sizeOf(context);
     final isCompactWidth = screenSize.width < 520;
 
@@ -111,21 +130,21 @@ class ClientStatementDialog extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              'Total Invoiced: ${formatCurrency(totalInvoiced)}',
+                              'Total Invoiced: ${rollup.formattedTotalBilled}',
                               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
                             ),
                             Text(
-                              'Total Paid: ${formatCurrency(totalPaid)}',
+                              'Total Paid: ${rollup.formattedTotalPaid}',
                               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()], color: Colors.green.shade700),
                             ),
                             const Divider(height: 8),
                             Text(
-                              'Outstanding Balance: ${formatCurrency(balanceDue)}',
+                              'Outstanding Balance: ${rollup.formattedOutstandingBalance}',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 fontFeatures: const [FontFeature.tabularFigures()],
-                                color: balanceDue > 0 ? Colors.red.shade700 : Colors.green.shade700,
+                                color: hasDue ? Colors.red.shade700 : Colors.green.shade700,
                               ),
                             ),
                           ],
@@ -149,7 +168,10 @@ class ClientStatementDialog extends ConsumerWidget {
                         children: [
                           Expanded(child: clientCol),
                           const SizedBox(width: 12),
-                          summaryBox,
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 300),
+                            child: summaryBox,
+                          ),
                         ],
                       );
                     },
@@ -181,12 +203,17 @@ class ClientStatementDialog extends ConsumerWidget {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      formatCurrency(inv.totalCents),
+                                      formatInvMoney(
+                                        inv.totalCents,
+                                        inv.currencyCode,
+                                        inv.currencySymbol,
+                                        inv.currencyDecimals,
+                                      ),
                                       style: const TextStyle(fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
                                     ),
                                     if (inv.balanceDueCents > 0)
                                       Text(
-                                        'Due: ${formatCurrency(inv.balanceDueCents)}',
+                                        'Due: ${formatInvMoney(inv.balanceDueCents, inv.currencyCode, inv.currencySymbol, inv.currencyDecimals)}',
                                         style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()]),
                                       )
                                     else

@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileText, ArrowRightLeft, Trash2 } from 'lucide-react';
-import { formatMoney as formatMoneyUnits, getCurrencyDecimals } from '../../billingRules';
+import { formatMoney as formatMoneyUnits, getCurrencyDecimals, matchesDateFilter } from '../../billingRules';
 
 interface OfflineEstimatesListProps {
   estimates: any[];
@@ -46,6 +46,9 @@ export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
       const matchClient = est.client_name?.toLowerCase().includes(q);
       if (!matchNum && !matchClient) return false;
     }
+    // Date filter
+    if (!matchesDateFilter(est.issue_date, dateFilter)) return false;
+
     return true;
   });
 

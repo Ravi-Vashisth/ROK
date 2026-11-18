@@ -4,18 +4,19 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/database/database_provider.dart';
-import '../../../core/utils/backup_service.dart';
-import '../../../core/utils/export_file_helper.dart';
-import '../../../core/utils/tax_compliance_utils.dart';
-import '../../business_profile/presentation/business_profile_dialog.dart';
-import '../../business_profile/providers/business_profile_provider.dart';
-import '../../clients/providers/clients_provider.dart';
-import '../../estimates/providers/estimates_provider.dart';
-import '../../expenses/providers/expenses_provider.dart';
-import '../../invoices/providers/invoices_provider.dart';
-import '../../items/presentation/items_catalog_tab.dart';
-import '../../items/providers/saved_items_provider.dart';
+import 'package:billing_app/core/database/database_provider.dart';
+import 'package:billing_app/core/utils/backup_service.dart';
+import 'package:billing_app/core/utils/export_file_helper.dart';
+import 'package:billing_app/core/utils/file_validation_utils.dart';
+import 'package:billing_app/core/utils/tax_compliance_utils.dart';
+import 'package:billing_app/features/business_profile/presentation/business_profile_dialog.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
+import 'package:billing_app/features/clients/providers/clients_provider.dart';
+import 'package:billing_app/features/estimates/providers/estimates_provider.dart';
+import 'package:billing_app/features/expenses/providers/expenses_provider.dart';
+import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
+import 'package:billing_app/features/items/presentation/items_catalog_tab.dart';
+import 'package:billing_app/features/items/providers/saved_items_provider.dart';
 
 class DirectorySettingsTab extends ConsumerStatefulWidget {
   final int initialSubTab;
@@ -276,8 +277,12 @@ class _BackupRecoveryCard extends ConsumerWidget {
         final picked = result.files.single;
         final bytes = picked.bytes ??
             (picked.path != null ? await File(picked.path!).readAsBytes() : null);
-        if (bytes == null) {
+        if (!context.mounted) return;
+        if (bytes == null || bytes.isEmpty) {
           throw const FormatException('Could not read the selected backup file.');
+        }
+        if (bytes.length > maxBackupSizeBytes) {
+          throw const FormatException('Backup file exceeds maximum supported size (50 MB).');
         }
 
         final jsonStr = utf8.decode(bytes);

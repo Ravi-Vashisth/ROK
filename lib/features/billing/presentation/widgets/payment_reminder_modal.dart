@@ -2,16 +2,62 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/utils/telephony_utils.dart';
-import '../../../business_profile/providers/business_profile_provider.dart';
-import '../../../clients/models/client.dart';
-import '../../../clients/providers/clients_provider.dart';
-import '../../../invoices/models/invoice_record.dart';
+import 'package:billing_app/core/utils/telephony_utils.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
+import 'package:billing_app/features/clients/models/client.dart';
+import 'package:billing_app/features/clients/providers/clients_provider.dart';
+import 'package:billing_app/features/invoices/models/invoice_record.dart';
 
-class PaymentReminderModal extends ConsumerWidget {
+class PaymentReminderModal extends ConsumerStatefulWidget {
   final InvoiceRecord invoice;
 
   const PaymentReminderModal({super.key, required this.invoice});
+
+  @override
+  ConsumerState<PaymentReminderModal> createState() => _PaymentReminderModalState();
+}
+
+class _PaymentReminderModalState extends ConsumerState<PaymentReminderModal> {
+  late final TextEditingController _messageController;
+
+  @override
+  void initState() {
+    super.initState();
+    final businessProfile = ref.read(businessProfileProvider);
+    final clients = ref.read(clientsProvider);
+    final client = clients.firstWhere(
+      (c) => c.id == widget.invoice.clientId,
+      orElse: () => Client(
+        id: widget.invoice.clientId,
+        name: widget.invoice.clientName,
+        createdAt: '',
+      ),
+    );
+    final sym = widget.invoice.currencySymbol.isNotEmpty
+        ? widget.invoice.currencySymbol
+        : businessProfile.currencySymbol;
+    final dec = widget.invoice.currencyCode.isNotEmpty
+        ? widget.invoice.currencyDecimals
+        : businessProfile.currencyDecimals;
+
+    _messageController = TextEditingController(
+      text: buildPaymentReminderMessage(
+        invoiceNumber: widget.invoice.invoiceNumber,
+        clientName: client.name.isNotEmpty ? client.name : widget.invoice.clientName,
+        balanceDueUnits: widget.invoice.balanceDueCents,
+        currencySymbol: sym,
+        currencyDecimals: dec,
+        dueDate: widget.invoice.dueDate,
+        businessName: businessProfile.businessName,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
 
   Future<void> _launchExternalAction(
     BuildContext context, {
@@ -43,39 +89,28 @@ class PaymentReminderModal extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final businessProfile = ref.watch(businessProfileProvider);
+  Widget build(BuildContext context) {
     final clients = ref.watch(clientsProvider);
     final client = clients.firstWhere(
-      (c) => c.id == invoice.clientId,
+      (c) => c.id == widget.invoice.clientId,
       orElse: () => Client(
-        id: invoice.clientId,
-        name: invoice.clientName,
+        id: widget.invoice.clientId,
+        name: widget.invoice.clientName,
         createdAt: '',
       ),
     );
 
-    final sym = invoice.currencySymbol.isNotEmpty
-        ? invoice.currencySymbol
-        : businessProfile.currencySymbol;
-    final dec = invoice.currencyCode.isNotEmpty
-        ? invoice.currencyDecimals
-        : businessProfile.currencyDecimals;
-
-    final message = buildPaymentReminderMessage(
-      invoiceNumber: invoice.invoiceNumber,
-      clientName: client.name.isNotEmpty ? client.name : invoice.clientName,
-      balanceDueUnits: invoice.balanceDueCents,
-      currencySymbol: sym,
-      currencyDecimals: dec,
-      dueDate: invoice.dueDate,
-      businessName: businessProfile.businessName,
-    );
-
-    final smsUri = buildSmsUri(phone: client.phone, body: message);
+    final message = _messageController.text;
+    final isIos = Theme.of(context).platform == TargetPlatform.iOS;
+    final smsUri = buildSmsUri(phone: client.phone, body: message, isIos: isIos);
     final normalizedPhone = normalizePhoneForUri(client.phone);
+    final waValidation = validateWhatsAppPhone(client.phone);
     final cleanEmail = client.email.trim();
-    final subject = 'Invoice ${invoice.invoiceNumber} Payment Reminder';
+    final subject = 'Invoice ${widget.invoice.invoiceNumber} Payment Reminder';
+    final fallbackNote = getDesktopTelephonyFallbackNote(
+      hasPhone: normalizedPhone.isNotEmpty,
+      hasEmail: cleanEmail.isNotEmpty,
+    );
 
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -88,7 +123,7 @@ class PaymentReminderModal extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Invoice ${invoice.invoiceNumber} for ${client.name.isNotEmpty ? client.name : "Client"}',
+                'Invoice ${widget.invoice.invoiceNumber} for ${client.name.isNotEmpty ? client.name : "Client"}',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               if (cleanEmail.isNotEmpty || normalizedPhone.isNotEmpty) ...[
@@ -102,17 +137,19 @@ class PaymentReminderModal extends ConsumerWidget {
                 ),
               ],
               const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Theme.of(context).dividerColor),
-                ),
-                child: Text(
-                  message,
-                  style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+              TextField(
+                controller: _messageController,
+                maxLines: 4,
+                minLines: 3,
+                style: const TextStyle(fontSize: 12),
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: 'Reminder Message',
+                  alignLabelWithHint: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.all(12),
                 ),
               ),
               const SizedBox(height: 12),
@@ -146,6 +183,25 @@ class PaymentReminderModal extends ConsumerWidget {
                   fallbackCopyText: message,
                 ),
               ),
+              if (normalizedPhone.isNotEmpty &&
+                  !waValidation.isValid &&
+                  waValidation.warningMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 16, right: 8, bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.warning_amber_rounded, size: 15, color: Colors.amber.shade700),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          waValidation.warningMessage!,
+                          style: TextStyle(fontSize: 11, color: Colors.amber.shade800),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ListTile(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 leading: Icon(
@@ -182,6 +238,19 @@ class PaymentReminderModal extends ConsumerWidget {
                   fallbackCopyText: cleanEmail.isNotEmpty ? '$cleanEmail\n\n$message' : message,
                 ),
               ),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  fallbackNote,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              ),
             ],
           ),
         ),
@@ -195,4 +264,3 @@ class PaymentReminderModal extends ConsumerWidget {
     );
   }
 }
-

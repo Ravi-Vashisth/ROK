@@ -4,11 +4,12 @@ import 'dart:ui';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/utils/currency_formatter_provider.dart';
-import '../../../core/utils/money_utils.dart';
-import '../../business_profile/providers/business_profile_provider.dart';
-import '../models/expense_record.dart';
-import '../providers/expenses_provider.dart';
+import 'package:billing_app/core/utils/currency_formatter_provider.dart';
+import 'package:billing_app/core/utils/file_validation_utils.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
+import 'package:billing_app/features/expenses/models/expense_record.dart';
+import 'package:billing_app/features/expenses/providers/expenses_provider.dart';
 
 class ExpensesTab extends ConsumerStatefulWidget {
   const ExpensesTab({super.key});
@@ -43,7 +44,8 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
     super.initState();
     final now = DateTime.now();
     _dateController = TextEditingController(
-      text: '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
+      text:
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}',
     );
   }
 
@@ -63,18 +65,40 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'pdf'],
+        withData: true,
       );
-      if (result != null && result.files.single.path != null) {
-        final file = File(result.files.single.path!);
-        final bytes = await file.readAsBytes();
-        final ext = result.files.single.extension?.toLowerCase() ?? 'png';
-        final mime = ext == 'pdf' ? 'application/pdf' : 'image/$ext';
-        final b64 = 'data:$mime;base64,${base64Encode(bytes)}';
-        setState(() {
-          _receiptBase64 = b64;
-          _receiptName = result.files.single.name;
-        });
+      if (result == null || result.files.isEmpty) return;
+
+      final picked = result.files.single;
+      final bytes = picked.bytes ??
+          (picked.path != null ? await File(picked.path!).readAsBytes() : null);
+      if (!mounted) return;
+      if (bytes == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not read the selected receipt file.')),
+        );
+        return;
       }
+
+      final validation = validateUploadedFileBytes(
+        bytes: bytes,
+        filename: picked.name,
+        allowPdf: true,
+      );
+      if (!validation.isValid || validation.mimeType == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(validation.errorMessage ?? 'Invalid receipt file selected.'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+        return;
+      }
+
+      setState(() {
+        _receiptBase64 = 'data:${validation.mimeType};base64,${base64Encode(bytes)}';
+        _receiptName = picked.name;
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -82,6 +106,19 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
         );
       }
     }
+  }
+
+  Future<void> _pickDate(TextEditingController controller) async {
+    final initial = parseLocalCalendarDate(controller.text.trim()) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null || !mounted) return;
+    controller.text =
+        '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
   }
 
   void _handleAddExpense() {
@@ -102,6 +139,14 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
       return;
     }
 
+    final dateStr = _dateController.text.trim();
+    if (!isValidIsoCalendarDate(dateStr)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid expense date (YYYY-MM-DD).')),
+      );
+      return;
+    }
+
     final taxCents = parsePriceToUnits(_taxController.text.trim(), decimals);
 
     ref.read(expensesProvider.notifier).addExpense(
@@ -109,7 +154,7 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
           vendor: vendor,
           amountCents: amountCents,
           taxCents: taxCents,
-          expenseDate: _dateController.text.trim(),
+          expenseDate: dateStr,
           notes: _notesController.text.trim(),
           receiptBase64: _receiptBase64,
           receiptName: _receiptName,
@@ -117,7 +162,7 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
 
     _vendorController.clear();
     _amountController.clear();
-    _taxController.text = '0';
+    _taxController.text = formatDecimalUnits(0, decimals);
     _notesController.clear();
     setState(() {
       _receiptBase64 = '';
@@ -126,6 +171,41 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Expense booked locally successfully!')),
+    );
+  }
+
+  void _confirmDeleteExpense(BuildContext context, ExpenseRecord item) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text('Delete Expense'),
+        content: Text('Delete expense record from "${item.vendor}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              ref.read(expensesProvider.notifier).deleteExpense(item.id);
+              Navigator.of(dialogCtx).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Deleted expense for ${item.vendor}.')),
+              );
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditExpenseDialog(BuildContext context, ExpenseRecord item) {
+    showDialog(
+      context: context,
+      builder: (_) => _ExpenseEditDialog(expense: item),
     );
   }
 
@@ -159,19 +239,26 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                 if (item.receiptName.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12.0),
-                    child: Text('File: ${item.receiptName}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                  ),
-                if (item.receiptBase64.startsWith('data:image')) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 280),
-                      child: Image.memory(
-                        base64Decode(item.receiptBase64.split(',').last),
-                        fit: BoxFit.contain,
-                      ),
+                    child: Text(
+                      'File: ${item.receiptName}',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ),
+                if (item.receiptBase64.startsWith('data:image')) ...[
+                  (() {
+                    try {
+                      final decoded = base64Decode(item.receiptBase64.split(',').last);
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 280),
+                          child: Image.memory(decoded, fit: BoxFit.contain),
+                        ),
+                      );
+                    } catch (_) {
+                      return const Text('Unable to decode stored receipt image.');
+                    }
+                  })(),
                 ] else if (item.receiptBase64.startsWith('data:application/pdf')) ...[
                   Container(
                     padding: const EdgeInsets.all(24),
@@ -183,12 +270,15 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                       children: [
                         Icon(Icons.picture_as_pdf, size: 48, color: Colors.red),
                         SizedBox(height: 8),
-                        Text('PDF Receipt Document Attached', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(
+                          'PDF Receipt Document Attached',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ],
                     ),
                   ),
                 ] else ...[
-                  const Text('No receipt image available preview.'),
+                  const Text('No receipt image preview available.'),
                 ],
               ],
             ),
@@ -207,6 +297,8 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
   @override
   Widget build(BuildContext context) {
     final expenses = ref.watch(expensesProvider);
+    final profile = ref.watch(businessProfileProvider);
+    final decimals = profile.currencyDecimals;
     final formatCurrency = ref.watch(currencyFormatterProvider);
     final query = _searchController.text.toLowerCase();
 
@@ -218,6 +310,8 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
 
     final width = MediaQuery.sizeOf(context).width;
     final isWide = width >= 900;
+    final zeroHint = formatDecimalUnits(0, decimals);
+
     final categoryField = DropdownButtonFormField<String>(
       value: _selectedCategory,
       decoration: const InputDecoration(labelText: 'Category'),
@@ -226,25 +320,38 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
     );
     final vendorField = TextField(
       controller: _vendorController,
-      decoration: const InputDecoration(labelText: 'Vendor / Payee', hintText: 'e.g. AWS, Adobe, Staples'),
+      decoration: const InputDecoration(
+        labelText: 'Vendor / Payee',
+        hintText: 'e.g. AWS, Adobe, Staples',
+      ),
     );
     final dateField = TextField(
       controller: _dateController,
-      decoration: const InputDecoration(labelText: 'Expense Date (YYYY-MM-DD)'),
+      decoration: InputDecoration(
+        labelText: 'Expense Date (YYYY-MM-DD)',
+        suffixIcon: IconButton(
+          tooltip: 'Pick date',
+          icon: const Icon(Icons.calendar_today_outlined, size: 18),
+          onPressed: () => _pickDate(_dateController),
+        ),
+      ),
     );
     final amountField = TextField(
       controller: _amountController,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: const InputDecoration(labelText: 'Amount (excl. tax)', hintText: '0.00'),
+      keyboardType: TextInputType.numberWithOptions(decimal: decimals > 0),
+      decoration: InputDecoration(labelText: 'Amount (excl. tax)', hintText: zeroHint),
     );
     final taxField = TextField(
       controller: _taxController,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: const InputDecoration(labelText: 'Tax Amount', hintText: '0.00'),
+      keyboardType: TextInputType.numberWithOptions(decimal: decimals > 0),
+      decoration: InputDecoration(labelText: 'Tax Amount', hintText: zeroHint),
     );
     final notesField = TextField(
       controller: _notesController,
-      decoration: const InputDecoration(labelText: 'Notes / Purpose', hintText: 'Project hosting...'),
+      decoration: const InputDecoration(
+        labelText: 'Notes / Purpose',
+        hintText: 'Project hosting...',
+      ),
     );
 
     return Column(
@@ -356,7 +463,10 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
             spacing: 12,
             runSpacing: 10,
             children: [
-              Text('Expense Ledger (${filtered.length})', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                'Expense Ledger (${filtered.length})',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
               ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: width < 600 ? double.infinity : 280),
                 child: TextField(
@@ -427,14 +537,20 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                               children: [
                                 Icon(Icons.attach_file, size: 12, color: Colors.indigo),
                                 SizedBox(width: 2),
-                                Text('Receipt', style: TextStyle(fontSize: 10, color: Colors.indigo, fontWeight: FontWeight.bold)),
+                                Text(
+                                  'Receipt',
+                                  style: TextStyle(fontSize: 10, color: Colors.indigo, fontWeight: FontWeight.bold),
+                                ),
                               ],
                             ),
                           ),
                         ),
                     ],
                   ),
-                  subtitle: Text('Date: ${item.expenseDate}${item.notes.isNotEmpty ? " • ${item.notes}" : ""}', style: const TextStyle(fontSize: 12)),
+                  subtitle: Text(
+                    'Date: ${item.expenseDate}${item.notes.isNotEmpty ? " • ${item.notes}" : ""}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -463,10 +579,13 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                       ),
                       const SizedBox(width: 4),
                       IconButton(
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        onPressed: () => _showEditExpenseDialog(context, item),
+                        tooltip: 'Edit Expense',
+                      ),
+                      IconButton(
                         icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
-                        onPressed: () {
-                          ref.read(expensesProvider.notifier).deleteExpense(item.id);
-                        },
+                        onPressed: () => _confirmDeleteExpense(context, item),
                         tooltip: 'Delete Expense',
                       ),
                     ],
@@ -475,6 +594,274 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
               },
             ),
           ),
+      ],
+    );
+  }
+}
+
+class _ExpenseEditDialog extends ConsumerStatefulWidget {
+  final ExpenseRecord expense;
+
+  const _ExpenseEditDialog({required this.expense});
+
+  @override
+  ConsumerState<_ExpenseEditDialog> createState() => _ExpenseEditDialogState();
+}
+
+class _ExpenseEditDialogState extends ConsumerState<_ExpenseEditDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _vendorController;
+  late final TextEditingController _amountController;
+  late final TextEditingController _taxController;
+  late final TextEditingController _dateController;
+  late final TextEditingController _notesController;
+  late String _category;
+  late String _receiptBase64;
+  late String _receiptName;
+
+  static const List<String> _baseCategories = [
+    'Software',
+    'Hardware',
+    'Office',
+    'Travel',
+    'Subcontracting',
+    'Other',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final decimals = ref.read(businessProfileProvider).currencyDecimals;
+    _vendorController = TextEditingController(text: widget.expense.vendor);
+    _amountController = TextEditingController(
+      text: formatDecimalUnits(widget.expense.amountCents, decimals),
+    );
+    _taxController = TextEditingController(
+      text: formatDecimalUnits(widget.expense.taxCents, decimals),
+    );
+    _dateController = TextEditingController(text: widget.expense.expenseDate);
+    _notesController = TextEditingController(text: widget.expense.notes);
+    _category = widget.expense.category.isNotEmpty ? widget.expense.category : 'Software';
+    _receiptBase64 = widget.expense.receiptBase64;
+    _receiptName = widget.expense.receiptName;
+  }
+
+  @override
+  void dispose() {
+    _vendorController.dispose();
+    _amountController.dispose();
+    _taxController.dispose();
+    _dateController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickReceipt() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'pdf'],
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+
+      final picked = result.files.single;
+      final bytes = picked.bytes ??
+          (picked.path != null ? await File(picked.path!).readAsBytes() : null);
+      if (!mounted) return;
+      if (bytes == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not read the selected receipt file.')),
+        );
+        return;
+      }
+
+      final validation = validateUploadedFileBytes(
+        bytes: bytes,
+        filename: picked.name,
+        allowPdf: true,
+      );
+      if (!validation.isValid || validation.mimeType == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(validation.errorMessage ?? 'Invalid receipt file selected.'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+        return;
+      }
+
+      setState(() {
+        _receiptBase64 = 'data:${validation.mimeType};base64,${base64Encode(bytes)}';
+        _receiptName = picked.name;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('File selection error: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickDate() async {
+    final initial = parseLocalCalendarDate(_dateController.text.trim()) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _dateController.text =
+          '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final decimals = ref.watch(businessProfileProvider).currencyDecimals;
+    final categoryChoices = _baseCategories.contains(_category)
+        ? _baseCategories
+        : [..._baseCategories, _category];
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      title: const Text('Edit Expense Record'),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 460,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+        ),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  controller: _vendorController,
+                  decoration: const InputDecoration(labelText: 'Vendor / Payee *'),
+                  validator: (val) =>
+                      val == null || val.trim().isEmpty ? 'Please enter a vendor name' : null,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _category,
+                  decoration: const InputDecoration(labelText: 'Category'),
+                  items: categoryChoices
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _category = v);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _dateController,
+                  decoration: InputDecoration(
+                    labelText: 'Expense Date (YYYY-MM-DD) *',
+                    suffixIcon: IconButton(
+                      tooltip: 'Pick date',
+                      icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                      onPressed: _pickDate,
+                    ),
+                  ),
+                  validator: (val) => val == null || !isValidIsoCalendarDate(val.trim())
+                      ? 'Use YYYY-MM-DD format'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _amountController,
+                  keyboardType: TextInputType.numberWithOptions(decimal: decimals > 0),
+                  decoration: const InputDecoration(labelText: 'Amount (excl. tax) *'),
+                  validator: (val) {
+                    if (val == null || parsePriceToUnits(val.trim(), decimals) <= 0) {
+                      return 'Enter a valid amount greater than zero';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _taxController,
+                  keyboardType: TextInputType.numberWithOptions(decimal: decimals > 0),
+                  decoration: const InputDecoration(labelText: 'Tax Amount'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _notesController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Notes / Purpose'),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _pickReceipt,
+                      icon: const Icon(Icons.attach_file, size: 16),
+                      label: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 220),
+                        child: Text(
+                          _receiptName.isNotEmpty
+                              ? 'Receipt: $_receiptName'
+                              : (_receiptBase64.isNotEmpty
+                                  ? 'Replace Attached Receipt'
+                                  : 'Attach Receipt (Image/PDF)'),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    if (_receiptBase64.isNotEmpty)
+                      TextButton.icon(
+                        onPressed: () => setState(() {
+                          _receiptBase64 = '';
+                          _receiptName = '';
+                        }),
+                        icon: const Icon(Icons.close, size: 16, color: Colors.red),
+                        label: const Text('Remove', style: TextStyle(color: Colors.red)),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (!_formKey.currentState!.validate()) return;
+            final amountCents = parsePriceToUnits(_amountController.text.trim(), decimals);
+            final taxCents = parsePriceToUnits(_taxController.text.trim(), decimals);
+            ref.read(expensesProvider.notifier).updateExpense(
+                  id: widget.expense.id,
+                  category: _category,
+                  vendor: _vendorController.text.trim(),
+                  amountCents: amountCents,
+                  taxCents: taxCents,
+                  expenseDate: _dateController.text.trim(),
+                  notes: _notesController.text.trim(),
+                  receiptBase64: _receiptBase64,
+                  receiptName: _receiptName,
+                );
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Expense updated successfully.')),
+            );
+          },
+          child: const Text('Update Expense'),
+        ),
       ],
     );
   }

@@ -6,6 +6,7 @@ import {
   getCurrencyDecimals,
   getRegionalTaxIdLabel,
   normalizeTaxMode,
+  validateUploadedFileBytes,
 } from '../../billingRules';
 
 interface BusinessProfileDialogProps {
@@ -26,6 +27,11 @@ const CURRENCY_SYMBOL_MAP: Record<string, string> = {
   AUD: 'A$',
   AED: 'AED',
   SAR: 'SAR',
+  KWD: 'KWD',
+  BHD: 'BHD',
+  OMR: 'OMR',
+  JOD: 'JOD',
+  TND: 'TND',
 };
 
 export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
@@ -51,24 +57,47 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
   const [defaultNotes, setDefaultNotes] = useState<string>(businessProfile.default_notes || '');
   const [logoBase64, setLogoBase64] = useState<string>(businessProfile.logo_base64 || '');
   const [signatureBase64, setSignatureBase64] = useState<string>(businessProfile.signature_base64 || '');
+  const [uploadError, setUploadError] = useState<string>('');
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const signatureInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'signature') => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'signature') => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      const base64 = uploadEvent.target?.result as string;
-      if (type === 'logo') {
-        setLogoBase64(base64);
-      } else {
-        setSignatureBase64(base64);
-      }
-    };
-    reader.readAsDataURL(file);
     e.target.value = '';
+    if (!file) return;
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const validation = validateUploadedFileBytes({
+        bytes: new Uint8Array(buffer),
+        filename: file.name,
+        allowPdf: false,
+      });
+      if (!validation.isValid || !validation.mimeType) {
+        setUploadError(validation.errorMessage || 'Invalid image selected.');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        const result = uploadEvent.target?.result;
+        if (typeof result === 'string') {
+          const commaIdx = result.indexOf(',');
+          const payload = commaIdx >= 0 ? result.slice(commaIdx + 1) : result;
+          const normalizedDataUri = `data:${validation.mimeType};base64,${payload}`;
+          if (type === 'logo') {
+            setLogoBase64(normalizedDataUri);
+          } else {
+            setSignatureBase64(normalizedDataUri);
+          }
+          setUploadError('');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setUploadError('Unable to read selected image file.');
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -172,6 +201,11 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
                 <option value="AUD">AUD (A$)</option>
                 <option value="AED">AED (UAE)</option>
                 <option value="SAR">SAR (KSA)</option>
+                <option value="KWD">KWD (Kuwait - 3 dec)</option>
+                <option value="BHD">BHD (Bahrain - 3 dec)</option>
+                <option value="OMR">OMR (Oman - 3 dec)</option>
+                <option value="JOD">JOD (Jordan - 3 dec)</option>
+                <option value="TND">TND (Tunisia - 3 dec)</option>
               </select>
             </div>
           </div>
@@ -217,6 +251,11 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
           </div>
 
           {/* Logo & Signature Branding Controls (Never dumps raw base64) */}
+          {uploadError && (
+            <div className="p-2.5 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-xs font-semibold">
+              {uploadError}
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             {/* Company Logo */}
             <div className={`p-3 rounded-xl border ${isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>

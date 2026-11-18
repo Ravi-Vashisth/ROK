@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, DollarSign, CheckCircle2, AlertCircle } from 'lucide-react';
 import {
   formatDecimalUnits,
+  formatLocalCalendarDate,
   formatMoney as formatMoneyUnits,
   getCurrencyDecimals,
   parsePriceToUnits,
@@ -35,21 +36,47 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
   onClose,
   onSubmit,
 }) => {
-  if (!isOpen || !invoice) return null;
+  const invSym = invoice?.currency_symbol || currencySymbol || '$';
+  const invDec = invoice?.currency_decimals ?? getCurrencyDecimals(invoice?.currency_code || invSym);
+  const balanceDueCents = invoice
+    ? invoice.balance_due_cents ?? Math.max(0, (invoice.total_cents || 0) - (invoice.paid_cents || 0))
+    : 0;
 
-  const invSym = invoice.currency_symbol || currencySymbol || '$';
-  const invDec = invoice.currency_decimals ?? getCurrencyDecimals(invoice.currency_code || invSym);
-  const fmtInvMoney = (units: number) => formatMoneyUnits(units, invSym, invDec);
-
-  const balanceDueCents = invoice.balance_due_cents ?? Math.max(0, invoice.total_cents - (invoice.paid_cents || 0));
-  const [amountReceivedStr, setAmountReceivedStr] = useState<string>(formatDecimalUnits(balanceDueCents, invDec));
+  const [amountReceivedStr, setAmountReceivedStr] = useState<string>(
+    formatDecimalUnits(balanceDueCents, invDec)
+  );
   const [tdsStr, setTdsStr] = useState<string>(formatDecimalUnits(0, invDec));
   const [paymentMethod, setPaymentMethod] = useState<string>('Bank Wire');
-  const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [paymentDate, setPaymentDate] = useState<string>(formatLocalCalendarDate());
   const [referenceNumber, setReferenceNumber] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!isOpen || !invoice) return;
+    setAmountReceivedStr(formatDecimalUnits(balanceDueCents, invDec));
+    setTdsStr(formatDecimalUnits(0, invDec));
+    setPaymentMethod('Bank Wire');
+    setPaymentDate(formatLocalCalendarDate());
+    setReferenceNumber('');
+    setNotes('');
+    setErrorMessage(null);
+  }, [isOpen, invoice?.id, balanceDueCents, invDec]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !invoice) return null;
+
+  const fmtInvMoney = (units: number) => formatMoneyUnits(units, invSym, invDec);
   const amountReceivedCents = parsePriceToUnits(amountReceivedStr, invDec);
   const tdsCents = parsePriceToUnits(tdsStr, invDec);
   const totalCreditCents = amountReceivedCents + tdsCents;
@@ -89,11 +116,20 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
     onClose();
   };
 
-  const stepVal = invDec === 0 ? '1' : '0.01';
+  const stepVal = invDec === 0 ? '1' : invDec === 3 ? '0.001' : '0.01';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div
+        role="dialog"
+        aria-modal="true"
         className={`w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border shadow-2xl p-6 ${
           isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
         }`}
@@ -110,6 +146,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer shrink-0"
           >
@@ -163,6 +200,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
               <label className="block text-xs font-bold mb-1">Amount Received ({invSym}) *</label>
               <input
                 type="number"
+                inputMode={invDec > 0 ? 'decimal' : 'numeric'}
                 step={stepVal}
                 min="0"
                 value={amountReceivedStr}
@@ -178,6 +216,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
               <label className="block text-xs font-bold mb-1">TDS Withholding Tax ({invSym})</label>
               <input
                 type="number"
+                inputMode={invDec > 0 ? 'decimal' : 'numeric'}
                 step={stepVal}
                 min="0"
                 value={tdsStr}

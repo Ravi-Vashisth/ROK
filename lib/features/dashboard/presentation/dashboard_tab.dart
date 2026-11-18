@@ -2,12 +2,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/currency_formatter_provider.dart';
-import '../../billing/presentation/widgets/cash_flow_metrics_bar.dart';
-import '../../billing/presentation/widgets/payment_reminder_modal.dart';
-import '../../estimates/providers/estimates_provider.dart';
-import '../../expenses/providers/expenses_provider.dart';
-import '../../invoices/providers/invoices_provider.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/features/billing/presentation/widgets/cash_flow_metrics_bar.dart';
+import 'package:billing_app/features/billing/presentation/widgets/payment_reminder_modal.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
+import 'package:billing_app/features/estimates/providers/estimates_provider.dart';
+import 'package:billing_app/features/expenses/providers/expenses_provider.dart';
+import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
 
 class DashboardTab extends ConsumerWidget {
   final VoidCallback onNavigateToInvoices;
@@ -26,11 +27,27 @@ class DashboardTab extends ConsumerWidget {
     final invoices = ref.watch(invoicesProvider);
     final estimates = ref.watch(estimatesProvider);
     ref.watch(expensesProvider);
-    final formatCurrency = ref.watch(currencyFormatterProvider);
+    final profile = ref.watch(businessProfileProvider);
 
-    // Triage items: Overdue invoices, pending/accepted estimates
+    String fmtDocMoney(int units, String code, String symbol, int decimals) {
+      final resolved = resolveEffectiveCurrency(
+        recordCode: code,
+        recordSymbol: symbol,
+        recordDecimals: code.trim().isNotEmpty ? decimals : null,
+        defaultCode: profile.currencyCode,
+        defaultSymbol: profile.currencySymbol,
+        defaultDecimals: profile.currencyDecimals,
+      );
+      return formatMoney(units, symbol: resolved.symbol, decimals: resolved.decimals);
+    }
+
+    // Triage items: Overdue active invoices and actionable (PENDING/ACCEPTED) quotes only
     final overdueInvoices = invoices.where((i) => i.isOverdue && i.balanceDueCents > 0 && !i.isDraft && !i.isVoid).toList();
-    final acceptedEstimates = estimates.where((e) => !e.isConverted).toList();
+    final actionableEstimates = estimates.where((e) {
+      final st = e.status.trim().toUpperCase();
+      return st == 'PENDING' || st == 'ACCEPTED';
+    }).toList();
+    final recentLedgerInvoices = invoices.where((i) => !i.isDraft && !i.isVoid).take(5).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,14 +112,14 @@ class DashboardTab extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Action Required Triage (${overdueInvoices.length + acceptedEstimates.length} Pending)',
+                            'Action Required Triage (${overdueInvoices.length + actionableEstimates.length} Pending)',
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.amber.shade900),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    if (overdueInvoices.isEmpty && acceptedEstimates.isEmpty)
+                    if (overdueInvoices.isEmpty && actionableEstimates.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8.0),
                         child: Text(
@@ -112,8 +129,14 @@ class DashboardTab extends ConsumerWidget {
                       )
                     else ...[
                       ...overdueInvoices.map((inv) {
+                        final formattedBalance = fmtDocMoney(
+                          inv.balanceDueCents,
+                          inv.currencyCode,
+                          inv.currencySymbol,
+                          inv.currencyDecimals,
+                        );
                         final msg =
-                            'Invoice ${inv.invoiceNumber} for ${inv.clientName} is ${inv.daysOverdue} ${inv.daysOverdue == 1 ? 'day' : 'days'} overdue (${formatCurrency(inv.balanceDueCents)} balance due).';
+                            'Invoice ${inv.invoiceNumber} for ${inv.clientName} is ${inv.daysOverdue} ${inv.daysOverdue == 1 ? 'day' : 'days'} overdue ($formattedBalance balance due).';
                         final btn = OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
                           onPressed: () => showDialog(
@@ -155,9 +178,15 @@ class DashboardTab extends ConsumerWidget {
                                 ),
                         );
                       }),
-                      ...acceptedEstimates.map((est) {
+                      ...actionableEstimates.map((est) {
+                        final formattedTotal = fmtDocMoney(
+                          est.totalCents,
+                          est.currencyCode,
+                          est.currencySymbol,
+                          est.currencyDecimals,
+                        );
                         final msg =
-                            'Quote ${est.estimateNumber} for ${est.clientName} (${formatCurrency(est.totalCents)}) is ready to be converted.';
+                            'Quote ${est.estimateNumber} for ${est.clientName} ($formattedTotal) is ready to be converted.';
                         final btn = FilledButton.icon(
                           style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
                           onPressed: () {
@@ -221,35 +250,50 @@ class DashboardTab extends ConsumerWidget {
             side: BorderSide(color: Theme.of(context).dividerColor),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: invoices.take(5).length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final inv = invoices[index];
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: inv.isFullyPaid ? Colors.green.shade100 : Colors.blue.shade100,
-                  child: Icon(
-                    inv.isFullyPaid ? Icons.check : Icons.receipt_long,
-                    color: inv.isFullyPaid ? Colors.green.shade800 : Colors.blue.shade800,
-                    size: 18,
+          child: recentLedgerInvoices.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Center(
+                    child: Text(
+                      'No finalized invoices in recent activity yet.',
+                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
                   ),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: recentLedgerInvoices.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final inv = recentLedgerInvoices[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: inv.isFullyPaid ? Colors.green.shade100 : Colors.blue.shade100,
+                        child: Icon(
+                          inv.isFullyPaid ? Icons.check : Icons.receipt_long,
+                          color: inv.isFullyPaid ? Colors.green.shade800 : Colors.blue.shade800,
+                          size: 18,
+                        ),
+                      ),
+                      title: Text('${inv.invoiceNumber} • ${inv.clientName}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      subtitle: Text('Issued: ${inv.issueDate} • Due: ${inv.dueDate} • Status: ${inv.computedStatus}', style: const TextStyle(fontSize: 11)),
+                      trailing: Text(
+                        fmtDocMoney(
+                          inv.totalCents,
+                          inv.currencyCode,
+                          inv.currencySymbol,
+                          inv.currencyDecimals,
+                        ),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                          color: inv.isFullyPaid ? Colors.green.shade700 : null,
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                title: Text('${inv.invoiceNumber} • ${inv.clientName}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                subtitle: Text('Issued: ${inv.issueDate} • Due: ${inv.dueDate} • Status: ${inv.computedStatus}', style: const TextStyle(fontSize: 11)),
-                trailing: Text(
-                  formatCurrency(inv.totalCents),
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                    color: inv.isFullyPaid ? Colors.green.shade700 : null,
-                  ),
-                ),
-              );
-            },
-          ),
         ),
       ],
     );

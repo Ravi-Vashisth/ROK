@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Wallet, X, Save, Sparkles, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Wallet, X, Save, Sparkles, AlertCircle, Paperclip, FileText } from 'lucide-react';
 import {
   calculateTaxCents,
   formatDecimalUnits,
+  formatLocalCalendarDate,
   formatMoney,
   parsePriceToUnits,
+  validateUploadedFileBytes,
 } from '../../billingRules';
 
 interface ExpenseDrawerModalProps {
@@ -12,8 +14,10 @@ interface ExpenseDrawerModalProps {
   isDarkMode: boolean;
   currencySymbol: string;
   currencyDecimals: number;
+  initialExpense?: any | null;
   onClose: () => void;
   onSave: (expenseData: {
+    id?: string;
     vendor: string;
     category: string;
     amount_cents: number;
@@ -21,6 +25,8 @@ interface ExpenseDrawerModalProps {
     total_cents: number;
     expense_date: string;
     notes: string;
+    receipt_base64: string;
+    receipt_name: string;
   }) => void;
 }
 
@@ -40,29 +46,44 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
   isDarkMode,
   currencySymbol,
   currencyDecimals,
+  initialExpense,
   onClose,
   onSave,
 }) => {
   const [vendor, setVendor] = useState<string>('');
   const [category, setCategory] = useState<string>('Software & SaaS');
   const [amountStr, setAmountStr] = useState<string>('');
-  const [taxStr, setTaxStr] = useState<string>(currencyDecimals === 0 ? '0' : '0.00');
-  const [expenseDate, setExpenseDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
-  );
+  const [taxStr, setTaxStr] = useState<string>(formatDecimalUnits(0, currencyDecimals));
+  const [expenseDate, setExpenseDate] = useState<string>(formatLocalCalendarDate());
   const [notes, setNotes] = useState<string>('');
+  const [receiptBase64, setReceiptBase64] = useState<string>('');
+  const [receiptName, setReceiptName] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const receiptInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
-    setVendor('');
-    setCategory('Software & SaaS');
-    setAmountStr('');
-    setTaxStr(currencyDecimals === 0 ? '0' : '0.00');
-    setExpenseDate(new Date().toISOString().split('T')[0]);
-    setNotes('');
+    if (initialExpense) {
+      setVendor(initialExpense.vendor || '');
+      setCategory(initialExpense.category || 'Software & SaaS');
+      setAmountStr(formatDecimalUnits(initialExpense.amount_cents || 0, currencyDecimals));
+      setTaxStr(formatDecimalUnits(initialExpense.tax_cents || 0, currencyDecimals));
+      setExpenseDate(initialExpense.expense_date || formatLocalCalendarDate());
+      setNotes(initialExpense.notes || '');
+      setReceiptBase64(initialExpense.receipt_base64 || '');
+      setReceiptName(initialExpense.receipt_name || '');
+    } else {
+      setVendor('');
+      setCategory('Software & SaaS');
+      setAmountStr('');
+      setTaxStr(formatDecimalUnits(0, currencyDecimals));
+      setExpenseDate(formatLocalCalendarDate());
+      setNotes('');
+      setReceiptBase64('');
+      setReceiptName('');
+    }
     setErrorMsg('');
-  }, [isOpen, currencyDecimals]);
+  }, [isOpen, initialExpense, currencyDecimals]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -75,9 +96,13 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isEditing = !!initialExpense?.id;
   const baseUnits = parsePriceToUnits(amountStr, currencyDecimals);
   const taxUnits = parsePriceToUnits(taxStr, currencyDecimals);
   const totalUnits = baseUnits + taxUnits;
+  const categoryOptions = EXPENSE_CATEGORIES.includes(category)
+    ? EXPENSE_CATEGORIES
+    : [...EXPENSE_CATEGORIES, category];
 
   const handleApplyTenPercentTax = () => {
     if (baseUnits <= 0) {
@@ -87,6 +112,41 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
     setErrorMsg('');
     const computed = calculateTaxCents(baseUnits, 10);
     setTaxStr(formatDecimalUnits(computed, currencyDecimals));
+  };
+
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      const validation = validateUploadedFileBytes({
+        bytes,
+        filename: file.name,
+        allowPdf: true,
+      });
+      if (!validation.isValid || !validation.mimeType) {
+        setErrorMsg(validation.errorMessage || 'Invalid receipt file selected.');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const result = ev.target?.result;
+        if (typeof result === 'string') {
+          const commaIdx = result.indexOf(',');
+          const b64Payload = commaIdx >= 0 ? result.slice(commaIdx + 1) : result;
+          setReceiptBase64(`data:${validation.mimeType};base64,${b64Payload}`);
+          setReceiptName(file.name);
+          setErrorMsg('');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setErrorMsg('Unable to read the selected receipt file.');
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -100,13 +160,16 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
       return;
     }
     onSave({
+      ...(isEditing ? { id: initialExpense.id } : {}),
       vendor: vendor.trim(),
       category,
       amount_cents: baseUnits,
       tax_cents: taxUnits,
       total_cents: totalUnits,
-      expense_date: expenseDate || new Date().toISOString().split('T')[0],
+      expense_date: expenseDate || formatLocalCalendarDate(),
       notes: notes.trim(),
+      receipt_base64: receiptBase64,
+      receipt_name: receiptName,
     });
     onClose();
   };
@@ -131,7 +194,7 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
           <div className="flex items-center gap-2">
             <Wallet className="w-5 h-5 text-indigo-500" />
             <h3 id="expense-drawer-title" className="font-bold text-sm">
-              Record Business Expense
+              {isEditing ? 'Edit Business Expense' : 'Record Business Expense'}
             </h3>
           </div>
           <button
@@ -185,7 +248,7 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
                     : 'bg-slate-50 border-slate-200 text-slate-900'
                 }`}
               >
-                {EXPENSE_CATEGORIES.map((cat) => (
+                {categoryOptions.map((cat) => (
                   <option key={cat} value={cat}>
                     {cat}
                   </option>
@@ -214,13 +277,13 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
               </label>
               <input
                 type="text"
-                inputMode="decimal"
+                inputMode={currencyDecimals > 0 ? 'decimal' : 'numeric'}
                 value={amountStr}
                 onChange={(e) => {
                   setAmountStr(e.target.value);
                   if (errorMsg) setErrorMsg('');
                 }}
-                placeholder={currencyDecimals === 0 ? '5000' : '50.00'}
+                placeholder={currencyDecimals === 0 ? '5000' : currencyDecimals === 3 ? '50.000' : '50.00'}
                 className={`w-full p-2.5 rounded-xl border font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                   isDarkMode
                     ? 'bg-slate-900 border-slate-800 text-slate-100'
@@ -245,10 +308,10 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
               </div>
               <input
                 type="text"
-                inputMode="decimal"
+                inputMode={currencyDecimals > 0 ? 'decimal' : 'numeric'}
                 value={taxStr}
                 onChange={(e) => setTaxStr(e.target.value)}
-                placeholder={currencyDecimals === 0 ? '0' : '0.00'}
+                placeholder={formatDecimalUnits(0, currencyDecimals)}
                 className={`w-full p-2.5 rounded-xl border font-mono tabular-nums focus:outline-none ${
                   isDarkMode
                     ? 'bg-slate-900 border-slate-800 text-slate-100'
@@ -273,6 +336,75 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
                   : 'bg-slate-50 border-slate-200 text-slate-900'
               }`}
             />
+          </div>
+
+          {/* Receipt Upload & Preview */}
+          <div className="space-y-2">
+            <label className="block font-bold text-slate-500">
+              Attach Receipt (PNG, JPG, WEBP, PDF &bull; max 5 MB)
+            </label>
+            <input
+              ref={receiptInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,application/pdf,.png,.jpg,.jpeg,.webp,.pdf"
+              onChange={handleReceiptUpload}
+              className="hidden"
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => receiptInputRef.current?.click()}
+                className={`px-3 py-2 rounded-xl border font-bold flex items-center gap-2 transition cursor-pointer ${
+                  isDarkMode
+                    ? 'bg-slate-900 border-slate-700 hover:bg-slate-800 text-slate-200'
+                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
+                }`}
+              >
+                <Paperclip className="w-3.5 h-3.5 text-indigo-500" />
+                <span className="truncate max-w-[220px]">
+                  {receiptName ? `Receipt: ${receiptName}` : 'Attach Receipt (Image/PDF)'}
+                </span>
+              </button>
+              {receiptBase64 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReceiptBase64('');
+                    setReceiptName('');
+                  }}
+                  className="px-2.5 py-2 rounded-xl text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Remove</span>
+                </button>
+              )}
+            </div>
+
+            {receiptBase64 && (
+              <div
+                className={`p-2.5 rounded-xl border flex items-center gap-3 ${
+                  isDarkMode ? 'bg-slate-900/70 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                {receiptBase64.startsWith('data:image') ? (
+                  <img
+                    src={receiptBase64}
+                    alt={receiptName || 'Receipt preview'}
+                    className="h-12 w-12 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shrink-0"
+                  />
+                ) : (
+                  <div className="h-12 w-12 rounded-lg bg-rose-50 dark:bg-rose-950 border border-rose-200 dark:border-rose-800 flex items-center justify-center shrink-0">
+                    <FileText className="w-6 h-6 text-rose-500" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold truncate">{receiptName || 'Attached Receipt'}</div>
+                  <div className="text-[11px] text-slate-400">
+                    {receiptBase64.startsWith('data:application/pdf') ? 'PDF document ready' : 'Image preview ready'}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div
@@ -301,7 +433,7 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-xs"
             >
               <Save className="w-4 h-4" />
-              <span>Save Expense</span>
+              <span>{isEditing ? 'Update Expense' : 'Save Expense'}</span>
             </button>
           </div>
         </form>

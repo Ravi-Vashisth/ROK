@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Users,
   Plus,
@@ -12,29 +12,50 @@ import {
   Edit2,
   MessageSquare,
 } from 'lucide-react';
-import { buildMailtoUrl, buildSmsUrl, buildTelUrl } from '../../billingRules';
+import {
+  buildMailtoUrl,
+  buildSmsUrl,
+  buildTelUrl,
+  computeClientRollup,
+  formatMoney as formatMoneyUnits,
+  getCurrencyDecimals,
+  isIosDevice,
+  normalizePhoneForUri,
+  resolveEffectiveCurrency,
+} from '../../billingRules';
 
 interface ClientsTabProps {
   clients: any[];
   invoices?: any[];
   isDarkMode: boolean;
+  currencyCode?: string;
+  currencySymbol?: string;
+  currencyDecimals?: number;
   formatMoney?: (cents: number) => string;
   onBack: () => void;
   onAddClient: (clientData: any) => void;
   onUpdateClient?: (id: string, clientData: any) => void;
   onDeleteClient: (client: any) => void;
+  onNotify?: (msg: string) => void;
 }
 
 export const ClientsTab: React.FC<ClientsTabProps> = ({
   clients,
   invoices = [],
   isDarkMode,
-  formatMoney = (cents: number) => `$${(cents / 100).toFixed(2)}`,
+  currencyCode = 'USD',
+  currencySymbol = '$',
+  currencyDecimals,
+  formatMoney: _formatMoney,
   onBack,
   onAddClient,
   onUpdateClient,
   onDeleteClient,
+  onNotify,
 }) => {
+  const resolvedDefaultDecimals =
+    currencyDecimals ?? getCurrencyDecimals(currencyCode || currencySymbol);
+
   const [selectedClientId, setSelectedClientId] = useState<string>(clients[0]?.id || '');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeDossierSubTab, setActiveDossierSubTab] = useState<'invoices' | 'statement' | 'notes'>('invoices');
@@ -48,6 +69,27 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
   const [formPhone, setFormPhone] = useState('');
   const [formAddress, setFormAddress] = useState('');
   const [formTaxId, setFormTaxId] = useState('');
+
+  useEffect(() => {
+    if (!isAddModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsAddModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAddModalOpen]);
+
+  const copyBackupContact = async (value: string, label: string) => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      onNotify?.(`Opening ${label} — "${value}" copied to clipboard as backup.`);
+    } catch (_) {
+      // Clipboard API may be restricted in headless contexts
+    }
+  };
 
   const filteredClients = useMemo(() => {
     if (!searchQuery.trim()) return clients;
@@ -63,8 +105,21 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
   // Ensure valid selection
   const selectedClient = clients.find((c) => c.id === selectedClientId) || clients[0] || null;
 
-  // Single Source of Truth calculation for any client:
-  // clientOutstandingBalance = sum(active, non-void, non-draft invoices total_cents) - sum(payments on active non-void invoices amount_received_cents + tds_cents)
+  const resolveDocCurrency = (doc: any) => {
+    const recCode = doc?.currency_code ?? doc?.currencyCode ?? '';
+    const recSym = doc?.currency_symbol ?? doc?.currencySymbol ?? '';
+    const recDec = doc?.currency_decimals ?? doc?.currencyDecimals;
+    return resolveEffectiveCurrency({
+      recordCode: recCode,
+      recordSymbol: recSym,
+      recordDecimals: String(recCode).trim() ? recDec : undefined,
+      defaultCode: currencyCode,
+      defaultSymbol: currencySymbol,
+      defaultDecimals: resolvedDefaultDecimals,
+    });
+  };
+
+  // Single Source of Truth calculation for any client, grouped strictly by currencyCode
   const getClientFinancials = (clientId: string) => {
     const clientInvoices = invoices.filter((inv) => inv.client_id === clientId);
     const activeInvoices = clientInvoices.filter((inv) => {
@@ -72,16 +127,16 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
       return s !== 'VOID' && s !== 'DRAFT';
     });
 
-    const lifetimeBilled = activeInvoices.reduce((sum, inv) => sum + (inv.total_cents || 0), 0);
-    const totalCollected = activeInvoices.reduce((sum, inv) => sum + (inv.paid_cents || 0), 0);
-    const outstandingBalance = Math.max(0, lifetimeBilled - totalCollected);
+    const rollup = computeClientRollup(activeInvoices, {
+      code: currencyCode,
+      symbol: currencySymbol,
+      decimals: resolvedDefaultDecimals,
+    });
 
     return {
       allInvoices: clientInvoices,
       activeInvoices,
-      lifetimeBilled,
-      totalCollected,
-      outstandingBalance,
+      rollup,
     };
   };
 
@@ -131,51 +186,61 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
     setIsAddModalOpen(false);
   };
 
-  // Build Statement rows for selected client
+  // Build Statement rows for selected client with isolated per-currency running balances
   const statementRows = useMemo(() => {
     if (!selectedFinancials) return [];
-    // Statement only includes active (non-draft, non-void) invoices and their payments
     const rows: Array<{
       date: string;
       reference: string;
       description: string;
+      currencySymbol: string;
+      currencyDecimals: number;
       debitCents: number;
       creditCents: number;
       runningBalanceCents: number;
     }> = [];
 
-    let running = 0;
-    // Sort chronologically
+    const runningByCurrency: Record<string, number> = {};
     const sorted = [...selectedFinancials.activeInvoices].sort((a, b) =>
       (a.issue_date || '').localeCompare(b.issue_date || '')
     );
 
     sorted.forEach((inv) => {
-      running += inv.total_cents;
+      const cur = resolveDocCurrency(inv);
+      const totalUnits = inv.total_cents || 0;
+      const afterInvoice = (runningByCurrency[cur.code] || 0) + totalUnits;
+      runningByCurrency[cur.code] = afterInvoice;
+
       rows.push({
         date: inv.issue_date,
         reference: inv.invoice_number,
         description: `Invoice Issued (${inv.payment_terms || 'Net 30'})`,
-        debitCents: inv.total_cents,
+        currencySymbol: cur.symbol,
+        currencyDecimals: cur.decimals,
+        debitCents: totalUnits,
         creditCents: 0,
-        runningBalanceCents: running,
+        runningBalanceCents: afterInvoice,
       });
 
-      if ((inv.paid_cents || 0) > 0) {
-        running -= inv.paid_cents;
+      const paidUnits = inv.paid_cents || 0;
+      if (paidUnits > 0) {
+        const afterPayment = afterInvoice - paidUnits;
+        runningByCurrency[cur.code] = afterPayment;
         rows.push({
           date: inv.issue_date,
           reference: `PAY-${inv.invoice_number}`,
           description: 'Payment Received',
+          currencySymbol: cur.symbol,
+          currencyDecimals: cur.decimals,
           debitCents: 0,
-          creditCents: inv.paid_cents,
-          runningBalanceCents: running,
+          creditCents: paidUnits,
+          runningBalanceCents: afterPayment,
         });
       }
     });
 
     return rows;
-  }, [selectedFinancials]);
+  }, [selectedFinancials, currencyCode, currencySymbol, resolvedDefaultDecimals]);
 
   return (
     <div className="space-y-4">
@@ -225,7 +290,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
               filteredClients.map((c) => {
                 const fin = getClientFinancials(c.id);
                 const isSelected = selectedClient?.id === c.id;
-                const hasBalance = fin.outstandingBalance > 0;
+                const hasBalance = fin.rollup.hasOutstandingBalance;
 
                 return (
                   <button
@@ -247,15 +312,15 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                         {c.email || c.phone || 'No contact info'}
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="text-right shrink-0 max-w-[48%]">
                       <span
-                        className={`font-mono tabular-nums font-bold text-xs ${
+                        className={`font-mono tabular-nums font-bold text-xs break-words ${
                           hasBalance
                             ? 'text-amber-600 dark:text-amber-400'
                             : 'text-emerald-600 dark:text-emerald-400'
                         }`}
                       >
-                        {hasBalance ? `${formatMoney(fin.outstandingBalance)} Due` : '✓ Settled'}
+                        {hasBalance ? `${fin.rollup.formattedOutstandingBalance} Due` : '✓ Settled'}
                       </span>
                     </div>
                   </button>
@@ -307,13 +372,16 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
 
                 <div className="flex flex-wrap items-center gap-2">
                   {(() => {
+                    const isIos = isIosDevice();
+                    const normalizedPhone = normalizePhoneForUri(selectedClient.phone || '');
+                    const cleanEmail = (selectedClient.email || '').trim();
                     const telUrl = selectedClient.phone ? buildTelUrl(selectedClient.phone) : null;
                     const smsUrl = selectedClient.phone
-                      ? buildSmsUrl(selectedClient.phone, `Hi ${selectedClient.name}, `)
+                      ? buildSmsUrl(selectedClient.phone, `Hi ${selectedClient.name}, `, isIos)
                       : null;
-                    const mailUrl = selectedClient.email
+                    const mailUrl = cleanEmail
                       ? buildMailtoUrl(
-                          selectedClient.email,
+                          cleanEmail,
                           'Regarding your account with us',
                           `Hi ${selectedClient.name},\n\n`
                         )
@@ -323,6 +391,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                         {telUrl && (
                           <a
                             href={telUrl}
+                            onClick={() => copyBackupContact(normalizedPhone, 'phone dialer')}
                             className="px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold rounded-xl flex items-center gap-1 transition"
                             title={`Call ${selectedClient.phone}`}
                           >
@@ -333,6 +402,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                         {smsUrl && (
                           <a
                             href={smsUrl}
+                            onClick={() => copyBackupContact(normalizedPhone, 'SMS')}
                             className="px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold rounded-xl flex items-center gap-1 transition"
                             title={`SMS ${selectedClient.phone}`}
                           >
@@ -343,6 +413,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                         {mailUrl && (
                           <a
                             href={mailUrl}
+                            onClick={() => copyBackupContact(cleanEmail, 'email')}
                             className="px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold rounded-xl flex items-center gap-1 transition"
                             title={`Email ${selectedClient.email}`}
                           >
@@ -370,12 +441,12 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                 </div>
               </div>
 
-              {/* KPI Stat Cards (Single source of truth match) */}
+              {/* KPI Stat Cards (Per-currency grouped single source of truth) */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                   <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Lifetime Billed</div>
-                  <div className="text-lg font-mono tabular-nums font-bold mt-1">
-                    {formatMoney(selectedFinancials?.lifetimeBilled || 0)}
+                  <div className="text-lg font-mono tabular-nums font-bold mt-1 break-words">
+                    {selectedFinancials?.rollup.formattedTotalBilled || formatMoneyUnits(0, currencySymbol, resolvedDefaultDecimals)}
                   </div>
                   <div className="text-[10px] text-slate-400 mt-0.5">
                     {selectedFinancials?.activeInvoices.length || 0} active invoices
@@ -384,19 +455,19 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
 
                 <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-emerald-950/20 border-emerald-900/40' : 'bg-emerald-50 border-emerald-200'}`}>
                   <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Total Collected</div>
-                  <div className="text-lg font-mono tabular-nums font-bold text-emerald-700 dark:text-emerald-400 mt-1">
-                    {formatMoney(selectedFinancials?.totalCollected || 0)}
+                  <div className="text-lg font-mono tabular-nums font-bold text-emerald-700 dark:text-emerald-400 mt-1 break-words">
+                    {selectedFinancials?.rollup.formattedTotalPaid || formatMoneyUnits(0, currencySymbol, resolvedDefaultDecimals)}
                   </div>
                   <div className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 mt-0.5">Cleared payments</div>
                 </div>
 
                 <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-amber-950/20 border-amber-900/40' : 'bg-amber-50 border-amber-200'}`}>
                   <div className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Outstanding Balance</div>
-                  <div className="text-lg font-mono tabular-nums font-bold text-amber-700 dark:text-amber-400 mt-1">
-                    {formatMoney(selectedFinancials?.outstandingBalance || 0)}
+                  <div className="text-lg font-mono tabular-nums font-bold text-amber-700 dark:text-amber-400 mt-1 break-words">
+                    {selectedFinancials?.rollup.formattedOutstandingBalance || formatMoneyUnits(0, currencySymbol, resolvedDefaultDecimals)}
                   </div>
                   <div className="text-[10px] text-amber-600/80 dark:text-amber-400/80 mt-0.5">
-                    {selectedFinancials?.outstandingBalance === 0 ? '✓ Account fully settled' : 'Unpaid balance due'}
+                    {!selectedFinancials?.rollup.hasOutstandingBalance ? '✓ Account fully settled' : 'Unpaid balance due'}
                   </div>
                 </div>
               </div>
@@ -411,7 +482,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                       : 'border-transparent text-slate-400 hover:text-slate-600'
                   }`}
                 >
-                  Invoices ({selectedFinancials?.allInvoices.filter((i) => i.status !== 'DRAFT').length || 0})
+                  Invoices ({selectedFinancials?.allInvoices.filter((i) => String(i.computed_status || i.status || '').toUpperCase() !== 'DRAFT').length || 0})
                 </button>
                 <button
                   onClick={() => setActiveDossierSubTab('statement')}
@@ -451,19 +522,24 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {selectedFinancials?.allInvoices
-                          .filter((inv) => inv.status !== 'DRAFT')
+                          .filter((inv) => String(inv.computed_status || inv.status || '').toUpperCase() !== 'DRAFT')
                           .map((inv) => {
                             const status = (inv.computed_status || inv.status || '').toUpperCase();
                             const isVoid = status === 'VOID';
                             const isPaid = status === 'PAID';
+                            const cur = resolveDocCurrency(inv);
 
                             return (
                               <tr key={inv.id} className={isVoid ? 'opacity-50' : ''}>
                                 <td className="p-3 font-mono font-bold text-indigo-500 whitespace-nowrap">{inv.invoice_number}</td>
                                 <td className="p-3 text-slate-500 whitespace-nowrap">{inv.issue_date}</td>
-                                <td className="p-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">{formatMoney(inv.total_cents)}</td>
+                                <td className="p-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">
+                                  {formatMoneyUnits(inv.total_cents || 0, cur.symbol, cur.decimals)}
+                                </td>
                                 <td className={`p-3 text-right font-mono tabular-nums font-bold whitespace-nowrap ${isVoid ? 'text-slate-400 line-through' : isPaid ? 'text-emerald-600' : 'text-amber-600'}`}>
-                                  {isVoid ? formatMoney(0) : formatMoney(inv.balance_due_cents ?? inv.total_cents)}
+                                  {isVoid
+                                    ? formatMoneyUnits(0, cur.symbol, cur.decimals)
+                                    : formatMoneyUnits(inv.balance_due_cents ?? inv.total_cents ?? 0, cur.symbol, cur.decimals)}
                                 </td>
                                 <td className="p-3 text-center whitespace-nowrap">
                                   <span
@@ -481,7 +557,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                               </tr>
                             );
                           })}
-                        {(!selectedFinancials || selectedFinancials.allInvoices.filter((i) => i.status !== 'DRAFT').length === 0) && (
+                        {(!selectedFinancials || selectedFinancials.allInvoices.filter((i) => String(i.computed_status || i.status || '').toUpperCase() !== 'DRAFT').length === 0) && (
                           <tr>
                             <td colSpan={5} className="p-6 text-center text-slate-400">
                               No finalized invoices recorded for this client.
@@ -523,13 +599,13 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                                 <td className="p-3 font-mono font-bold text-indigo-500 whitespace-nowrap">{row.reference}</td>
                                 <td className="p-3 text-slate-600 dark:text-slate-300">{row.description}</td>
                                 <td className="p-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">
-                                  {row.debitCents > 0 ? formatMoney(row.debitCents) : '—'}
+                                  {row.debitCents > 0 ? formatMoneyUnits(row.debitCents, row.currencySymbol, row.currencyDecimals) : '—'}
                                 </td>
                                 <td className="p-3 text-right font-mono tabular-nums font-bold text-emerald-600 whitespace-nowrap">
-                                  {row.creditCents > 0 ? formatMoney(row.creditCents) : '—'}
+                                  {row.creditCents > 0 ? formatMoneyUnits(row.creditCents, row.currencySymbol, row.currencyDecimals) : '—'}
                                 </td>
                                 <td className="p-3 text-right font-mono tabular-nums font-bold text-amber-600 whitespace-nowrap">
-                                  {formatMoney(row.runningBalanceCents)}
+                                  {formatMoneyUnits(row.runningBalanceCents, row.currencySymbol, row.currencyDecimals)}
                                 </td>
                               </tr>
                             ))
@@ -566,8 +642,19 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
 
       {/* Add / Edit Client Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsAddModalOpen(false);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}
+          >
             <h3 className="font-bold text-sm">
               {editingClient ? 'Edit Client Details' : 'Add New Client'}
             </h3>

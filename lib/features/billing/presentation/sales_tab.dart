@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../clients/presentation/clients_tab.dart';
-import '../../clients/providers/clients_provider.dart';
-import '../../estimates/presentation/offline_estimates_list.dart';
-import '../../estimates/providers/estimates_provider.dart';
-import '../../invoices/presentation/invoice_editor_screen.dart';
-import '../../invoices/providers/invoices_provider.dart';
-import 'widgets/offline_invoices_list.dart';
+import 'package:billing_app/features/clients/presentation/clients_tab.dart';
+import 'package:billing_app/features/clients/providers/clients_provider.dart';
+import 'package:billing_app/features/estimates/presentation/offline_estimates_list.dart';
+import 'package:billing_app/features/estimates/providers/estimates_provider.dart';
+import 'package:billing_app/features/invoices/presentation/invoice_editor_screen.dart';
+import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
+import 'package:billing_app/features/billing/presentation/widgets/offline_invoices_list.dart';
 
 class SalesTab extends ConsumerStatefulWidget {
   final int initialSubTab;

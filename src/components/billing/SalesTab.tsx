@@ -9,6 +9,9 @@ interface SalesTabProps {
   estimates: any[];
   clients: any[];
   isDarkMode: boolean;
+  currencyCode?: string;
+  currencySymbol?: string;
+  currencyDecimals?: number;
   formatMoney: (cents: number) => string;
   onCreateInvoice: () => void;
   onCreateQuote: () => void;
@@ -24,6 +27,7 @@ interface SalesTabProps {
   onAddClient?: (clientData: any) => void;
   onUpdateClient?: (id: string, updatedData: any) => void;
   onDeleteClient?: (client: any) => void;
+  onNotify?: (msg: string) => void;
   initialSubTab?: number;
 }
 
@@ -32,6 +36,9 @@ export const SalesTab: React.FC<SalesTabProps> = ({
   estimates,
   clients,
   isDarkMode,
+  currencyCode,
+  currencySymbol,
+  currencyDecimals,
   formatMoney,
   onCreateInvoice,
   onCreateQuote,
@@ -47,6 +54,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
   onAddClient,
   onUpdateClient,
   onDeleteClient,
+  onNotify,
   initialSubTab = 0,
 }) => {
   const [subTab, setSubTab] = useState<number>(initialSubTab); // 0 = Invoices, 1 = Estimates, 2 = Clients CRM
@@ -128,11 +136,15 @@ export const SalesTab: React.FC<SalesTabProps> = ({
           clients={clients}
           invoices={invoices}
           isDarkMode={isDarkMode}
+          currencyCode={currencyCode}
+          currencySymbol={currencySymbol}
+          currencyDecimals={currencyDecimals}
           formatMoney={formatMoney}
           onBack={() => setSubTab(0)}
           onAddClient={onAddClient || (() => {})}
           onUpdateClient={onUpdateClient || (() => {})}
           onDeleteClient={onDeleteClient || (() => {})}
+          onNotify={onNotify}
         />
       ) : (
         <>

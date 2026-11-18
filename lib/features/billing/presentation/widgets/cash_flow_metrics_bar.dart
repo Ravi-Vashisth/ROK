@@ -2,10 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/utils/currency_formatter_provider.dart';
-import '../../../../core/utils/money_utils.dart';
-import '../../../expenses/providers/expenses_provider.dart';
-import '../../../invoices/providers/invoices_provider.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
+import 'package:billing_app/features/expenses/providers/expenses_provider.dart';
+import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
 
 class CashFlowMetricsBar extends ConsumerWidget {
   const CashFlowMetricsBar({super.key});
@@ -14,28 +14,20 @@ class CashFlowMetricsBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final invoices = ref.watch(invoicesProvider);
     final expenses = ref.watch(expensesProvider);
-    final formatCurrency = ref.watch(currencyFormatterProvider);
+    final profile = ref.watch(businessProfileProvider);
 
-    int totalUnpaidReceivablesCents = 0;
-    int totalOverdueReceivablesCents = 0;
-    int totalCollectedGrossCents = 0;
-    int taxCollectedOnPaymentsCents = 0;
-
-    for (final inv in invoices) {
-      if (inv.isVoid || inv.isDraft) continue;
-      if (!inv.isFullyPaid) {
-        totalUnpaidReceivablesCents += inv.balanceDueCents;
-        if (inv.isOverdue) {
-          totalOverdueReceivablesCents += inv.balanceDueCents;
-        }
-      }
-      totalCollectedGrossCents += inv.paidCents;
-      taxCollectedOnPaymentsCents += calculateCollectedTaxPortion(
-        inv.paidCents,
-        inv.taxCents,
-        inv.totalCents,
-      );
-    }
+    final activeEntries = invoices
+        .where((inv) => !inv.isVoid && !inv.isDraft)
+        .map((inv) => CurrencyLedgerEntry(
+              currencyCode: inv.currencyCode,
+              currencySymbol: inv.currencySymbol,
+              currencyDecimals: inv.currencyDecimals,
+              totalUnits: inv.totalCents,
+              paidUnits: inv.paidCents,
+              balanceDueUnits: inv.isFullyPaid ? 0 : inv.balanceDueCents,
+              taxUnits: inv.taxCents,
+              isOverdue: !inv.isFullyPaid && inv.isOverdue,
+            ));
 
     int totalExpensesGrossCents = 0;
     int totalExpenseTaxCents = 0;
@@ -43,26 +35,30 @@ class CashFlowMetricsBar extends ConsumerWidget {
       totalExpensesGrossCents += exp.totalCents;
       totalExpenseTaxCents += exp.taxCents;
     }
-    final totalExpensesExclTaxCents = (totalExpensesGrossCents - totalExpenseTaxCents).clamp(0, totalExpensesGrossCents);
 
-    final taxLiabilityCents = taxCollectedOnPaymentsCents - totalExpenseTaxCents;
-    final netRevenueExclTaxCents = totalCollectedGrossCents - taxCollectedOnPaymentsCents;
-    final realNetProfitCents = netRevenueExclTaxCents - totalExpensesExclTaxCents;
+    final summary = computeDashboardCashFlow(
+      activeEntries,
+      expenseGrossUnits: totalExpensesGrossCents,
+      expenseTaxUnits: totalExpenseTaxCents,
+      defaultCode: profile.currencyCode,
+      defaultSymbol: profile.currencySymbol,
+      defaultDecimals: profile.currencyDecimals,
+    );
 
     final tiles = [
       _MetricTile(
         title: 'Unpaid Receivables',
-        value: formatCurrency(totalUnpaidReceivablesCents),
+        value: summary.formattedUnpaid,
         icon: Icons.warning_amber_outlined,
         iconColor: Colors.red.shade700,
         backgroundColor: Colors.red.shade50.withValues(alpha: 0.5),
         borderColor: Colors.red.shade200,
         textColor: Colors.red.shade900,
-        subtitle: 'Overdue: ${formatCurrency(totalOverdueReceivablesCents)}',
+        subtitle: 'Overdue: ${summary.formattedOverdue}',
       ),
       _MetricTile(
         title: 'Gross Collected',
-        value: formatCurrency(totalCollectedGrossCents),
+        value: summary.formattedCollected,
         icon: Icons.check_circle_outline,
         iconColor: Colors.green.shade700,
         backgroundColor: Colors.green.shade50.withValues(alpha: 0.5),
@@ -71,23 +67,23 @@ class CashFlowMetricsBar extends ConsumerWidget {
       ),
       _MetricTile(
         title: 'Tax Liability / GST',
-        value: formatCurrency(taxLiabilityCents),
+        value: summary.formattedTaxLiability,
         icon: Icons.account_balance_wallet_outlined,
-        iconColor: taxLiabilityCents >= 0 ? Colors.purple.shade700 : Colors.teal.shade700,
+        iconColor: !summary.hasAnyNegativeTaxLiability ? Colors.purple.shade700 : Colors.teal.shade700,
         backgroundColor: Colors.purple.shade50.withValues(alpha: 0.5),
         borderColor: Colors.purple.shade200,
         textColor: Colors.purple.shade900,
       ),
       _MetricTile(
         title: 'Real Net Profit',
-        value: formatCurrency(realNetProfitCents),
+        value: summary.formattedNetProfit,
         icon: Icons.pie_chart_outline,
-        iconColor: realNetProfitCents >= 0 ? Colors.blue.shade700 : Colors.red.shade700,
-        backgroundColor: realNetProfitCents >= 0
+        iconColor: !summary.hasNetLoss ? Colors.blue.shade700 : Colors.red.shade700,
+        backgroundColor: !summary.hasNetLoss
             ? Colors.blue.shade50.withValues(alpha: 0.5)
             : Colors.red.shade50.withValues(alpha: 0.5),
-        borderColor: realNetProfitCents >= 0 ? Colors.blue.shade200 : Colors.red.shade200,
-        textColor: realNetProfitCents >= 0 ? Colors.blue.shade900 : Colors.red.shade900,
+        borderColor: !summary.hasNetLoss ? Colors.blue.shade200 : Colors.red.shade200,
+        textColor: !summary.hasNetLoss ? Colors.blue.shade900 : Colors.red.shade900,
       ),
     ];
 

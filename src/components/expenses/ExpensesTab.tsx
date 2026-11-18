@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { Wallet, Plus, Search, Trash2, Tag, Calendar } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Wallet, Plus, Search, Trash2, Edit2, Paperclip, X, FileText } from 'lucide-react';
 
 interface ExpensesTabProps {
   expenses: any[];
   isDarkMode: boolean;
   formatMoney: (cents: number) => string;
   onAddExpense: () => void;
+  onEditExpense: (expense: any) => void;
   onDeleteExpense: (expense: any) => void;
 }
 
@@ -14,12 +15,36 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   isDarkMode,
   formatMoney,
   onAddExpense,
+  onEditExpense,
   onDeleteExpense,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
+  const [previewExpense, setPreviewExpense] = useState<any | null>(null);
 
-  const categories = ['All', 'Software & SaaS', 'Office Supplies', 'Hardware', 'Travel', 'Marketing', 'Utilities', 'Subcontracting', 'Other'];
+  useEffect(() => {
+    if (!previewExpense) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPreviewExpense(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewExpense]);
+
+  const categories = [
+    'All',
+    'Software & SaaS',
+    'Software',
+    'Office Supplies',
+    'Hardware',
+    'Travel',
+    'Marketing',
+    'Utilities',
+    'Subcontracting',
+    'Other',
+  ];
 
   const filteredExpenses = expenses.filter((exp) => {
     if (categoryFilter !== 'All' && exp.category !== categoryFilter) return false;
@@ -118,9 +143,22 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 {filteredExpenses.map((exp) => (
                   <tr key={exp.id} className={`hover:bg-indigo-50/20 transition ${isDarkMode ? 'hover:bg-slate-800/40' : ''}`}>
                     <td className="p-3.5 font-bold">
-                      <div>{exp.vendor}</div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{exp.vendor}</span>
+                        {exp.receipt_base64 && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewExpense(exp)}
+                            className="px-2 py-0.5 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold inline-flex items-center gap-1 hover:bg-indigo-100 dark:hover:bg-indigo-900 cursor-pointer transition"
+                            title={exp.receipt_name || 'Preview Receipt'}
+                          >
+                            <Paperclip className="w-3 h-3" />
+                            <span>Receipt</span>
+                          </button>
+                        )}
+                      </div>
                       {exp.notes && (
-                        <div className="text-[11px] font-normal text-slate-400 truncate max-w-xs">
+                        <div className="text-[11px] font-normal text-slate-400 truncate max-w-xs mt-0.5">
                           {exp.notes}
                         </div>
                       )}
@@ -130,19 +168,107 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                     <td className="p-3.5 text-right font-mono tabular-nums whitespace-nowrap">{formatMoney(exp.amount_cents)}</td>
                     <td className="p-3.5 text-right font-mono tabular-nums text-slate-400 whitespace-nowrap">{formatMoney(exp.tax_cents || 0)}</td>
                     <td className="p-3.5 text-right font-mono tabular-nums font-bold text-rose-600 whitespace-nowrap">-{formatMoney(exp.total_cents)}</td>
-                    <td className="p-3.5 text-right">
-                      <button
-                        onClick={() => onDeleteExpense(exp)}
-                        className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 transition cursor-pointer inline-flex"
-                        title="Delete Expense"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    <td className="p-3.5 text-right whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onEditExpense(exp)}
+                          className={`p-1.5 rounded-xl border transition cursor-pointer inline-flex ${
+                            isDarkMode
+                              ? 'border-slate-700 hover:bg-slate-800 text-slate-300'
+                              : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+                          }`}
+                          title="Edit Expense"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteExpense(exp)}
+                          className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 transition cursor-pointer inline-flex"
+                          title="Delete Expense"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Preview Modal */}
+      {previewExpense && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setPreviewExpense(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border p-6 space-y-4 shadow-xl ${
+              isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="font-bold text-sm truncate">Receipt: {previewExpense.vendor}</h3>
+                {previewExpense.receipt_name && (
+                  <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                    File: {previewExpense.receipt_name}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewExpense(null)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer shrink-0"
+                aria-label="Close receipt preview"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {previewExpense.receipt_base64?.startsWith('data:image') ? (
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-2">
+                <img
+                  src={previewExpense.receipt_base64}
+                  alt={previewExpense.receipt_name || 'Expense receipt'}
+                  className="max-h-72 object-contain rounded-lg"
+                />
+              </div>
+            ) : previewExpense.receipt_base64?.startsWith('data:application/pdf') ? (
+              <div className={`p-6 rounded-xl border text-center space-y-2 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                <FileText className="w-10 h-10 text-rose-500 mx-auto" />
+                <p className="text-xs font-bold">PDF Receipt Document Attached</p>
+                <a
+                  href={previewExpense.receipt_base64}
+                  download={previewExpense.receipt_name || 'receipt.pdf'}
+                  className="inline-flex px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition"
+                >
+                  Download PDF Receipt
+                </a>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">No receipt preview available.</p>
+            )}
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPreviewExpense(null)}
+                className="px-4 py-1.5 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

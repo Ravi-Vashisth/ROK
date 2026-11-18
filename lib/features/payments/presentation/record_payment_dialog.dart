@@ -3,9 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/utils/money_utils.dart';
-import '../../invoices/models/invoice_record.dart';
-import '../../invoices/providers/invoices_provider.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/features/invoices/models/invoice_record.dart';
+import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
 
 class RecordPaymentDialog extends ConsumerStatefulWidget {
   final InvoiceRecord invoice;

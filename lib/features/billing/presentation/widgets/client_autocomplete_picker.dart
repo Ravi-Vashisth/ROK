@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../clients/models/client.dart';
-import '../../../clients/providers/clients_provider.dart';
+import 'package:billing_app/features/clients/models/client.dart';
+import 'package:billing_app/features/clients/providers/clients_provider.dart';
 
 class ClientAutocompletePicker extends ConsumerStatefulWidget {
   final String? selectedClientId;

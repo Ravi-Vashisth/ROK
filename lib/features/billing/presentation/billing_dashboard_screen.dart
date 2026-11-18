@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/theme_provider.dart';
-import '../../../core/utils/csv_export_service.dart';
-import '../../business_profile/presentation/business_profile_dialog.dart';
-import '../../business_profile/providers/business_profile_provider.dart';
-import '../../clients/providers/clients_provider.dart';
-import '../../dashboard/presentation/dashboard_tab.dart';
-import '../../expenses/presentation/expenses_tab.dart';
-import '../../expenses/providers/expenses_provider.dart';
-import '../../invoices/providers/invoices_provider.dart';
-import '../../settings/presentation/directory_settings_tab.dart';
-import 'sales_tab.dart';
+import 'package:billing_app/core/theme/app_theme.dart';
+import 'package:billing_app/core/theme/theme_provider.dart';
+import 'package:billing_app/core/utils/csv_export_service.dart';
+import 'package:billing_app/features/business_profile/presentation/business_profile_dialog.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
+import 'package:billing_app/features/clients/providers/clients_provider.dart';
+import 'package:billing_app/features/dashboard/presentation/dashboard_tab.dart';
+import 'package:billing_app/features/expenses/presentation/expenses_tab.dart';
+import 'package:billing_app/features/expenses/providers/expenses_provider.dart';
+import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
+import 'package:billing_app/features/settings/presentation/directory_settings_tab.dart';
+import 'package:billing_app/features/billing/presentation/sales_tab.dart';
 
 class BillingDashboardScreen extends ConsumerStatefulWidget {
   const BillingDashboardScreen({super.key});

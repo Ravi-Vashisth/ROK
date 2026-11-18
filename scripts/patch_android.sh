@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Applying Android build patches: compileSdk 36 & disabling broken AGP lintVital tasks..."
+echo "Applying Android build patches: compileSdk 36, idempotent Gradle rules, and OEM <queries> intents..."
 
 # 0. Remove any legacy init scripts that could conflict
 rm -f "$HOME/.gradle/init.d/01-mirrors.gradle" || true
@@ -13,25 +13,31 @@ if [ -f "android/settings.gradle.kts" ]; then
   fi
 fi
 
-# 2. Patch android/gradle.properties
+# 2. Patch android/gradle.properties idempotently
 if [ -f "android/gradle.properties" ]; then
-  cat << 'EOF' >> android/gradle.properties
-android.compileSdk=36
-org.gradle.daemon=false
-systemProp.org.gradle.internal.http.socketTimeout=120000
-systemProp.org.gradle.internal.http.connectionTimeout=120000
-systemProp.http.keepAlive=false
-EOF
+  if ! grep -q "BILLING_APP_GRADLE_PROPERTIES" android/gradle.properties; then
+    {
+      echo ""
+      echo "# BILLING_APP_GRADLE_PROPERTIES"
+      grep -q "^android.compileSdk=" android/gradle.properties || echo "android.compileSdk=36"
+      grep -q "^org.gradle.daemon=" android/gradle.properties || echo "org.gradle.daemon=false"
+      grep -q "^systemProp.org.gradle.internal.http.socketTimeout=" android/gradle.properties || echo "systemProp.org.gradle.internal.http.socketTimeout=120000"
+      grep -q "^systemProp.org.gradle.internal.http.connectionTimeout=" android/gradle.properties || echo "systemProp.org.gradle.internal.http.connectionTimeout=120000"
+      grep -q "^systemProp.http.keepAlive=" android/gradle.properties || echo "systemProp.http.keepAlive=false"
+    } >> android/gradle.properties
+  fi
 fi
 
-# 3. Patch compileSdk = 36 and lintOptions in android/app/build.gradle & android/app/build.gradle.kts
+# 3. Patch compileSdk = 36 and lintOptions idempotently in android/app/build.gradle & build.gradle.kts
 if [ -f "android/app/build.gradle" ]; then
   sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle || true
   sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle || true
   sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle || true
   sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 36/g' android/app/build.gradle || true
-  cat << 'EOF' >> android/app/build.gradle
+  if ! grep -q "BILLING_APP_ANDROID_LINT_PATCH" android/app/build.gradle; then
+    cat << 'EOF' >> android/app/build.gradle
 
+// BILLING_APP_ANDROID_LINT_PATCH
 android {
     lintOptions {
         checkReleaseBuilds false
@@ -39,13 +45,16 @@ android {
     }
 }
 EOF
+  fi
 fi
 
 if [ -f "android/app/build.gradle.kts" ]; then
   sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts || true
   sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle.kts || true
-  cat << 'EOF' >> android/app/build.gradle.kts
+  if ! grep -q "BILLING_APP_ANDROID_LINT_PATCH" android/app/build.gradle.kts; then
+    cat << 'EOF' >> android/app/build.gradle.kts
 
+// BILLING_APP_ANDROID_LINT_PATCH
 android {
     lint {
         checkReleaseBuilds = false
@@ -53,12 +62,15 @@ android {
     }
 }
 EOF
+  fi
 fi
 
-# 4. Force all subprojects (like file_picker, url_launcher_android) to use compileSdkVersion 36 and disable lintVital tasks safely
+# 4. Force all subprojects (file_picker, url_launcher_android, etc.) to compileSdk 36 & disable lintVital idempotently
 if [ -f "android/build.gradle" ]; then
-  cat << 'EOF' >> android/build.gradle
+  if ! grep -q "BILLING_APP_SUBPROJECT_SDK_PATCH" android/build.gradle; then
+    cat << 'EOF' >> android/build.gradle
 
+// BILLING_APP_SUBPROJECT_SDK_PATCH
 allprojects {
     tasks.configureEach { task ->
         if (task.name.toLowerCase().contains("lintvital")) {
@@ -88,11 +100,14 @@ subprojects {
     }
 }
 EOF
+  fi
 fi
 
 if [ -f "android/build.gradle.kts" ]; then
-  cat << 'EOF' >> android/build.gradle.kts
+  if ! grep -q "BILLING_APP_SUBPROJECT_SDK_PATCH" android/build.gradle.kts; then
+    cat << 'EOF' >> android/build.gradle.kts
 
+// BILLING_APP_SUBPROJECT_SDK_PATCH
 allprojects {
     tasks.configureEach {
         if (name.contains("lintVital", ignoreCase = true)) {
@@ -120,44 +135,80 @@ subprojects {
     }
 }
 EOF
+  fi
 fi
 
-# 5. Inject Android 11+ (API 30+) <queries> intents for url_launcher (https, mailto, tel, sms)
+# 5. Idempotently inject Android 11-15 (API 30+) <queries> intents & OEM WhatsApp package visibility
 MANIFEST="android/app/src/main/AndroidManifest.xml"
-if [ -f "$MANIFEST" ] && ! grep -q "<queries>" "$MANIFEST"; then
-  echo "Injecting <queries> OS intent declarations into $MANIFEST..."
+if [ -f "$MANIFEST" ]; then
+  echo "Ensuring Android 11-15 <queries> OS intents and package visibility in $MANIFEST..."
   python3 - "$MANIFEST" << 'PYEOF'
 import sys
+import xml.etree.ElementTree as ET
+
 path = sys.argv[1]
-with open(path, 'r', encoding='utf-8') as f:
-    xml = f.read()
+ANDROID_NS = 'http://schemas.android.com/apk/res/android'
+ANDROID_NAME = f'{{{ANDROID_NS}}}name'
+ANDROID_SCHEME = f'{{{ANDROID_NS}}}scheme'
 
-queries_block = """    <queries>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="https" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.SENDTO" />
-            <data android:scheme="mailto" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.DIAL" />
-            <data android:scheme="tel" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="sms" />
-        </intent>
-    </queries>
-</manifest>"""
+ET.register_namespace('android', ANDROID_NS)
+tree = ET.parse(path)
+root = tree.getroot()
 
-if '</manifest>' in xml:
-    xml = xml.replace('</manifest>', queries_block, 1)
-    with open(path, 'w', encoding='utf-8') as f:
-        f.write(xml)
+queries = root.find('queries')
+if queries is None:
+    queries = ET.SubElement(root, 'queries')
+
+existing_intents = set()
+for intent in queries.findall('intent'):
+    action_el = intent.find('action')
+    data_el = intent.find('data')
+    if action_el is not None and data_el is not None:
+        existing_intents.add((
+            action_el.attrib.get(ANDROID_NAME, ''),
+            data_el.attrib.get(ANDROID_SCHEME, ''),
+        ))
+
+existing_packages = {
+    pkg.attrib.get(ANDROID_NAME, '')
+    for pkg in queries.findall('package')
+}
+
+required_intents = [
+    ('android.intent.action.VIEW', 'https'),
+    ('android.intent.action.SENDTO', 'mailto'),
+    ('android.intent.action.DIAL', 'tel'),
+    ('android.intent.action.VIEW', 'sms'),
+    ('android.intent.action.SENDTO', 'sms'),
+    ('android.intent.action.SENDTO', 'smsto'),
+]
+
+required_packages = [
+    'com.whatsapp',
+    'com.whatsapp.w4b',
+]
+
+changed = False
+for action_name, scheme in required_intents:
+    if (action_name, scheme) not in existing_intents:
+        intent = ET.SubElement(queries, 'intent')
+        action = ET.SubElement(intent, 'action')
+        action.set(ANDROID_NAME, action_name)
+        data = ET.SubElement(intent, 'data')
+        data.set(ANDROID_SCHEME, scheme)
+        changed = True
+
+for pkg_name in required_packages:
+    if pkg_name not in existing_packages:
+        pkg = ET.SubElement(queries, 'package')
+        pkg.set(ANDROID_NAME, pkg_name)
+        changed = True
+
+if changed:
+    if hasattr(ET, 'indent'):
+        ET.indent(tree, space='    ')
+    tree.write(path, encoding='utf-8', xml_declaration=True)
 PYEOF
 fi
 
 echo "Android patches applied successfully."
-

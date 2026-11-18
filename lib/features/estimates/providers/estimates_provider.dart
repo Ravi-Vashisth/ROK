@@ -1,13 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-import '../../../core/database/database_provider.dart';
-import '../../../core/utils/id_generator.dart';
-import '../../../core/utils/money_utils.dart';
-import '../../../core/utils/tax_compliance_utils.dart';
-import '../../invoices/providers/invoices_provider.dart';
-import '../models/estimate_item.dart';
-import '../models/estimate_record.dart';
+import 'package:billing_app/core/database/database_provider.dart';
+import 'package:billing_app/core/utils/id_generator.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/core/utils/tax_compliance_utils.dart';
+import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
+import 'package:billing_app/features/estimates/models/estimate_item.dart';
+import 'package:billing_app/features/estimates/models/estimate_record.dart';
 
 class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
   final Database _db;
@@ -110,7 +110,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     if (effectiveExpiryDate.isEmpty) {
       try {
         final parsedIssue = DateTime.parse(effectiveIssueDate);
-        final exp = parsedIssue.add(const Duration(days: 30));
+        final exp = DateTime(parsedIssue.year, parsedIssue.month, parsedIssue.day + 30);
         effectiveExpiryDate =
             '${exp.year}-${exp.month.toString().padLeft(2, '0')}-${exp.day.toString().padLeft(2, '0')}';
       } catch (_) {
@@ -134,15 +134,20 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
 
     // In-place edit for existing draft estimate
     if (existingEstimateId != null && existingEstimateId.trim().isNotEmpty) {
-      final existingRes = _db.select('SELECT estimate_number, status FROM estimates WHERE id = ?', [existingEstimateId]);
-      if (existingRes.isNotEmpty) {
-        var estNumber = existingRes.first['estimate_number'] as String;
-        if (status != 'DRAFT' && estNumber.startsWith('DRAFT-')) {
-          estNumber = getNextEstimateNumber();
-        }
+      var updatedExisting = false;
+      _db.execute('BEGIN TRANSACTION;');
+      try {
+        final existingRes = _db.select(
+          'SELECT estimate_number, status FROM estimates WHERE id = ?',
+          [existingEstimateId],
+        );
+        if (existingRes.isNotEmpty) {
+          updatedExisting = true;
+          var estNumber = existingRes.first['estimate_number'] as String;
+          if (status != 'DRAFT' && estNumber.startsWith('DRAFT-')) {
+            estNumber = getNextEstimateNumber();
+          }
 
-        _db.execute('BEGIN TRANSACTION;');
-        try {
           final updStmt = _db.prepare('''
             UPDATE estimates SET
               client_id = ?, estimate_number = ?, subtotal_cents = ?, tax_cents = ?, total_cents = ?,
@@ -205,26 +210,29 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
           } finally {
             itemStmt.dispose();
           }
-
-          _db.execute('COMMIT;');
-        } catch (e) {
-          _db.execute('ROLLBACK;');
-          rethrow;
         }
 
+        _db.execute('COMMIT;');
+      } catch (e) {
+        _db.execute('ROLLBACK;');
+        rethrow;
+      }
+
+      if (updatedExisting) {
         loadEstimates();
         return existingEstimateId;
       }
     }
 
     final estimateId = generateUniqueId();
-    final estimateNumber = (status == 'DRAFT')
-        ? 'DRAFT-${generateUniqueId().substring(0, 6).toUpperCase()}'
-        : getNextEstimateNumber();
     final createdAt = DateTime.now().toUtc().toIso8601String();
 
     _db.execute('BEGIN TRANSACTION;');
     try {
+      final estimateNumber = (status == 'DRAFT')
+          ? 'DRAFT-${generateUniqueId().substring(0, 8).toUpperCase()}'
+          : getNextEstimateNumber();
+
       final stmt = _db.prepare('''
         INSERT INTO estimates (
           id, client_id, estimate_number, subtotal_cents, tax_cents, total_cents,
@@ -406,7 +414,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
         itemStmt.dispose();
       }
 
-      _db.execute("UPDATE business_profile SET next_invoice_number = next_invoice_number + 1 WHERE id = 'default'");
+      _ref.read(invoicesProvider.notifier).syncNextInvoiceNumberLocked(invoiceNumber);
 
       _db.execute(
         "UPDATE estimates SET status = 'CONVERTED', converted_invoice_id = ? WHERE id = ?",
@@ -424,17 +432,36 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
   }
 
   void finalizeDraftEstimate(String estimateId) {
-    final res = _db.select('SELECT estimate_number FROM estimates WHERE id = ? AND status = \'DRAFT\'', [estimateId]);
-    if (res.isNotEmpty) {
+    _db.execute('BEGIN TRANSACTION;');
+    try {
+      final res = _db.select(
+        "SELECT estimate_number FROM estimates WHERE id = ? AND status = 'DRAFT'",
+        [estimateId],
+      );
+      if (res.isEmpty) {
+        _db.execute('COMMIT;');
+        return;
+      }
+
       final currentNum = res.first['estimate_number'] as String;
       if (currentNum.startsWith('DRAFT-')) {
         final officialNum = getNextEstimateNumber();
-        _db.execute("UPDATE estimates SET status = 'PENDING', estimate_number = ? WHERE id = ?", [officialNum, estimateId]);
+        _db.execute(
+          "UPDATE estimates SET status = 'PENDING', estimate_number = ? WHERE id = ? AND status = 'DRAFT'",
+          [officialNum, estimateId],
+        );
       } else {
-        _db.execute("UPDATE estimates SET status = 'PENDING' WHERE id = ?", [estimateId]);
+        _db.execute(
+          "UPDATE estimates SET status = 'PENDING' WHERE id = ? AND status = 'DRAFT'",
+          [estimateId],
+        );
       }
-      loadEstimates();
+      _db.execute('COMMIT;');
+    } catch (e) {
+      _db.execute('ROLLBACK;');
+      rethrow;
     }
+    loadEstimates();
   }
 
   void deleteEstimate(String estimateId) {

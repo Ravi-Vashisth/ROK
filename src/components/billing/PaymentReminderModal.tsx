@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, MessageCircle, MessageSquare, Mail, Check } from 'lucide-react';
+import { X, Copy, MessageCircle, MessageSquare, Mail, Check, AlertTriangle } from 'lucide-react';
 import {
   buildPaymentReminderMessage,
   buildWhatsAppUrl,
   buildMailtoUrl,
   buildSmsUrl,
   normalizePhoneForUri,
+  validateWhatsAppPhone,
+  getDesktopTelephonyFallbackNote,
+  isIosDevice,
   getCurrencyDecimals,
 } from '../../billingRules';
 
@@ -58,34 +61,62 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
     setCopiedJustNow(false);
   }, [defaultMessage]);
 
+  useEffect(() => {
+    if (!invoice) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [invoice, onClose]);
+
   if (!invoice) return null;
 
+  const isIos = isIosDevice();
   const subject = `Invoice ${invoice.invoice_number} Payment Reminder`;
   const waUrl = buildWhatsAppUrl(clientPhone, message);
-  const smsUrl = buildSmsUrl(clientPhone, message);
+  const waValidation = validateWhatsAppPhone(clientPhone);
+  const smsUrl = buildSmsUrl(clientPhone, message, isIos);
   const mailtoUrl = buildMailtoUrl(clientEmail, subject, message);
+  const fallbackNote = getDesktopTelephonyFallbackNote(!!normalizedPhone, !!clientEmail);
 
-  const handleCopy = async () => {
+  const copyBackupText = async (text: string, toastMessage: string) => {
     try {
-      await navigator.clipboard.writeText(message);
+      await navigator.clipboard.writeText(text);
+      onCopied?.(toastMessage);
     } catch (_) {
       // Clipboard API may be restricted in headless contexts
     }
+  };
+
+  const handleCopy = async () => {
+    await copyBackupText(message, 'Payment reminder copied to clipboard.');
     setCopiedJustNow(true);
     setTimeout(() => setCopiedJustNow(false), 2000);
-    onCopied?.('Payment reminder copied to clipboard.');
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="payment-reminder-title"
         className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border p-6 space-y-4 shadow-xl ${
           isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
         }`}
       >
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-bold text-sm">Send Payment Reminder</h3>
+            <h3 id="payment-reminder-title" className="font-bold text-sm">Send Payment Reminder</h3>
             <p className="text-xs text-slate-500 mt-0.5">
               Invoice <span className="font-mono font-bold text-indigo-500">{invoice.invoice_number}</span> for {clientName}
             </p>
@@ -96,6 +127,7 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
             )}
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 cursor-pointer"
             aria-label="Close reminder dialog"
@@ -144,6 +176,9 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
             href={waUrl}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() =>
+              copyBackupText(message, 'Opening WhatsApp — reminder copied to clipboard as backup.')
+            }
             className={`w-full p-3 rounded-xl border text-xs font-bold flex items-center justify-between transition ${
               isDarkMode
                 ? 'bg-emerald-950/30 border-emerald-900/50 hover:bg-emerald-950/50 text-emerald-300'
@@ -159,9 +194,28 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
             </span>
           </a>
 
+          {normalizedPhone && !waValidation.isValid && waValidation.warningMessage && (
+            <div
+              className={`px-3 py-2 rounded-xl border text-[11px] flex items-start gap-2 ${
+                isDarkMode
+                  ? 'bg-amber-950/30 border-amber-900/50 text-amber-300'
+                  : 'bg-amber-50 border-amber-200 text-amber-800'
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" />
+              <span>{waValidation.warningMessage}</span>
+            </div>
+          )}
+
           {smsUrl ? (
             <a
               href={smsUrl}
+              onClick={() =>
+                copyBackupText(
+                  `${normalizedPhone}: ${message}`,
+                  'Opening SMS — message copied to clipboard as desktop backup.'
+                )
+              }
               className={`w-full p-3 rounded-xl border text-xs font-bold flex items-center justify-between transition ${
                 isDarkMode
                   ? 'bg-indigo-950/30 border-indigo-900/50 hover:bg-indigo-950/50 text-indigo-300'
@@ -190,6 +244,12 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
 
           <a
             href={mailtoUrl}
+            onClick={() =>
+              copyBackupText(
+                clientEmail ? `${clientEmail}\n\n${message}` : message,
+                'Opening email app — reminder details copied to clipboard as backup.'
+              )
+            }
             className={`w-full p-3 rounded-xl border text-xs font-bold flex items-center justify-between transition ${
               isDarkMode
                 ? 'bg-sky-950/30 border-sky-900/50 hover:bg-sky-950/50 text-sky-300'
@@ -204,6 +264,14 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
               {clientEmail || 'Default mail app'}
             </span>
           </a>
+        </div>
+
+        <div
+          className={`p-2.5 rounded-xl text-[11px] ${
+            isDarkMode ? 'bg-slate-900/70 text-slate-400' : 'bg-slate-50 text-slate-500'
+          }`}
+        >
+          {fallbackNote}
         </div>
 
         <div className="flex justify-end pt-1">

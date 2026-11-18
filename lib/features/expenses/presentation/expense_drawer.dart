@@ -4,9 +4,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/money_utils.dart';
-import '../../business_profile/providers/business_profile_provider.dart';
-import '../providers/expenses_provider.dart';
+import 'package:billing_app/core/utils/file_validation_utils.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
+import 'package:billing_app/features/expenses/providers/expenses_provider.dart';
 
 class ExpenseDrawer extends ConsumerStatefulWidget {
   final VoidCallback onSaved;
@@ -56,13 +57,31 @@ class _ExpenseDrawerState extends ConsumerState<ExpenseDrawer> {
       final picked = result.files.single;
       final bytes = picked.bytes ??
           (picked.path != null ? await File(picked.path!).readAsBytes() : null);
-      if (bytes == null) return;
-
-      final ext = (picked.extension ?? 'png').toLowerCase();
-      final mime = ext == 'pdf' ? 'application/pdf' : 'image/$ext';
       if (!mounted) return;
+      if (bytes == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not read the selected receipt file.')),
+        );
+        return;
+      }
+
+      final validation = validateUploadedFileBytes(
+        bytes: bytes,
+        filename: picked.name,
+        allowPdf: true,
+      );
+      if (!validation.isValid || validation.mimeType == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(validation.errorMessage ?? 'Invalid receipt file selected.'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+        return;
+      }
+
       setState(() {
-        _receiptBase64 = 'data:$mime;base64,${base64Encode(bytes)}';
+        _receiptBase64 = 'data:${validation.mimeType};base64,${base64Encode(bytes)}';
         _receiptName = picked.name;
       });
     } catch (e) {
@@ -124,8 +143,8 @@ class _ExpenseDrawerState extends ConsumerState<ExpenseDrawer> {
     final profile = ref.watch(businessProfileProvider);
     final decimals = profile.currencyDecimals;
     final symbol = profile.currencySymbol;
-    final hintAmount = decimals == 0 ? '5000' : '50.00';
-    final hintTax = decimals == 0 ? '0' : '0.00';
+    final hintAmount = decimals == 0 ? '5000' : decimals == 3 ? '50.000' : '50.00';
+    final hintTax = formatDecimalUnits(0, decimals);
 
     return Drawer(
       child: SafeArea(

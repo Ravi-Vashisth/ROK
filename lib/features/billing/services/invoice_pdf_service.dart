@@ -6,13 +6,13 @@ import 'package:pdf/widgets.dart' as pw;
 
 import 'package:billing_app/core/utils/money_utils.dart';
 import 'package:billing_app/core/utils/tax_compliance_utils.dart';
-import '../../business_profile/models/business_profile.dart';
-import '../../clients/models/client.dart';
-import '../../estimates/models/estimate_item.dart';
-import '../../estimates/models/estimate_record.dart';
-import '../../invoices/models/invoice_item.dart';
-import '../../invoices/models/invoice_record.dart';
-import '../../payments/models/payment_record.dart';
+import 'package:billing_app/features/business_profile/models/business_profile.dart';
+import 'package:billing_app/features/clients/models/client.dart';
+import 'package:billing_app/features/estimates/models/estimate_item.dart';
+import 'package:billing_app/features/estimates/models/estimate_record.dart';
+import 'package:billing_app/features/invoices/models/invoice_item.dart';
+import 'package:billing_app/features/invoices/models/invoice_record.dart';
+import 'package:billing_app/features/payments/models/payment_record.dart';
 
 class InvoicePdfService {
   static pw.ThemeData? _cachedFontTheme;
@@ -1197,14 +1197,21 @@ class InvoicePdfService {
     final sym = businessProfile.currencySymbol;
     final dec = businessProfile.currencyDecimals;
 
-    int totalBilledCents = 0;
-    int totalPaidCents = 0;
-    for (final inv in invoices) {
-      if (inv.isVoid || inv.isDraft) continue;
-      totalBilledCents += inv.totalCents;
-      totalPaidCents += inv.paidCents;
-    }
-    final balanceDueCents = (totalBilledCents - totalPaidCents) > 0 ? (totalBilledCents - totalPaidCents) : 0;
+    final activeInvoices = invoices.where((inv) => !inv.isVoid && !inv.isDraft).toList();
+    final rollup = computeClientRollup(
+      activeInvoices.map((inv) => CurrencyLedgerEntry(
+            currencyCode: inv.currencyCode,
+            currencySymbol: inv.currencySymbol,
+            currencyDecimals: inv.currencyDecimals,
+            totalUnits: inv.totalCents,
+            paidUnits: inv.paidCents,
+            balanceDueUnits: inv.balanceDueCents,
+          )),
+      defaultCode: businessProfile.currencyCode,
+      defaultSymbol: sym,
+      defaultDecimals: dec,
+    );
+    final hasDue = rollup.hasOutstandingBalance;
 
     final logoBytes = _safeDecodeBase64(businessProfile.logoBase64);
     final now = DateTime.now();
@@ -1286,24 +1293,27 @@ class InvoicePdfService {
                     if (client.taxId.isNotEmpty) pw.Text('Tax ID: ${client.taxId}', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#475569'))),
                   ],
                 ),
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(12),
-                  decoration: pw.BoxDecoration(
-                    color: PdfColor.fromHex('#F8FAFC'),
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-                    border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0')),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
-                    children: [
-                      pw.Text('Total Invoiced: ${formatMoney(totalBilledCents, symbol: sym, decimals: dec)}', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1E293B'))),
-                      pw.SizedBox(height: 3),
-                      pw.Text('Total Paid: ${formatMoney(totalPaidCents, symbol: sym, decimals: dec)}', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#047857'))),
-                      pw.SizedBox(height: 4),
-                      pw.Container(width: 140, height: 1, color: PdfColor.fromHex('#CBD5E1')),
-                      pw.SizedBox(height: 4),
-                      pw.Text('Balance Due: ${formatMoney(balanceDueCents, symbol: sym, decimals: dec)}', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: balanceDueCents > 0 ? PdfColor.fromHex('#BE123C') : PdfColor.fromHex('#047857'))),
-                    ],
+                pw.ConstrainedBox(
+                  constraints: const pw.BoxConstraints(maxWidth: 260),
+                  child: pw.Container(
+                    padding: const pw.EdgeInsets.all(12),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColor.fromHex('#F8FAFC'),
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                      border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0')),
+                    ),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text('Total Invoiced: ${rollup.formattedTotalBilled}', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1E293B'))),
+                        pw.SizedBox(height: 3),
+                        pw.Text('Total Paid: ${rollup.formattedTotalPaid}', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#047857'))),
+                        pw.SizedBox(height: 4),
+                        pw.Container(width: 140, height: 1, color: PdfColor.fromHex('#CBD5E1')),
+                        pw.SizedBox(height: 4),
+                        pw.Text('Balance Due: ${rollup.formattedOutstandingBalance}', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: hasDue ? PdfColor.fromHex('#BE123C') : PdfColor.fromHex('#047857'))),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -1329,18 +1339,24 @@ class InvoicePdfService {
                     _buildHeaderCell('Balance Due', align: pw.TextAlign.right),
                   ],
                 ),
-                ...invoices.where((inv) => !inv.isVoid && !inv.isDraft).map((inv) {
-                  final invSym = inv.currencySymbol.isNotEmpty ? inv.currencySymbol : sym;
-                  final invDec = inv.currencyCode.isNotEmpty ? inv.currencyDecimals : dec;
+                ...activeInvoices.map((inv) {
+                  final resolved = resolveEffectiveCurrency(
+                    recordCode: inv.currencyCode,
+                    recordSymbol: inv.currencySymbol,
+                    recordDecimals: inv.currencyCode.trim().isNotEmpty ? inv.currencyDecimals : null,
+                    defaultCode: businessProfile.currencyCode,
+                    defaultSymbol: sym,
+                    defaultDecimals: dec,
+                  );
                   return pw.TableRow(
                     children: [
                       _buildCell(inv.invoiceNumber, align: pw.TextAlign.left, isBold: true),
                       _buildCell(inv.issueDate, align: pw.TextAlign.center),
                       _buildCell(inv.dueDate, align: pw.TextAlign.center),
                       _buildCell(inv.computedStatus, align: pw.TextAlign.center),
-                      _buildCell(formatMoney(inv.totalCents, symbol: invSym, decimals: invDec), align: pw.TextAlign.right),
-                      _buildCell(formatMoney(inv.paidCents, symbol: invSym, decimals: invDec), align: pw.TextAlign.right),
-                      _buildCell(formatMoney(inv.balanceDueCents, symbol: invSym, decimals: invDec), align: pw.TextAlign.right, isBold: true),
+                      _buildCell(formatMoney(inv.totalCents, symbol: resolved.symbol, decimals: resolved.decimals), align: pw.TextAlign.right),
+                      _buildCell(formatMoney(inv.paidCents, symbol: resolved.symbol, decimals: resolved.decimals), align: pw.TextAlign.right),
+                      _buildCell(formatMoney(inv.balanceDueCents, symbol: resolved.symbol, decimals: resolved.decimals), align: pw.TextAlign.right, isBold: true),
                     ],
                   );
                 }),

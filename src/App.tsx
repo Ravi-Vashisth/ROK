@@ -13,8 +13,11 @@ import {
 import {
   TaxMode,
   calculateDueDate,
+  extractSequenceNumber,
   formatDecimalUnits,
+  formatLocalCalendarDate,
   formatMoney as formatMoneyUnits,
+  generateUniqueId,
   getCurrencyDecimals,
   getNextSequentialDocNumber,
   parsePriceToCents,
@@ -110,6 +113,8 @@ export interface ExpenseRecord {
   total_cents: number;
   expense_date: string;
   notes?: string;
+  receipt_base64?: string;
+  receipt_name?: string;
   created_at: string;
 }
 
@@ -142,6 +147,7 @@ export const App: React.FC = () => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState<boolean>(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState<boolean>(false);
+  const [editingExpense, setEditingExpense] = useState<ExpenseRecord | null>(null);
   const [confirmState, setConfirmState] = useState<{
     title: string;
     message: string;
@@ -274,8 +280,22 @@ export const App: React.FC = () => {
   };
 
   const handleSaveDocFromEditor = (docData: any) => {
+    const invPrefix = businessProfile.invoice_prefix || 'INV-';
+    const estPrefix = businessProfile.estimate_prefix || 'EST-';
+    const invMinNext = Math.max(1, Number(businessProfile.next_invoice_number) || 1);
+
+    const syncProfileNextInvoiceNumber = (issuedNum: string) => {
+      const seq = extractSequenceNumber(issuedNum, invPrefix);
+      setBusinessProfile((prevProf: any) => {
+        const curNext = Math.max(1, Number(prevProf.next_invoice_number) || 1);
+        const nextVal = Math.max(curNext + 1, seq + 1);
+        return { ...prevProf, next_invoice_number: nextVal };
+      });
+    };
+
     if (editorMode === 'invoice') {
       if (docData.existingId) {
+        let promotedNum: string | null = null;
         setInvoices((prev) =>
           prev.map((i) => {
             if (i.id !== docData.existingId) return i;
@@ -283,8 +303,10 @@ export const App: React.FC = () => {
             if (!docData.isDraft && invNum.startsWith('DRAFT-')) {
               invNum = getNextSequentialDocNumber(
                 prev.map((x) => x.invoice_number),
-                'INV-'
+                invPrefix,
+                invMinNext
               );
+              promotedNum = invNum;
             }
             return {
               ...i,
@@ -316,15 +338,17 @@ export const App: React.FC = () => {
             };
           })
         );
+        if (promotedNum) syncProfileNextInvoiceNumber(promotedNum);
       } else {
         const invNumber = docData.isDraft
-          ? `DRAFT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+          ? `DRAFT-${generateUniqueId().slice(0, 8).toUpperCase()}`
           : getNextSequentialDocNumber(
               invoices.map((x) => x.invoice_number),
-              'INV-'
+              invPrefix,
+              invMinNext
             );
         const newInv: InvoiceRecord = {
-          id: `inv-${Date.now()}`,
+          id: generateUniqueId(),
           client_id: docData.clientId,
           client_name: docData.clientName,
           invoice_number: invNumber,
@@ -354,6 +378,7 @@ export const App: React.FC = () => {
           created_at: new Date().toISOString(),
         };
         setInvoices((prev) => [newInv, ...prev]);
+        if (!docData.isDraft) syncProfileNextInvoiceNumber(invNumber);
       }
     } else {
       if (docData.existingId) {
@@ -364,7 +389,7 @@ export const App: React.FC = () => {
             if (!docData.isDraft && estNum.startsWith('DRAFT-')) {
               estNum = getNextSequentialDocNumber(
                 prev.map((x) => x.estimate_number),
-                'EST-'
+                estPrefix
               );
             }
             return {
@@ -400,13 +425,13 @@ export const App: React.FC = () => {
         );
       } else {
         const estNumber = docData.isDraft
-          ? `DRAFT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+          ? `DRAFT-${generateUniqueId().slice(0, 8).toUpperCase()}`
           : getNextSequentialDocNumber(
               estimates.map((x) => x.estimate_number),
-              'EST-'
+              estPrefix
             );
         const newEst: StoredEstimateRecord = {
-          id: `est-${Date.now()}`,
+          id: generateUniqueId(),
           client_id: docData.clientId,
           client_name: docData.clientName,
           estimate_number: estNumber,
@@ -479,6 +504,9 @@ export const App: React.FC = () => {
   };
 
   const handleFinalizeInvoice = (inv: InvoiceRecord) => {
+    const invPrefix = businessProfile.invoice_prefix || 'INV-';
+    const invMinNext = Math.max(1, Number(businessProfile.next_invoice_number) || 1);
+    let issuedNum: string | null = null;
     setInvoices((prev) =>
       prev.map((i) => {
         if (i.id !== inv.id) return i;
@@ -486,15 +514,25 @@ export const App: React.FC = () => {
         if (num.startsWith('DRAFT-')) {
           num = getNextSequentialDocNumber(
             prev.map((x) => x.invoice_number),
-            'INV-'
+            invPrefix,
+            invMinNext
           );
+          issuedNum = num;
         }
         return { ...i, invoice_number: num, status: 'PENDING', computed_status: 'PENDING' };
       })
     );
+    if (issuedNum) {
+      const seq = extractSequenceNumber(issuedNum, invPrefix);
+      setBusinessProfile((prevProf: any) => ({
+        ...prevProf,
+        next_invoice_number: Math.max((Number(prevProf.next_invoice_number) || 1) + 1, seq + 1),
+      }));
+    }
   };
 
   const handleFinalizeEstimate = (est: StoredEstimateRecord) => {
+    const estPrefix = businessProfile.estimate_prefix || 'EST-';
     setEstimates((prev) =>
       prev.map((e) => {
         if (e.id !== est.id) return e;
@@ -502,7 +540,7 @@ export const App: React.FC = () => {
         if (num.startsWith('DRAFT-')) {
           num = getNextSequentialDocNumber(
             prev.map((x) => x.estimate_number),
-            'EST-'
+            estPrefix
           );
         }
         return { ...e, estimate_number: num, status: 'PENDING' };
@@ -511,13 +549,16 @@ export const App: React.FC = () => {
   };
 
   const handleConvertEstimate = (est: StoredEstimateRecord) => {
-    const todayIso = new Date().toISOString().split('T')[0];
+    const todayIso = formatLocalCalendarDate();
+    const invPrefix = businessProfile.invoice_prefix || 'INV-';
+    const invMinNext = Math.max(1, Number(businessProfile.next_invoice_number) || 1);
     const nextInvNum = getNextSequentialDocNumber(
       invoices.map((x) => x.invoice_number),
-      'INV-'
+      invPrefix,
+      invMinNext
     );
     const newInv: InvoiceRecord = {
-      id: `inv-${Date.now()}`,
+      id: generateUniqueId(),
       client_id: est.client_id,
       client_name: est.client_name,
       invoice_number: nextInvNum,
@@ -548,6 +589,11 @@ export const App: React.FC = () => {
     };
     setInvoices((prev) => [newInv, ...prev]);
     setEstimates((prev) => prev.map((e) => (e.id === est.id ? { ...e, status: 'CONVERTED' } : e)));
+    const convSeq = extractSequenceNumber(nextInvNum, invPrefix);
+    setBusinessProfile((prevProf: any) => ({
+      ...prevProf,
+      next_invoice_number: Math.max((Number(prevProf.next_invoice_number) || 1) + 1, convSeq + 1),
+    }));
     showToast(`Converted quote ${est.estimate_number} into live invoice ${newInv.invoice_number}.`);
   };
 
@@ -566,10 +612,17 @@ export const App: React.FC = () => {
   };
 
   const handleAddExpense = () => {
+    setEditingExpense(null);
+    setIsExpenseModalOpen(true);
+  };
+
+  const handleEditExpense = (exp: ExpenseRecord) => {
+    setEditingExpense(exp);
     setIsExpenseModalOpen(true);
   };
 
   const handleSaveExpense = (expData: {
+    id?: string;
     vendor: string;
     category: string;
     amount_cents: number;
@@ -577,9 +630,34 @@ export const App: React.FC = () => {
     total_cents: number;
     expense_date: string;
     notes: string;
+    receipt_base64: string;
+    receipt_name: string;
   }) => {
+    if (expData.id) {
+      setExpenses((prev) =>
+        prev.map((e) =>
+          e.id === expData.id
+            ? {
+                ...e,
+                vendor: expData.vendor,
+                category: expData.category,
+                amount_cents: expData.amount_cents,
+                tax_cents: expData.tax_cents,
+                total_cents: expData.total_cents,
+                expense_date: expData.expense_date,
+                notes: expData.notes,
+                receipt_base64: expData.receipt_base64,
+                receipt_name: expData.receipt_name,
+              }
+            : e
+        )
+      );
+      showToast(`Expense updated for ${expData.vendor}.`);
+      return;
+    }
+
     const newExp: ExpenseRecord = {
-      id: `exp-${Date.now()}`,
+      id: generateUniqueId(),
       vendor: expData.vendor,
       category: expData.category,
       amount_cents: expData.amount_cents,
@@ -587,6 +665,8 @@ export const App: React.FC = () => {
       total_cents: expData.total_cents,
       expense_date: expData.expense_date,
       notes: expData.notes,
+      receipt_base64: expData.receipt_base64,
+      receipt_name: expData.receipt_name,
       created_at: new Date().toISOString(),
     };
     setExpenses((prev) => [newExp, ...prev]);
@@ -609,7 +689,7 @@ export const App: React.FC = () => {
 
   const handleAddClient = (cData: any) => {
     const newC: Client = {
-      id: `c-${Date.now()}`,
+      id: generateUniqueId(),
       name: cData.name,
       email: cData.email || '',
       phone: cData.phone || '',
@@ -661,7 +741,7 @@ export const App: React.FC = () => {
 
   const handleAddItem = (iData: any) => {
     const newI = {
-      id: `si-${Date.now()}`,
+      id: generateUniqueId(),
       title: iData.title,
       defaultPriceCents: iData.default_price_cents,
       sacHsn: iData.sac_hsn || '',
@@ -716,7 +796,7 @@ export const App: React.FC = () => {
     const jsonString = JSON.stringify(backupData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = formatLocalCalendarDate();
     const a = document.createElement('a');
     a.href = url;
     a.download = `freelance_ledger_backup_${dateStr}.json`;
@@ -900,8 +980,15 @@ export const App: React.FC = () => {
               initialData={editingDraftData}
               nextDocNumber={
                 editorMode === 'estimate'
-                  ? getNextSequentialDocNumber(estimates.map((e) => e.estimate_number), 'EST-')
-                  : getNextSequentialDocNumber(invoices.map((i) => i.invoice_number), 'INV-')
+                  ? getNextSequentialDocNumber(
+                      estimates.map((e) => e.estimate_number),
+                      businessProfile.estimate_prefix || 'EST-'
+                    )
+                  : getNextSequentialDocNumber(
+                      invoices.map((i) => i.invoice_number),
+                      businessProfile.invoice_prefix || 'INV-',
+                      Math.max(1, Number(businessProfile.next_invoice_number) || 1)
+                    )
               }
               isDarkMode={isDarkMode}
               businessProfile={businessProfile}
@@ -925,6 +1012,8 @@ export const App: React.FC = () => {
               clients={clients}
               isDarkMode={isDarkMode}
               currencySymbol={sym}
+              currencyCode={businessProfile.currency_code || 'USD'}
+              currencyDecimals={curDec}
               formatMoney={formatMoney}
               onNavigateToSales={() => setActiveTab(1)}
               onNavigateToExpenses={() => setActiveTab(2)}
@@ -937,6 +1026,9 @@ export const App: React.FC = () => {
               estimates={estimates}
               clients={clients}
               isDarkMode={isDarkMode}
+              currencyCode={businessProfile.currency_code || 'USD'}
+              currencySymbol={sym}
+              currencyDecimals={curDec}
               formatMoney={formatMoney}
               initialSubTab={salesSubTab}
               onCreateInvoice={handleCreateInvoice}
@@ -953,6 +1045,7 @@ export const App: React.FC = () => {
               onAddClient={handleAddClient}
               onUpdateClient={handleUpdateClient}
               onDeleteClient={handleDeleteClient}
+              onNotify={showToast}
             />
           ) : activeTab === 2 ? (
             <ExpensesTab
@@ -960,6 +1053,7 @@ export const App: React.FC = () => {
               isDarkMode={isDarkMode}
               formatMoney={formatMoney}
               onAddExpense={handleAddExpense}
+              onEditExpense={handleEditExpense}
               onDeleteExpense={handleDeleteExpense}
             />
           ) : (
@@ -1137,7 +1231,11 @@ export const App: React.FC = () => {
         isDarkMode={isDarkMode}
         currencySymbol={sym}
         currencyDecimals={curDec}
-        onClose={() => setIsExpenseModalOpen(false)}
+        initialExpense={editingExpense}
+        onClose={() => {
+          setIsExpenseModalOpen(false);
+          setEditingExpense(null);
+        }}
         onSave={handleSaveExpense}
       />
 

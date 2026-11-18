@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-import '../../../core/database/database_provider.dart';
-import '../../../core/utils/id_generator.dart';
-import '../models/saved_item.dart';
+import 'package:billing_app/core/database/database_provider.dart';
+import 'package:billing_app/core/utils/id_generator.dart';
+import 'package:billing_app/features/items/models/saved_item.dart';
 
 class SavedItemsNotifier extends StateNotifier<List<SavedItem>> {
   final Database _db;

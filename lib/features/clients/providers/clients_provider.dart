@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-import '../../../core/database/database_provider.dart';
-import '../../../core/utils/id_generator.dart';
-import '../models/client.dart';
+import 'package:billing_app/core/database/database_provider.dart';
+import 'package:billing_app/core/utils/id_generator.dart';
+import 'package:billing_app/features/clients/models/client.dart';
 
 class ClientsNotifier extends StateNotifier<List<Client>> {
   final Database _db;

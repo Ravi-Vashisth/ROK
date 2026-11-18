@@ -3,18 +3,18 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/money_utils.dart';
-import '../../../core/utils/tax_compliance_utils.dart';
-import '../../billing/presentation/widgets/client_autocomplete_picker.dart';
-import '../../business_profile/models/business_profile.dart';
-import '../../business_profile/providers/business_profile_provider.dart';
-import '../../clients/models/client.dart';
-import '../../clients/providers/clients_provider.dart';
-import '../../estimates/models/estimate_record.dart';
-import '../../invoices/models/invoice_record.dart';
-import '../../estimates/providers/estimates_provider.dart';
-import '../../invoices/providers/invoices_provider.dart';
-import '../../items/providers/saved_items_provider.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/core/utils/tax_compliance_utils.dart';
+import 'package:billing_app/features/billing/presentation/widgets/client_autocomplete_picker.dart';
+import 'package:billing_app/features/business_profile/models/business_profile.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
+import 'package:billing_app/features/clients/models/client.dart';
+import 'package:billing_app/features/clients/providers/clients_provider.dart';
+import 'package:billing_app/features/estimates/models/estimate_record.dart';
+import 'package:billing_app/features/invoices/models/invoice_record.dart';
+import 'package:billing_app/features/estimates/providers/estimates_provider.dart';
+import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
+import 'package:billing_app/features/items/providers/saved_items_provider.dart';
 
 class LineItemEntry {
   String description;
@@ -254,18 +254,43 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
   int get _totalCents => _netSubtotalCents + _taxCents;
 
   String _calculateDueDate(String issueDateStr, String terms) {
-    try {
-      final parts = issueDateStr.split('-');
-      if (parts.length != 3) return issueDateStr;
-      final issue = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
-      int addDays = 0;
-      if (terms.contains('15')) addDays = 15;
-      if (terms.contains('30')) addDays = 30;
-      if (terms.contains('60')) addDays = 60;
-      final due = issue.add(Duration(days: addDays));
-      return '${due.year}-${due.month.toString().padLeft(2, '0')}-${due.day.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return issueDateStr;
+    final issue = parseLocalCalendarDate(issueDateStr);
+    if (issue == null) return issueDateStr;
+    int addDays = 0;
+    if (terms.contains('15')) addDays = 15;
+    if (terms.contains('30')) addDays = 30;
+    if (terms.contains('60')) addDays = 60;
+    final due = DateTime(issue.year, issue.month, issue.day + addDays);
+    return '${due.year}-${due.month.toString().padLeft(2, '0')}-${due.day.toString().padLeft(2, '0')}';
+  }
+
+  String? get _issueDateError {
+    final text = _issueDateController.text.trim();
+    if (text.isEmpty) return 'Required (YYYY-MM-DD)';
+    if (!isValidIsoCalendarDate(text)) return 'Use valid YYYY-MM-DD';
+    return null;
+  }
+
+  Future<void> _pickIssueDate() async {
+    final firstDate = DateTime(2000);
+    final lastDate = DateTime(2100, 12, 31);
+    final rawInitial =
+        parseLocalCalendarDate(_issueDateController.text.trim()) ?? DateTime.now();
+    final initialDate = rawInitial.isBefore(firstDate)
+        ? firstDate
+        : (rawInitial.isAfter(lastDate) ? lastDate : rawInitial);
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _issueDateController.text =
+            '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+      });
     }
   }
 
@@ -273,6 +298,16 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
     if (_selectedClientId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a client first.')),
+      );
+      return;
+    }
+
+    final issueDate = _issueDateController.text.trim();
+    if (!isValidIsoCalendarDate(issueDate)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid Issue Date in YYYY-MM-DD format.'),
+        ),
       );
       return;
     }
@@ -314,7 +349,6 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
         })
         .toList();
 
-    final issueDate = _issueDateController.text.trim();
     final dueDate = _calculateDueDate(issueDate, _paymentTerms);
     final effectiveQuoteExpiry = (widget.existingEstimate != null &&
             !_paymentTermsChanged &&
@@ -480,11 +514,20 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
     final isCompactEditor = MediaQuery.sizeOf(context).width < 520;
     final issueDateField = TextField(
       controller: _issueDateController,
-      decoration: const InputDecoration(
-        labelText: 'Issue Date',
-        border: OutlineInputBorder(),
+      keyboardType: TextInputType.datetime,
+      decoration: InputDecoration(
+        labelText: 'Issue Date (YYYY-MM-DD)',
+        hintText: 'YYYY-MM-DD',
+        errorText: _issueDateError,
+        border: const OutlineInputBorder(),
         isDense: true,
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.calendar_today, size: 18),
+          tooltip: 'Pick Issue Date',
+          onPressed: _pickIssueDate,
+        ),
       ),
+      onChanged: (_) => setState(() {}),
     );
     final termsDropdown = DropdownButtonFormField<String>(
       value: _paymentTerms,
@@ -538,21 +581,28 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
         DropdownMenuItem(value: 'AUD', child: Text('AUD (A\$)')),
         DropdownMenuItem(value: 'AED', child: Text('AED (UAE)')),
         DropdownMenuItem(value: 'SAR', child: Text('SAR (KSA)')),
+        DropdownMenuItem(value: 'KWD', child: Text('KWD (Kuwait - 3 dec)')),
+        DropdownMenuItem(value: 'BHD', child: Text('BHD (Bahrain - 3 dec)')),
+        DropdownMenuItem(value: 'OMR', child: Text('OMR (Oman - 3 dec)')),
+        DropdownMenuItem(value: 'JOD', child: Text('JOD (Jordan - 3 dec)')),
+        DropdownMenuItem(value: 'TND', child: Text('TND (Tunisia - 3 dec)')),
       ],
       onChanged: (code) {
         if (code == null) return;
         setState(() {
           _overrideCurrencyCode = code;
-          if (code == 'INR') { _overrideCurrencySymbol = '₹'; _overrideCurrencyDecimals = 2; }
-          else if (code == 'EUR') { _overrideCurrencySymbol = '€'; _overrideCurrencyDecimals = 2; }
-          else if (code == 'GBP') { _overrideCurrencySymbol = '£'; _overrideCurrencyDecimals = 2; }
-          else if (code == 'JPY') { _overrideCurrencySymbol = '¥'; _overrideCurrencyDecimals = 0; }
-          else if (code == 'KRW') { _overrideCurrencySymbol = '₩'; _overrideCurrencyDecimals = 0; }
-          else if (code == 'CAD') { _overrideCurrencySymbol = 'C\$'; _overrideCurrencyDecimals = 2; }
-          else if (code == 'AUD') { _overrideCurrencySymbol = 'A\$'; _overrideCurrencyDecimals = 2; }
-          else if (code == 'AED') { _overrideCurrencySymbol = 'AED'; _overrideCurrencyDecimals = 2; }
-          else if (code == 'SAR') { _overrideCurrencySymbol = 'SAR'; _overrideCurrencyDecimals = 2; }
-          else { _overrideCurrencySymbol = '\$'; _overrideCurrencyDecimals = 2; }
+          _overrideCurrencyDecimals = getCurrencyDecimals(code);
+          if (code == 'INR') { _overrideCurrencySymbol = '₹'; }
+          else if (code == 'EUR') { _overrideCurrencySymbol = '€'; }
+          else if (code == 'GBP') { _overrideCurrencySymbol = '£'; }
+          else if (code == 'JPY') { _overrideCurrencySymbol = '¥'; }
+          else if (code == 'KRW') { _overrideCurrencySymbol = '₩'; }
+          else if (code == 'CAD') { _overrideCurrencySymbol = 'C\$'; }
+          else if (code == 'AUD') { _overrideCurrencySymbol = 'A\$'; }
+          else if (code == 'AED' || code == 'SAR' || code == 'KWD' || code == 'BHD' || code == 'OMR' || code == 'JOD' || code == 'TND') {
+            _overrideCurrencySymbol = code;
+          }
+          else { _overrideCurrencySymbol = '\$'; }
         });
       },
     );

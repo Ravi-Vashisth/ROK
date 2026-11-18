@@ -145,15 +145,15 @@ class InvoiceRecord {
     return 'PENDING';
   }
 
-  /// Calculates the number of days past due.
+  /// Calculates the number of days past due using DST-safe calendar day arithmetic.
   int get daysOverdue {
     if (!isOverdue) return 0;
     try {
       final due = DateTime.parse(dueDate);
       final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final dueDay = DateTime(due.year, due.month, due.day);
-      final diff = today.difference(dueDay).inDays;
+      final todayUtc = DateTime.utc(now.year, now.month, now.day);
+      final dueUtc = DateTime.utc(due.year, due.month, due.day);
+      final diff = todayUtc.difference(dueUtc).inDays;
       return diff > 0 ? diff : 0;
     } catch (_) {
       return 0;

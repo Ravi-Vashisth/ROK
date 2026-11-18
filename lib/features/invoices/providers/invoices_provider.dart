@@ -1,13 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-import '../../../core/database/database_provider.dart';
-import '../../../core/utils/id_generator.dart';
-import '../../../core/utils/money_utils.dart';
-import '../../../core/utils/tax_compliance_utils.dart';
-import '../../payments/models/payment_record.dart';
-import '../models/invoice_item.dart';
-import '../models/invoice_record.dart';
+import 'package:billing_app/core/database/database_provider.dart';
+import 'package:billing_app/core/utils/id_generator.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
+import 'package:billing_app/core/utils/tax_compliance_utils.dart';
+import 'package:billing_app/features/payments/models/payment_record.dart';
+import 'package:billing_app/features/invoices/models/invoice_item.dart';
+import 'package:billing_app/features/invoices/models/invoice_record.dart';
 
 /// Lightweight representation of an in-memory draft line item before committing to SQLite.
 class DraftItem {
@@ -76,15 +76,40 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
   }
 
   String getNextInvoiceNumber() {
-    final profileRes = _db.select("SELECT invoice_prefix FROM business_profile WHERE id = 'default'");
+    final profileRes = _db.select(
+      "SELECT invoice_prefix, next_invoice_number FROM business_profile WHERE id = 'default'",
+    );
     String prefix = 'INV-';
+    int minNext = 1;
     if (profileRes.isNotEmpty) {
       prefix = (profileRes.first['invoice_prefix'] as String?) ?? 'INV-';
+      final rawNext = (profileRes.first['next_invoice_number'] as int?) ?? 1;
+      minNext = rawNext > 0 ? rawNext : 1;
     }
 
     final rows = _db.select('SELECT invoice_number FROM invoices');
     final existing = rows.map((r) => (r['invoice_number'] as String?) ?? '');
-    return getNextSequentialDocNumber(existing, prefix);
+    return getNextSequentialDocNumber(existing, prefix, minNext: minNext);
+  }
+
+  /// Synchronizes business_profile.next_invoice_number inside an active SQLite transaction.
+  void syncNextInvoiceNumberLocked(String issuedNumber) {
+    final profileRes = _db.select(
+      "SELECT invoice_prefix, next_invoice_number FROM business_profile WHERE id = 'default'",
+    );
+    String prefix = 'INV-';
+    int currentNext = 1;
+    if (profileRes.isNotEmpty) {
+      prefix = (profileRes.first['invoice_prefix'] as String?) ?? 'INV-';
+      final rawNext = (profileRes.first['next_invoice_number'] as int?) ?? 1;
+      currentNext = rawNext > 0 ? rawNext : 1;
+    }
+    final seq = extractSequenceNumber(issuedNumber, prefix);
+    final nextVal = (seq + 1) > (currentNext + 1) ? (seq + 1) : (currentNext + 1);
+    _db.execute(
+      "UPDATE business_profile SET next_invoice_number = ? WHERE id = 'default'",
+      [nextVal],
+    );
   }
 
   void voidInvoice(String invoiceId) {
@@ -160,7 +185,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
         if (paymentTerms == 'Net 15 Days') daysToAdd = 15;
         if (paymentTerms == 'Net 30 Days') daysToAdd = 30;
         if (paymentTerms == 'Net 60 Days') daysToAdd = 60;
-        final computedDue = parsedIssue.add(Duration(days: daysToAdd));
+        final computedDue = DateTime(parsedIssue.year, parsedIssue.month, parsedIssue.day + daysToAdd);
         effectiveDueDate =
             '${computedDue.year}-${computedDue.month.toString().padLeft(2, '0')}-${computedDue.day.toString().padLeft(2, '0')}';
       } catch (_) {
@@ -184,17 +209,23 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
 
     // If updating existing draft
     if (existingInvoiceId != null && existingInvoiceId.trim().isNotEmpty) {
-      final existingRes = _db.select('SELECT invoice_number, status FROM invoices WHERE id = ?', [existingInvoiceId]);
-      if (existingRes.isNotEmpty) {
-        final currentNum = existingRes.first['invoice_number'] as String;
-        final currentStatus = existingRes.first['status'] as String;
-        String finalNum = currentNum;
-        if (currentStatus == 'DRAFT' && status != 'DRAFT') {
-          finalNum = getNextInvoiceNumber();
-        }
+      var updatedExisting = false;
+      _db.execute('BEGIN TRANSACTION;');
+      try {
+        final existingRes = _db.select(
+          'SELECT invoice_number, status FROM invoices WHERE id = ?',
+          [existingInvoiceId],
+        );
+        if (existingRes.isNotEmpty) {
+          updatedExisting = true;
+          final currentNum = existingRes.first['invoice_number'] as String;
+          final currentStatus = existingRes.first['status'] as String;
+          String finalNum = currentNum;
+          final promotingFromDraft = currentStatus == 'DRAFT' && status != 'DRAFT';
+          if (promotingFromDraft && currentNum.startsWith('DRAFT-')) {
+            finalNum = getNextInvoiceNumber();
+          }
 
-        _db.execute('BEGIN TRANSACTION;');
-        try {
           _db.execute('''
             UPDATE invoices SET
               client_id = ?, invoice_number = ?, subtotal_cents = ?, tax_cents = ?, total_cents = ?,
@@ -236,28 +267,33 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
             itemStmt.dispose();
           }
 
-          if (currentStatus == 'DRAFT' && status != 'DRAFT') {
-            _db.execute("UPDATE business_profile SET next_invoice_number = next_invoice_number + 1 WHERE id = 'default'");
+          if (promotingFromDraft && finalNum != currentNum) {
+            syncNextInvoiceNumberLocked(finalNum);
           }
-
-          _db.execute('COMMIT;');
-        } catch (e) {
-          _db.execute('ROLLBACK;');
-          rethrow;
         }
 
+        _db.execute('COMMIT;');
+      } catch (e) {
+        _db.execute('ROLLBACK;');
+        rethrow;
+      }
+
+      if (updatedExisting) {
         loadInvoices();
         return existingInvoiceId;
       }
     }
 
     final invoiceId = generateUniqueId();
-    // For DRAFT status, prefix with DRAFT- so fiscal sequence number is not consumed
-    final invoiceNumber = status == 'DRAFT' ? 'DRAFT-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}' : getNextInvoiceNumber();
     final createdAt = DateTime.now().toUtc().toIso8601String();
 
     _db.execute('BEGIN TRANSACTION;');
     try {
+      // For DRAFT status, prefix with DRAFT- so fiscal sequence number is not consumed
+      final invoiceNumber = status == 'DRAFT'
+          ? 'DRAFT-${generateUniqueId().substring(0, 8).toUpperCase()}'
+          : getNextInvoiceNumber();
+
       final invoiceStmt = _db.prepare('''
         INSERT INTO invoices (
           id, client_id, invoice_number, subtotal_cents, tax_cents, total_cents,
@@ -322,8 +358,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
       }
 
       if (status != 'DRAFT') {
-        // Increment next_invoice_number in business_profile only when official invoice is issued
-        _db.execute("UPDATE business_profile SET next_invoice_number = next_invoice_number + 1 WHERE id = 'default'");
+        // Synchronize next_invoice_number in business_profile atomically inside the transaction
+        syncNextInvoiceNumberLocked(invoiceNumber);
       }
 
       _db.execute('COMMIT;');
@@ -373,16 +409,17 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     if (paymentTerms == 'Net 15 Days') daysToAdd = 15;
     if (paymentTerms == 'Net 30 Days') daysToAdd = 30;
     if (paymentTerms == 'Net 60 Days') daysToAdd = 60;
-    final computedDue = now.add(Duration(days: daysToAdd));
+    final computedDue = DateTime(now.year, now.month, now.day + daysToAdd);
     final dueDateStr =
         '${computedDue.year}-${computedDue.month.toString().padLeft(2, '0')}-${computedDue.day.toString().padLeft(2, '0')}';
 
     final newInvoiceId = generateUniqueId();
-    final newInvoiceNumber = getNextInvoiceNumber();
     final createdAt = DateTime.now().toUtc().toIso8601String();
+    late final String newInvoiceNumber;
 
     _db.execute('BEGIN TRANSACTION;');
     try {
+      newInvoiceNumber = getNextInvoiceNumber();
       final invoiceStmt = _db.prepare('''
         INSERT INTO invoices (
           id, client_id, invoice_number, subtotal_cents, tax_cents, total_cents,
@@ -446,7 +483,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
         itemStmt.dispose();
       }
 
-      _db.execute("UPDATE business_profile SET next_invoice_number = next_invoice_number + 1 WHERE id = 'default'");
+      syncNextInvoiceNumberLocked(newInvoiceNumber);
 
       _db.execute('COMMIT;');
     } catch (e) {
@@ -539,15 +576,18 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
   }
 
   void finalizeDraftInvoice(String invoiceId) {
-    final res = _db.select(
-      "SELECT invoice_number FROM invoices WHERE id = ? AND status = 'DRAFT'",
-      [invoiceId],
-    );
-    if (res.isEmpty) return;
-
-    final currentNum = (res.first['invoice_number'] as String?) ?? '';
     _db.execute('BEGIN TRANSACTION;');
     try {
+      final res = _db.select(
+        "SELECT invoice_number FROM invoices WHERE id = ? AND status = 'DRAFT'",
+        [invoiceId],
+      );
+      if (res.isEmpty) {
+        _db.execute('COMMIT;');
+        return;
+      }
+
+      final currentNum = (res.first['invoice_number'] as String?) ?? '';
       if (currentNum.startsWith('DRAFT-')) {
         final officialNum = getNextInvoiceNumber();
         final stmt = _db.prepare(
@@ -558,9 +598,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
         } finally {
           stmt.dispose();
         }
-        _db.execute(
-          "UPDATE business_profile SET next_invoice_number = next_invoice_number + 1 WHERE id = 'default'",
-        );
+        syncNextInvoiceNumberLocked(officialNum);
       } else {
         final stmt = _db.prepare(
           "UPDATE invoices SET status = 'PENDING' WHERE id = ? AND status = 'DRAFT'",

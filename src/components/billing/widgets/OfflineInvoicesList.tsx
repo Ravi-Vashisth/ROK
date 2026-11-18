@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileText, CheckCircle2, Trash2, DollarSign, Send } from 'lucide-react';
-import { formatMoney as formatMoneyUnits, getCurrencyDecimals } from '../../../billingRules';
+import { formatMoney as formatMoneyUnits, getCurrencyDecimals, matchesDateFilter } from '../../../billingRules';
 
 interface OfflineInvoicesListProps {
   invoices: any[];
@@ -50,6 +50,9 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
       const matchClient = inv.client_name?.toLowerCase().includes(q);
       if (!matchNum && !matchClient) return false;
     }
+
+    // Date filter
+    if (!matchesDateFilter(inv.issue_date, dateFilter)) return false;
 
     return true;
   });
