@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Settings, X, Save, Image, PenTool, Trash2, CheckCircle2 } from 'lucide-react';
 import {
   TAX_MODE_LABELS,
@@ -61,6 +61,16 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const signatureInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'signature') => {
     const file = e.target.files?.[0];
@@ -129,11 +139,22 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
   const taxIdLabel = getRegionalTaxIdLabel(defaultTaxMode, false);
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-      <div className={`w-full max-w-lg max-h-[90vh] flex flex-col rounded-xl border shadow-xl overflow-hidden ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}>
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className={`w-full max-w-lg max-h-[90vh] flex flex-col rounded-xl border shadow-xl overflow-hidden ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}
+      >
         <div className="p-4 border-b dark:border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-indigo-500" />
+            <Settings className="w-5 h-5 accent-text" />
             <h3 className="font-bold text-sm">Business Profile & Settings</h3>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
@@ -296,7 +317,7 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
                 <button
                   type="button"
                   onClick={() => logoInputRef.current?.click()}
-                  className="w-full py-2 px-3 border border-dashed rounded-lg text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition text-center cursor-pointer"
+                  className="w-full py-2 px-3 border border-dashed rounded-lg text-slate-500 accent-dashed-hover transition text-center cursor-pointer"
                 >
                   + Upload Logo Image
                 </button>
@@ -342,7 +363,7 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
                 <button
                   type="button"
                   onClick={() => signatureInputRef.current?.click()}
-                  className="w-full py-2 px-3 border border-dashed rounded-lg text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition text-center cursor-pointer"
+                  className="w-full py-2 px-3 border border-dashed rounded-lg text-slate-500 accent-dashed-hover transition text-center cursor-pointer"
                 >
                   + Upload Signature Image
                 </button>
@@ -380,7 +401,7 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+              className="px-4 py-2 accent-btn font-bold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer"
             >
               <Save className="w-4 h-4" />
               <span>Save Business Settings</span>

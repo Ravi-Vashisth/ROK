@@ -192,7 +192,7 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
       >
         <div className="p-4 border-b dark:border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-indigo-500" />
+            <Wallet className="w-5 h-5 accent-text" />
             <h3 id="expense-drawer-title" className="font-bold text-sm">
               {isEditing ? 'Edit Business Expense' : 'Record Business Expense'}
             </h3>
@@ -227,7 +227,7 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
                 if (errorMsg) setErrorMsg('');
               }}
               placeholder="e.g. Amazon Web Services, Apple Store"
-              className={`w-full p-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              className={`w-full p-2.5 rounded-xl border accent-focus ${
                 isDarkMode
                   ? 'bg-slate-900 border-slate-800 text-slate-100'
                   : 'bg-slate-50 border-slate-200 text-slate-900'
@@ -284,7 +284,7 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
                   if (errorMsg) setErrorMsg('');
                 }}
                 placeholder={currencyDecimals === 0 ? '5000' : currencyDecimals === 3 ? '50.000' : '50.00'}
-                className={`w-full p-2.5 rounded-xl border font-mono tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                className={`w-full p-2.5 rounded-xl border font-mono tabular-nums accent-focus ${
                   isDarkMode
                     ? 'bg-slate-900 border-slate-800 text-slate-100'
                     : 'bg-slate-50 border-slate-200 text-slate-900'
@@ -300,7 +300,7 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
                 <button
                   type="button"
                   onClick={handleApplyTenPercentTax}
-                  className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] font-bold accent-text hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   <Sparkles className="w-3 h-3" />
                   <span>10% Tax</span>
@@ -360,7 +360,7 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
                     : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
                 }`}
               >
-                <Paperclip className="w-3.5 h-3.5 text-indigo-500" />
+                <Paperclip className="w-3.5 h-3.5 accent-text" />
                 <span className="truncate max-w-[220px]">
                   {receiptName ? `Receipt: ${receiptName}` : 'Attach Receipt (Image/PDF)'}
                 </span>
@@ -430,7 +430,7 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+              className="px-4 py-2 accent-btn font-bold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-xs"
             >
               <Save className="w-4 h-4" />
               <span>{isEditing ? 'Update Expense' : 'Save Expense'}</span>

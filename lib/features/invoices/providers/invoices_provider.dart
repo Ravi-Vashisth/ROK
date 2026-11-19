@@ -106,16 +106,18 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     }
     final seq = extractSequenceNumber(issuedNumber, prefix);
     final nextVal = (seq + 1) > (currentNext + 1) ? (seq + 1) : (currentNext + 1);
+    final updatedAt = DateTime.now().toUtc().toIso8601String();
     _db.execute(
-      "UPDATE business_profile SET next_invoice_number = ? WHERE id = 'default'",
-      [nextVal],
+      "UPDATE business_profile SET next_invoice_number = ?, updated_at = ? WHERE id = 'default'",
+      [nextVal, updatedAt],
     );
   }
 
   void voidInvoice(String invoiceId) {
-    final stmt = _db.prepare("UPDATE invoices SET status = 'VOID' WHERE id = ?");
+    final updatedAt = DateTime.now().toUtc().toIso8601String();
+    final stmt = _db.prepare("UPDATE invoices SET status = 'VOID', updated_at = ? WHERE id = ?");
     try {
-      stmt.execute([invoiceId]);
+      stmt.execute([updatedAt, invoiceId]);
     } finally {
       stmt.dispose();
     }
@@ -226,29 +228,29 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
             finalNum = getNextInvoiceNumber();
           }
 
+          final updatedAt = DateTime.now().toUtc().toIso8601String();
           _db.execute('''
             UPDATE invoices SET
               client_id = ?, invoice_number = ?, subtotal_cents = ?, tax_cents = ?, total_cents = ?,
               status = ?, issue_date = ?, due_date = ?, payment_terms = ?, terms = ?, notes = ?,
               discount_type = ?, discount_value = ?, discount_cents = ?, po_number = ?, currency_code = ?,
-              currency_symbol = ?, currency_decimals = ?, tax_mode = ?, pst_rate_percentage = ?, tax_exemption_id = ?
+              currency_symbol = ?, currency_decimals = ?, tax_mode = ?, pst_rate_percentage = ?, tax_exemption_id = ?, updated_at = ?
             WHERE id = ?
           ''', [
             clientId, finalNum, subtotalCents, taxCents, totalCents,
             status, effectiveIssueDate, effectiveDueDate, paymentTerms, terms, notes,
             discountType, discountValue, discountCents, poNumber, currencyCode,
-            currencySymbol, currencyDecimals, normalizedTaxMode, pstRatePercentage, taxExemptionId, existingInvoiceId
+            currencySymbol, currencyDecimals, normalizedTaxMode, pstRatePercentage, taxExemptionId, updatedAt, existingInvoiceId
           ]);
 
           _db.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [existingInvoiceId]);
 
           final itemStmt = _db.prepare('''
             INSERT INTO invoice_items (
-              id, invoice_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              id, invoice_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ''');
           try {
-            final createdAt = DateTime.now().toUtc().toIso8601String();
             for (final item in items) {
               itemStmt.execute([
                 generateUniqueId(),
@@ -260,7 +262,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
                 item.taxRatePercentage,
                 item.taxCents,
                 item.totalCents,
-                createdAt,
+                updatedAt,
+                updatedAt,
               ]);
             }
           } finally {
@@ -299,8 +302,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
           id, client_id, invoice_number, subtotal_cents, tax_cents, total_cents,
           status, issue_date, due_date, payment_terms, terms, notes,
           discount_type, discount_value, discount_cents, po_number, currency_code, currency_symbol, currency_decimals,
-          tax_mode, pst_rate_percentage, tax_exemption_id, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          tax_mode, pst_rate_percentage, tax_exemption_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         invoiceStmt.execute([
@@ -327,6 +330,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
           pstRatePercentage,
           taxExemptionId,
           createdAt,
+          createdAt,
         ]);
       } finally {
         invoiceStmt.dispose();
@@ -334,8 +338,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
 
       final itemStmt = _db.prepare('''
         INSERT INTO invoice_items (
-          id, invoice_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, invoice_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         for (final item in items) {
@@ -350,6 +354,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
             item.taxRatePercentage,
             item.taxCents,
             item.totalCents,
+            createdAt,
             createdAt,
           ]);
         }
@@ -425,8 +430,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
           id, client_id, invoice_number, subtotal_cents, tax_cents, total_cents,
           status, issue_date, due_date, payment_terms, terms, notes,
           discount_type, discount_value, discount_cents, po_number, currency_code, currency_symbol, currency_decimals,
-          tax_mode, pst_rate_percentage, tax_exemption_id, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          tax_mode, pst_rate_percentage, tax_exemption_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         invoiceStmt.execute([
@@ -453,6 +458,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
           pstRatePercentage,
           taxExemptionId,
           createdAt,
+          createdAt,
         ]);
       } finally {
         invoiceStmt.dispose();
@@ -460,8 +466,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
 
       final itemStmt = _db.prepare('''
         INSERT INTO invoice_items (
-          id, invoice_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, invoice_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         for (final item in sourceItems) {
@@ -476,6 +482,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
             item.taxRatePercentage,
             item.taxCents,
             item.totalCents,
+            createdAt,
             createdAt,
           ]);
         }
@@ -522,8 +529,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     try {
       final stmt = _db.prepare('''
         INSERT INTO payments (
-          id, invoice_id, amount_cents, amount_received_cents, tds_cents, reference_number, payment_method, payment_date, notes, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, invoice_id, amount_cents, amount_received_cents, tds_cents, reference_number, payment_method, payment_date, notes, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         stmt.execute([
@@ -536,6 +543,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
           paymentMethod,
           paymentDateStr,
           notes,
+          createdAt,
           createdAt,
         ]);
       } finally {
@@ -557,9 +565,9 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
         final currentStatus = (invRes.first['status'] as String?) ?? 'PENDING';
         if (currentStatus != 'VOID') {
           final newStatus = totalPaid >= totalCents ? 'PAID' : (totalPaid > 0 ? 'PARTIALLY_PAID' : 'PENDING');
-          final updateStmt = _db.prepare('UPDATE invoices SET status = ? WHERE id = ?');
+          final updateStmt = _db.prepare('UPDATE invoices SET status = ?, updated_at = ? WHERE id = ?');
           try {
-            updateStmt.execute([newStatus, invoiceId]);
+            updateStmt.execute([newStatus, createdAt, invoiceId]);
           } finally {
             updateStmt.dispose();
           }
@@ -587,24 +595,25 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
         return;
       }
 
+      final updatedAt = DateTime.now().toUtc().toIso8601String();
       final currentNum = (res.first['invoice_number'] as String?) ?? '';
       if (currentNum.startsWith('DRAFT-')) {
         final officialNum = getNextInvoiceNumber();
         final stmt = _db.prepare(
-          "UPDATE invoices SET status = 'PENDING', invoice_number = ? WHERE id = ? AND status = 'DRAFT'",
+          "UPDATE invoices SET status = 'PENDING', invoice_number = ?, updated_at = ? WHERE id = ? AND status = 'DRAFT'",
         );
         try {
-          stmt.execute([officialNum, invoiceId]);
+          stmt.execute([officialNum, updatedAt, invoiceId]);
         } finally {
           stmt.dispose();
         }
         syncNextInvoiceNumberLocked(officialNum);
       } else {
         final stmt = _db.prepare(
-          "UPDATE invoices SET status = 'PENDING' WHERE id = ? AND status = 'DRAFT'",
+          "UPDATE invoices SET status = 'PENDING', updated_at = ? WHERE id = ? AND status = 'DRAFT'",
         );
         try {
-          stmt.execute([invoiceId]);
+          stmt.execute([updatedAt, invoiceId]);
         } finally {
           stmt.dispose();
         }
@@ -632,9 +641,10 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
   }
 
   void updateInvoiceStatus(String invoiceId, String newStatus) {
-    final stmt = _db.prepare('UPDATE invoices SET status = ? WHERE id = ?');
+    final updatedAt = DateTime.now().toUtc().toIso8601String();
+    final stmt = _db.prepare('UPDATE invoices SET status = ?, updated_at = ? WHERE id = ?');
     try {
-      stmt.execute([newStatus, invoiceId]);
+      stmt.execute([newStatus, updatedAt, invoiceId]);
     } finally {
       stmt.dispose();
     }

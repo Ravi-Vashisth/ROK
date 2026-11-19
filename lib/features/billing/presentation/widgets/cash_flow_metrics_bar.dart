@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:billing_app/core/theme/app_theme.dart';
 import 'package:billing_app/core/utils/money_utils.dart';
 import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
 import 'package:billing_app/features/expenses/providers/expenses_provider.dart';
@@ -45,45 +46,53 @@ class CashFlowMetricsBar extends ConsumerWidget {
       defaultDecimals: profile.currencyDecimals,
     );
 
+    final brightness = Theme.of(context).brightness;
+    final dangerTone = AppSemanticColors.resolve(brightness, SemanticStatus.danger);
+    final successTone = AppSemanticColors.resolve(brightness, SemanticStatus.success);
+    final purpleTone = AppSemanticColors.resolve(brightness, SemanticStatus.purple);
+    final infoTone = AppSemanticColors.resolve(brightness, SemanticStatus.info);
+
+    final taxTone = !summary.hasAnyNegativeTaxLiability ? purpleTone : successTone;
+    final profitTone = !summary.hasNetLoss ? infoTone : dangerTone;
+
     final tiles = [
       _MetricTile(
         title: 'Unpaid Receivables',
         value: summary.formattedUnpaid,
         icon: Icons.warning_amber_outlined,
-        iconColor: Colors.red.shade700,
-        backgroundColor: Colors.red.shade50.withValues(alpha: 0.5),
-        borderColor: Colors.red.shade200,
-        textColor: Colors.red.shade900,
+        iconColor: dangerTone.icon,
+        backgroundColor: dangerTone.background,
+        borderColor: dangerTone.border,
+        textColor: dangerTone.text,
         subtitle: 'Overdue: ${summary.formattedOverdue}',
+        subtitleColor: dangerTone.text,
       ),
       _MetricTile(
         title: 'Gross Collected',
         value: summary.formattedCollected,
         icon: Icons.check_circle_outline,
-        iconColor: Colors.green.shade700,
-        backgroundColor: Colors.green.shade50.withValues(alpha: 0.5),
-        borderColor: Colors.green.shade200,
-        textColor: Colors.green.shade900,
+        iconColor: successTone.icon,
+        backgroundColor: successTone.background,
+        borderColor: successTone.border,
+        textColor: successTone.text,
       ),
       _MetricTile(
         title: 'Tax Liability / GST',
         value: summary.formattedTaxLiability,
         icon: Icons.account_balance_wallet_outlined,
-        iconColor: !summary.hasAnyNegativeTaxLiability ? Colors.purple.shade700 : Colors.teal.shade700,
-        backgroundColor: Colors.purple.shade50.withValues(alpha: 0.5),
-        borderColor: Colors.purple.shade200,
-        textColor: Colors.purple.shade900,
+        iconColor: taxTone.icon,
+        backgroundColor: taxTone.background,
+        borderColor: taxTone.border,
+        textColor: taxTone.text,
       ),
       _MetricTile(
         title: 'Real Net Profit',
         value: summary.formattedNetProfit,
         icon: Icons.pie_chart_outline,
-        iconColor: !summary.hasNetLoss ? Colors.blue.shade700 : Colors.red.shade700,
-        backgroundColor: !summary.hasNetLoss
-            ? Colors.blue.shade50.withValues(alpha: 0.5)
-            : Colors.red.shade50.withValues(alpha: 0.5),
-        borderColor: !summary.hasNetLoss ? Colors.blue.shade200 : Colors.red.shade200,
-        textColor: !summary.hasNetLoss ? Colors.blue.shade900 : Colors.red.shade900,
+        iconColor: profitTone.icon,
+        backgroundColor: profitTone.background,
+        borderColor: profitTone.border,
+        textColor: profitTone.text,
       ),
     ];
 
@@ -154,6 +163,7 @@ class _MetricTile extends StatelessWidget {
   final Color backgroundColor;
   final Color? borderColor;
   final Color? textColor;
+  final Color? subtitleColor;
 
   const _MetricTile({
     required this.title,
@@ -164,10 +174,12 @@ class _MetricTile extends StatelessWidget {
     required this.backgroundColor,
     this.borderColor,
     this.textColor,
+    this.subtitleColor,
   });
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -193,7 +205,7 @@ class _MetricTile extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: textColor ?? Colors.grey.shade700,
+                    color: textColor ?? colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -209,7 +221,7 @@ class _MetricTile extends StatelessWidget {
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
                 fontFeatures: const [FontFeature.tabularFigures()],
-                color: textColor ?? Theme.of(context).colorScheme.onSurface,
+                color: textColor ?? colorScheme.onSurface,
               ),
             ),
           ),
@@ -223,7 +235,7 @@ class _MetricTile extends StatelessWidget {
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
                 fontFeatures: const [FontFeature.tabularFigures()],
-                color: Colors.red.shade800,
+                color: subtitleColor ?? colorScheme.error,
               ),
             ),
           ],

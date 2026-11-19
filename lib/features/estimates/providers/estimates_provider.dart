@@ -148,13 +148,14 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
             estNumber = getNextEstimateNumber();
           }
 
+          final nowIso = DateTime.now().toUtc().toIso8601String();
           final updStmt = _db.prepare('''
             UPDATE estimates SET
               client_id = ?, estimate_number = ?, subtotal_cents = ?, tax_cents = ?, total_cents = ?,
               status = ?, issue_date = ?, expiry_date = ?, terms = ?, notes = ?,
               discount_type = ?, discount_value = ?, discount_cents = ?, po_number = ?,
               currency_code = ?, currency_symbol = ?, currency_decimals = ?,
-              tax_mode = ?, pst_rate_percentage = ?, tax_exemption_id = ?
+              tax_mode = ?, pst_rate_percentage = ?, tax_exemption_id = ?, updated_at = ?
             WHERE id = ?
           ''');
           try {
@@ -179,6 +180,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
               normalizedTaxMode,
               pstRatePercentage,
               taxExemptionId,
+              nowIso,
               existingEstimateId,
             ]);
           } finally {
@@ -188,8 +190,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
           _db.execute('DELETE FROM estimate_items WHERE estimate_id = ?', [existingEstimateId]);
           final itemStmt = _db.prepare('''
             INSERT INTO estimate_items (
-              id, estimate_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              id, estimate_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ''');
           try {
             for (final item in items) {
@@ -204,7 +206,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
                 item.taxRatePercentage,
                 item.taxCents,
                 item.totalCents,
-                DateTime.now().toUtc().toIso8601String(),
+                nowIso,
+                nowIso,
               ]);
             }
           } finally {
@@ -238,8 +241,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
           id, client_id, estimate_number, subtotal_cents, tax_cents, total_cents,
           status, issue_date, expiry_date, converted_invoice_id, terms, notes,
           discount_type, discount_value, discount_cents, po_number, currency_code, currency_symbol, currency_decimals,
-          tax_mode, pst_rate_percentage, tax_exemption_id, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          tax_mode, pst_rate_percentage, tax_exemption_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         stmt.execute([
@@ -266,6 +269,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
           pstRatePercentage,
           taxExemptionId,
           createdAt,
+          createdAt,
         ]);
       } finally {
         stmt.dispose();
@@ -273,8 +277,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
 
       final itemStmt = _db.prepare('''
         INSERT INTO estimate_items (
-          id, estimate_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, estimate_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         for (final item in items) {
@@ -289,6 +293,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
             item.taxRatePercentage,
             item.taxCents,
             item.totalCents,
+            createdAt,
             createdAt,
           ]);
         }
@@ -356,8 +361,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
           id, client_id, invoice_number, subtotal_cents, tax_cents, total_cents,
           status, issue_date, due_date, payment_terms, terms, notes,
           discount_type, discount_value, discount_cents, po_number, currency_code, currency_symbol, currency_decimals,
-          tax_mode, pst_rate_percentage, tax_exemption_id, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          tax_mode, pst_rate_percentage, tax_exemption_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         invoiceStmt.execute([
@@ -384,6 +389,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
           pstRatePercentage,
           taxExemptionId,
           createdAt,
+          createdAt,
         ]);
       } finally {
         invoiceStmt.dispose();
@@ -391,8 +397,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
 
       final itemStmt = _db.prepare('''
         INSERT INTO invoice_items (
-          id, invoice_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, invoice_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''');
       try {
         for (final item in draftItems) {
@@ -408,6 +414,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
             item.taxCents,
             item.totalCents,
             createdAt,
+            createdAt,
           ]);
         }
       } finally {
@@ -417,8 +424,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
       _ref.read(invoicesProvider.notifier).syncNextInvoiceNumberLocked(invoiceNumber);
 
       _db.execute(
-        "UPDATE estimates SET status = 'CONVERTED', converted_invoice_id = ? WHERE id = ?",
-        [invoiceId, estimateId],
+        "UPDATE estimates SET status = 'CONVERTED', converted_invoice_id = ?, updated_at = ? WHERE id = ?",
+        [invoiceId, createdAt, estimateId],
       );
 
       _db.execute('COMMIT;');
@@ -443,17 +450,18 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
         return;
       }
 
+      final updatedAt = DateTime.now().toUtc().toIso8601String();
       final currentNum = res.first['estimate_number'] as String;
       if (currentNum.startsWith('DRAFT-')) {
         final officialNum = getNextEstimateNumber();
         _db.execute(
-          "UPDATE estimates SET status = 'PENDING', estimate_number = ? WHERE id = ? AND status = 'DRAFT'",
-          [officialNum, estimateId],
+          "UPDATE estimates SET status = 'PENDING', estimate_number = ?, updated_at = ? WHERE id = ? AND status = 'DRAFT'",
+          [officialNum, updatedAt, estimateId],
         );
       } else {
         _db.execute(
-          "UPDATE estimates SET status = 'PENDING' WHERE id = ? AND status = 'DRAFT'",
-          [estimateId],
+          "UPDATE estimates SET status = 'PENDING', updated_at = ? WHERE id = ? AND status = 'DRAFT'",
+          [updatedAt, estimateId],
         );
       }
       _db.execute('COMMIT;');
@@ -478,7 +486,11 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
   }
 
   void updateEstimateStatus(String estimateId, String newStatus) {
-    _db.execute('UPDATE estimates SET status = ? WHERE id = ?', [newStatus, estimateId]);
+    final updatedAt = DateTime.now().toUtc().toIso8601String();
+    _db.execute(
+      'UPDATE estimates SET status = ?, updated_at = ? WHERE id = ?',
+      [newStatus, updatedAt, estimateId],
+    );
     loadEstimates();
   }
 }

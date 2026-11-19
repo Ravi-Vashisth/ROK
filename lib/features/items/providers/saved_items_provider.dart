@@ -42,8 +42,8 @@ class SavedItemsNotifier extends StateNotifier<List<SavedItem>> {
     ];
 
     final stmt = _db.prepare('''
-      INSERT INTO saved_items (id, title, default_price_cents, description, created_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO saved_items (id, title, default_price_cents, description, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
     ''');
     try {
       for (final d in defaults) {
@@ -52,6 +52,7 @@ class SavedItemsNotifier extends StateNotifier<List<SavedItem>> {
           d['title'] as String,
           d['price'] as int,
           d['desc'] as String,
+          now,
           now,
         ]);
       }
@@ -69,14 +70,14 @@ class SavedItemsNotifier extends StateNotifier<List<SavedItem>> {
     if (title.trim().isEmpty) return;
 
     final id = generateUniqueId();
-    final createdAt = DateTime.now().toUtc().toIso8601String();
+    final nowIso = DateTime.now().toUtc().toIso8601String();
 
     final stmt = _db.prepare('''
-      INSERT INTO saved_items (id, title, sac_hsn, default_price_cents, description, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO saved_items (id, title, sac_hsn, default_price_cents, description, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     ''');
     try {
-      stmt.execute([id, title.trim(), sacHsn.trim(), defaultPriceCents, description.trim(), createdAt]);
+      stmt.execute([id, title.trim(), sacHsn.trim(), defaultPriceCents, description.trim(), nowIso, nowIso]);
     } finally {
       stmt.dispose();
     }
@@ -93,13 +94,14 @@ class SavedItemsNotifier extends StateNotifier<List<SavedItem>> {
   }) {
     if (title.trim().isEmpty) return;
 
+    final updatedAt = DateTime.now().toUtc().toIso8601String();
     final stmt = _db.prepare('''
       UPDATE saved_items 
-      SET title = ?, sac_hsn = ?, default_price_cents = ?, description = ?
+      SET title = ?, sac_hsn = ?, default_price_cents = ?, description = ?, updated_at = ?
       WHERE id = ?
     ''');
     try {
-      stmt.execute([title.trim(), sacHsn.trim(), defaultPriceCents, description.trim(), id]);
+      stmt.execute([title.trim(), sacHsn.trim(), defaultPriceCents, description.trim(), updatedAt, id]);
     } finally {
       stmt.dispose();
     }

@@ -54,6 +54,16 @@ import {
   isIosDevice,
   validateUploadedFileBytes,
   MAX_ATTACHMENT_SIZE_BYTES,
+  sanitizeCsvCell,
+  quoteCsvField,
+  exportInvoicesToCsv,
+  exportExpensesToCsv,
+  isQuotaExceededError,
+  ACCENT_PRESET_KEYS,
+  normalizeAccentColorKey,
+  normalizeThemeMode,
+  duplicateInvoiceRecord,
+  voidInvoiceRecord,
 } from './billingRules';
 
 // ============================================================================
@@ -355,11 +365,21 @@ test('P0-B: validateBackupPayload rejects malformed objects, arrays, and non-obj
 
 test('P0-B: validateBackupPayload accepts valid snapshot including savedItems and businessProfile', () => {
   const result = validateBackupPayload({
-    clients: [{ id: 'c1', name: 'Acme' }],
-    invoices: [{ id: 'inv-1', client_id: 'c1', total_cents: 10000 }],
+    clients: [{ id: 'c1', name: 'Acme', created_at: '2026-10-01T00:00:00Z' }],
+    invoices: [
+      {
+        id: 'inv-1',
+        client_id: 'c1',
+        invoice_number: 'INV-0001',
+        subtotal_cents: 10000,
+        tax_cents: 0,
+        total_cents: 10000,
+        status: 'PENDING',
+      },
+    ],
     estimates: [],
     expenses: [],
-    savedItems: [{ id: 'si-1', title: 'Consulting' }],
+    savedItems: [{ id: 'si-1', title: 'Consulting', default_price_cents: 5000 }],
     businessProfile: { business_name: 'Studio' },
   });
   assert.equal(result.valid, true);
@@ -1037,5 +1057,311 @@ test('Task 6: validateUploadedFileBytes validates PNG/JPEG/WEBP/PDF headers and 
   });
   assert.equal(sizeResult.isValid, false);
   assert.ok(sizeResult.errorMessage?.includes('5 MB'));
+});
+
+// ============================================================================
+// TASK 7 REGRESSION TESTS: BACKUP HARDENING, CSV SECURITY & QUOTA DETECTION
+// ============================================================================
+
+test('Task 7: validateBackupPayload enforces NOT NULL columns and strict integer/string value types', () => {
+  // Missing required NOT NULL fields
+  assert.equal(
+    validateBackupPayload({
+      clients: [{ id: 'c1', name: '   ' }],
+      invoices: [],
+    }).valid,
+    false
+  );
+  assert.equal(
+    validateBackupPayload({
+      clients: [{ id: 'c1', name: 'Acme' }],
+      invoices: [
+        {
+          id: 'inv-1',
+          client_id: 'c1',
+          subtotal_cents: 1000,
+          tax_cents: 0,
+          total_cents: 1000,
+          status: 'PENDING',
+        },
+      ],
+    }).valid,
+    false
+  );
+  assert.equal(
+    validateBackupPayload({
+      clients: [],
+      invoices: [],
+      expenses: [{ id: 'e1', category: 'Travel', vendor: '', amount_cents: 500, expense_date: '2026-10-01' }],
+    }).valid,
+    false
+  );
+  assert.equal(
+    validateBackupPayload({
+      clients: [],
+      invoices: [],
+      businessProfile: { business_name: '' },
+    }).valid,
+    false
+  );
+
+  // Wrong column value types (string or float in integer columns, int in string columns)
+  assert.equal(
+    validateBackupPayload({
+      clients: [{ id: 'c1', name: 'Acme' }],
+      invoices: [
+        {
+          id: 'inv-1',
+          client_id: 'c1',
+          invoice_number: 'INV-0001',
+          subtotal_cents: 1000,
+          tax_cents: 0,
+          total_cents: '1000',
+          status: 'PENDING',
+        },
+      ],
+    }).valid,
+    false
+  );
+  assert.equal(
+    validateBackupPayload({
+      clients: [{ id: 'c1', name: 'Acme', email: 42 }],
+      invoices: [],
+    }).valid,
+    false
+  );
+  assert.equal(
+    validateBackupPayload({
+      clients: [],
+      invoices: [],
+      savedItems: [{ id: 'si-1', title: 'Audit', default_price_cents: 12.5 }],
+    }).valid,
+    false
+  );
+});
+
+test('Task 7: CSV exports neutralize formula-injection prefixes and emit ISO currencyCode', () => {
+  assert.equal(sanitizeCsvCell('=1+1'), "'=1+1");
+  assert.equal(sanitizeCsvCell('+CMD|calc'), "'+CMD|calc");
+  assert.equal(sanitizeCsvCell('-2+3'), "'-2+3");
+  assert.equal(sanitizeCsvCell('@SUM(A1:A2)'), "'@SUM(A1:A2)");
+  assert.equal(sanitizeCsvCell('\t=1+1'), "'\t=1+1");
+  assert.equal(sanitizeCsvCell('\r+1'), "'\r+1");
+  assert.equal(sanitizeCsvCell('  =1+1'), "'  =1+1");
+  assert.equal(sanitizeCsvCell('Normal Studio'), 'Normal Studio');
+  assert.equal(quoteCsvField('=HYPERLINK("http://evil")'), '"\'=HYPERLINK(""http://evil"")"');
+
+  const invCsv = exportInvoicesToCsv(
+    [
+      {
+        id: 'inv-draft',
+        client_id: 'c1',
+        client_name: '=EvilCorp',
+        invoice_number: 'DRAFT-1234',
+        subtotal_cents: 10000,
+        tax_cents: 0,
+        total_cents: 10000,
+        paid_cents: 0,
+        status: 'DRAFT',
+        issue_date: '2026-10-01',
+        due_date: '2026-10-15',
+      },
+      {
+        id: 'inv-1',
+        client_id: 'c1',
+        client_name: '=1+1',
+        invoice_number: 'INV-0001',
+        subtotal_cents: 10000,
+        tax_cents: 1800,
+        total_cents: 11800,
+        paid_cents: 0,
+        status: 'PENDING',
+        issue_date: '2026-10-01',
+        due_date: '2026-10-15',
+      },
+    ],
+    [{ id: 'c1', name: '=1+1', tax_id: '+TAX123' }],
+    'USD'
+  );
+  assert.ok(!invCsv.includes('DRAFT-1234'));
+  assert.ok(invCsv.includes('"USD"'));
+  assert.ok(!invCsv.includes('"$"'));
+  assert.ok(invCsv.includes('"\'=1+1"'));
+  assert.ok(invCsv.includes('"\'+TAX123"'));
+
+  const expCsv = exportExpensesToCsv(
+    [
+      {
+        id: 'exp-1',
+        expense_date: '2026-10-05',
+        category: '@Ops',
+        vendor: '-MaliciousVendor',
+        amount_cents: 5000,
+        tax_cents: 500,
+        total_cents: 5500,
+        notes: '\t=CMD|calc',
+      },
+    ],
+    'USD'
+  );
+  assert.ok(expCsv.includes('"USD"'));
+  assert.ok(expCsv.includes('"\'@Ops"'));
+  assert.ok(expCsv.includes('"\'-MaliciousVendor"'));
+  assert.ok(expCsv.includes('"\'\t=CMD|calc"'));
+  assert.ok(expCsv.includes(',50.00,5.00,55.00,'));
+});
+
+test('Task 7: isQuotaExceededError matches browser QuotaExceededError variants cleanly', () => {
+  assert.equal(isQuotaExceededError({ name: 'QuotaExceededError' }), true);
+  assert.equal(isQuotaExceededError({ name: 'NS_ERROR_DOM_QUOTA_REACHED' }), true);
+  assert.equal(isQuotaExceededError({ code: 22 }), true);
+  assert.equal(isQuotaExceededError({ code: 1014 }), true);
+  assert.equal(isQuotaExceededError(new Error('Network error')), false);
+  assert.equal(isQuotaExceededError(null), false);
+});
+
+// ============================================================================
+// TASK 8 REGRESSION TESTS: THEME/ACCENT PERSISTENCE & VALIDATION
+// ============================================================================
+
+test('Task 8: normalizeAccentColorKey and normalizeThemeMode sanitize persisted preferences safely', () => {
+  assert.equal(ACCENT_PRESET_KEYS.length, 6);
+  for (const preset of ACCENT_PRESET_KEYS) {
+    assert.equal(normalizeAccentColorKey(preset), preset);
+  }
+  assert.equal(normalizeAccentColorKey('  emerald  '), 'emerald');
+  assert.equal(normalizeAccentColorKey('unknown'), 'indigo');
+  assert.equal(normalizeAccentColorKey(null), 'indigo');
+  assert.equal(normalizeAccentColorKey(123), 'indigo');
+
+  assert.equal(normalizeThemeMode('light'), 'light');
+  assert.equal(normalizeThemeMode('DARK'), 'dark');
+  assert.equal(normalizeThemeMode(' system '), 'system');
+  assert.equal(normalizeThemeMode('sepia'), 'system');
+  assert.equal(normalizeThemeMode(undefined), 'system');
+});
+
+test('Task 8: validateBackupPayload validates optional businessProfile theme_mode and accent_color', () => {
+  assert.equal(
+    validateBackupPayload({
+      clients: [],
+      invoices: [],
+      businessProfile: {
+        business_name: 'Studio',
+        theme_mode: 'dark',
+        accent_color: 4283385573,
+      },
+    }).valid,
+    true
+  );
+
+  assert.equal(
+    validateBackupPayload({
+      clients: [],
+      invoices: [],
+      businessProfile: {
+        business_name: 'Studio',
+        theme_mode: 1,
+      },
+    }).valid,
+    false
+  );
+
+  assert.equal(
+    validateBackupPayload({
+      clients: [],
+      invoices: [],
+      businessProfile: {
+        business_name: 'Studio',
+        accent_color: 'indigo',
+      },
+    }).valid,
+    false
+  );
+});
+
+// ============================================================================
+// TASK 9 REGRESSION TESTS: DUPLICATE & VOID INVOICE FEATURE PARITY
+// ============================================================================
+
+test('Task 9: duplicateInvoiceRecord clones invoice with fresh UUID, sequential number, local dates, and zero paid balance', () => {
+  const source = {
+    id: 'inv-orig',
+    client_id: 'c-1',
+    client_name: 'Tokyo Partners',
+    invoice_number: 'INV-0004',
+    subtotal_cents: 50000,
+    tax_cents: 5000,
+    total_cents: 55000,
+    paid_cents: 55000,
+    balance_due_cents: 0,
+    status: 'PAID',
+    computed_status: 'PAID',
+    issue_date: '2026-09-01',
+    due_date: '2026-09-16',
+    payment_terms: 'Net 15 Days',
+    po_number: 'PO-77',
+    currency_code: 'JPY',
+    currency_symbol: '¥',
+    currency_decimals: 0,
+    tax_mode: 'standard' as const,
+    items: [
+      { id: 'item-1', description: 'UI Architecture', quantity: 1, unitPriceCents: 50000 },
+    ],
+    created_at: '2026-09-01T00:00:00Z',
+  };
+
+  const existing = [
+    source,
+    { invoice_number: 'DRAFT-AAA11111' },
+    { invoice_number: 'INV-0007' },
+  ];
+  const refNow = new Date(2026, 10, 19, 10, 30); // Nov 19, 2026 local
+
+  const cloned = duplicateInvoiceRecord(source, existing, 'INV-', 3, refNow);
+
+  assert.notEqual(cloned.id, source.id);
+  assert.equal(cloned.invoice_number, 'INV-0008');
+  assert.equal(cloned.status, 'PENDING');
+  assert.equal(cloned.computed_status, 'PENDING');
+  assert.equal(cloned.paid_cents, 0);
+  assert.equal(cloned.balance_due_cents, 55000);
+  assert.equal(cloned.issue_date, '2026-11-19');
+  assert.equal(cloned.due_date, '2026-12-04');
+  assert.equal(cloned.currency_code, 'JPY');
+  assert.equal(cloned.currency_decimals, 0);
+  assert.equal(cloned.po_number, 'PO-77');
+  assert.equal(cloned.items.length, 1);
+  assert.notEqual(cloned.items[0].id, 'item-1');
+  assert.equal(cloned.items[0].description, 'UI Architecture');
+});
+
+test('Task 9: voidInvoiceRecord marks finalized invoices VOID with 0 balance and leaves DRAFTs untouched', () => {
+  const pendingInv = {
+    id: 'inv-10',
+    invoice_number: 'INV-0010',
+    status: 'PARTIALLY_PAID',
+    computed_status: 'PARTIALLY_PAID',
+    total_cents: 10000,
+    paid_cents: 4000,
+    balance_due_cents: 6000,
+  };
+  const voided = voidInvoiceRecord(pendingInv);
+  assert.equal(voided.status, 'VOID');
+  assert.equal(voided.computed_status, 'VOID');
+  assert.equal(voided.balance_due_cents, 0);
+
+  const draftInv = {
+    id: 'inv-draft',
+    invoice_number: 'DRAFT-1234',
+    status: 'DRAFT',
+    computed_status: 'DRAFT',
+    total_cents: 10000,
+    paid_cents: 0,
+    balance_due_cents: 10000,
+  };
+  const untouchedDraft = voidInvoiceRecord(draftInv);
+  assert.equal(untouchedDraft.status, 'DRAFT');
+  assert.equal(untouchedDraft.balance_due_cents, 10000);
 });
 

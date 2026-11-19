@@ -4,16 +4,20 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:billing_app/core/theme/app_theme.dart';
 import 'package:billing_app/core/utils/money_utils.dart';
 import 'package:billing_app/core/utils/telephony_utils.dart';
+import 'package:billing_app/features/business_profile/models/business_profile.dart';
 import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
+import 'package:billing_app/features/invoices/models/invoice_record.dart';
 import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
 import 'package:billing_app/features/clients/models/client.dart';
 import 'package:billing_app/features/clients/providers/clients_provider.dart';
 import 'package:billing_app/features/clients/presentation/client_statement_dialog.dart';
 
 class ClientsTab extends ConsumerStatefulWidget {
-  const ClientsTab({super.key});
+  final List<Widget> leadingSlivers;
+  const ClientsTab({super.key, this.leadingSlivers = const []});
 
   @override
   ConsumerState<ClientsTab> createState() => _ClientsTabState();
@@ -118,8 +122,17 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
   @override
   Widget build(BuildContext context) {
     final clients = ref.watch(clientsProvider);
+    final invoices = ref.watch(invoicesProvider);
+    final profile = ref.watch(businessProfileProvider);
     final constraints = MediaQuery.of(context).size;
     final isWide = constraints.width >= 900;
+
+    final invoicesByClient = <String, List<InvoiceRecord>>{};
+    for (final inv in invoices) {
+      if (!inv.isVoid && !inv.isDraft) {
+        (invoicesByClient[inv.clientId] ??= []).add(inv);
+      }
+    }
 
     final filteredClients = clients.where((c) {
       if (_searchController.text.isEmpty) return true;
@@ -131,39 +144,92 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
       _selectedClientId = clients.first.id;
     }
 
+    final pagePadding = isWide ? 24.0 : 16.0;
+
     if (!isWide) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildClientListHeader(),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _searchController,
-            decoration: const InputDecoration(
-              hintText: 'Search clients...',
-              prefixIcon: Icon(Icons.search, size: 18),
-              isDense: true,
-              border: OutlineInputBorder(),
+      return CustomScrollView(
+        slivers: [
+          ...widget.leadingSlivers,
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: pagePadding),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildClientListHeader(),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      hintText: 'Search clients...',
+                      prefixIcon: Icon(Icons.search, size: 18),
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
             ),
-            onChanged: (_) => setState(() {}),
           ),
-          const SizedBox(height: 10),
-          _buildClientListView(filteredClients, (id) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => Scaffold(
-                  appBar: AppBar(title: const Text('Client Dossier')),
-                  body: SafeArea(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: _buildDetailPane(id),
+          if (filteredClients.isEmpty)
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(pagePadding, 0, pagePadding, pagePadding),
+              sliver: SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Center(
+                    child: Text(
+                      'No clients found.',
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   ),
                 ),
               ),
-            );
-          }),
+            )
+          else
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(pagePadding, 0, pagePadding, pagePadding),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final client = filteredClients[index];
+                    final isLast = index == filteredClients.length - 1;
+                    return Card(
+                      elevation: 0,
+                      margin: EdgeInsets.only(bottom: isLast ? 0 : 8),
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: Theme.of(context).dividerColor),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _buildClientListTile(
+                        client,
+                        invoicesByClient[client.id] ?? const [],
+                        profile,
+                        (id) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Scaffold(
+                                appBar: AppBar(title: const Text('Client Dossier')),
+                                body: SafeArea(
+                                  child: SingleChildScrollView(
+                                    padding: const EdgeInsets.all(16),
+                                    child: _buildDetailPane(id),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                  childCount: filteredClients.length,
+                ),
+              ),
+            ),
         ],
       );
     }
@@ -173,60 +239,70 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
       children: [
         _buildClientListHeader(),
         const SizedBox(height: 16),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 3,
-              child: Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(color: Theme.of(context).dividerColor),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: _searchController,
-                        decoration: const InputDecoration(
-                          hintText: 'Search clients...',
-                          prefixIcon: Icon(Icons.search, size: 18),
-                          isDense: true,
-                          border: OutlineInputBorder(),
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 3,
+                child: Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    side: BorderSide(color: Theme.of(context).dividerColor),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: _searchController,
+                          decoration: const InputDecoration(
+                            hintText: 'Search clients...',
+                            prefixIcon: Icon(Icons.search, size: 18),
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (_) => setState(() {}),
                         ),
-                        onChanged: (_) => setState(() {}),
-                      ),
-                      const SizedBox(height: 10),
-                      _buildClientListView(filteredClients, (id) => setState(() => _selectedClientId = id)),
-                    ],
+                        const SizedBox(height: 10),
+                        Expanded(
+                          child: _buildClientListView(
+                            filteredClients,
+                            invoicesByClient,
+                            profile,
+                            (id) => setState(() => _selectedClientId = id),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              flex: 7,
-              child: Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(color: Theme.of(context).dividerColor),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: _buildDetailPane(_selectedClientId),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 7,
+                child: Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    side: BorderSide(color: Theme.of(context).dividerColor),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: _buildDetailPane(_selectedClientId),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
   }
 
   Widget _buildClientListHeader() {
+    final theme = Theme.of(context);
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -238,11 +314,11 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
           children: [
             Text(
               'Client CRM & Statements',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
-            const Text(
+            Text(
               'Directory of accounts, billing history, and statements of account',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -255,63 +331,87 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
     );
   }
 
-  Widget _buildClientListView(List<Client> clients, Function(String) onSelect) {
+  Widget _buildClientListTile(
+    Client c,
+    List<InvoiceRecord> clientInvoices,
+    BusinessProfile profile,
+    Function(String) onSelect,
+  ) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final brightness = theme.brightness;
+    final warningTone = AppSemanticColors.resolve(brightness, SemanticStatus.warning);
+    final successTone = AppSemanticColors.resolve(brightness, SemanticStatus.success);
+
+    final isSelected = _selectedClientId == c.id;
+    final rollup = computeClientRollup(
+      clientInvoices.map((inv) => CurrencyLedgerEntry(
+            currencyCode: inv.currencyCode,
+            currencySymbol: inv.currencySymbol,
+            currencyDecimals: inv.currencyDecimals,
+            totalUnits: inv.totalCents,
+            paidUnits: inv.paidCents,
+            balanceDueUnits: inv.balanceDueCents,
+          )),
+      defaultCode: profile.currencyCode,
+      defaultSymbol: profile.currencySymbol,
+      defaultDecimals: profile.currencyDecimals,
+    );
+    final hasDue = rollup.hasOutstandingBalance;
+
+    return ListTile(
+      selected: isSelected,
+      selectedTileColor: colorScheme.primaryContainer.withValues(alpha: 0.35),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+      subtitle: Text(
+        c.email.isNotEmpty ? c.email : (c.phone.isNotEmpty ? c.phone : 'No contact info'),
+        style: const TextStyle(fontSize: 11),
+      ),
+      trailing: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 132),
+        child: Text(
+          hasDue ? '${rollup.formattedOutstandingBalance} Due' : '✓ Settled',
+          textAlign: TextAlign.right,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            fontFeatures: const [FontFeature.tabularFigures()],
+            color: hasDue ? warningTone.text : successTone.text,
+          ),
+        ),
+      ),
+      onTap: () => onSelect(c.id),
+    );
+  }
+
+  Widget _buildClientListView(
+    List<Client> clients,
+    Map<String, List<InvoiceRecord>> invoicesByClient,
+    BusinessProfile profile,
+    Function(String) onSelect,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (clients.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(24.0),
-        child: Center(child: Text('No clients found.', style: TextStyle(color: Colors.grey))),
+      return Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Center(child: Text('No clients found.', style: TextStyle(color: colorScheme.onSurfaceVariant))),
       );
     }
 
-    final invoices = ref.watch(invoicesProvider);
-    final profile = ref.watch(businessProfileProvider);
-
     return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
       itemCount: clients.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (_, i) {
-        final c = clients[i];
-        final isSelected = _selectedClientId == c.id;
-        final clientInvoices = invoices.where((inv) => inv.clientId == c.id && !inv.isVoid && !inv.isDraft);
-        final rollup = computeClientRollup(
-          clientInvoices.map((inv) => CurrencyLedgerEntry(
-                currencyCode: inv.currencyCode,
-                currencySymbol: inv.currencySymbol,
-                currencyDecimals: inv.currencyDecimals,
-                totalUnits: inv.totalCents,
-                paidUnits: inv.paidCents,
-                balanceDueUnits: inv.balanceDueCents,
-              )),
-          defaultCode: profile.currencyCode,
-          defaultSymbol: profile.currencySymbol,
-          defaultDecimals: profile.currencyDecimals,
-        );
-        final hasDue = rollup.hasOutstandingBalance;
-
-        return ListTile(
-          selected: isSelected,
-          selectedTileColor: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-          subtitle: Text(c.email.isNotEmpty ? c.email : (c.phone.isNotEmpty ? c.phone : 'No contact info'), style: const TextStyle(fontSize: 11)),
-          trailing: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 132),
-            child: Text(
-              hasDue ? '${rollup.formattedOutstandingBalance} Due' : '✓ Settled',
-              textAlign: TextAlign.right,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                fontFeatures: const [FontFeature.tabularFigures()],
-                color: hasDue ? Colors.amber.shade900 : Colors.green.shade700,
-              ),
-            ),
-          ),
-          onTap: () => onSelect(c.id),
+        final client = clients[i];
+        return _buildClientListTile(
+          client,
+          invoicesByClient[client.id] ?? const [],
+          profile,
+          onSelect,
         );
       },
     );
@@ -363,18 +463,26 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
       return formatMoney(units, symbol: resolved.symbol, decimals: resolved.decimals);
     }
 
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final brightness = theme.brightness;
+    final successTone = AppSemanticColors.resolve(brightness, SemanticStatus.success);
+    final warningTone = AppSemanticColors.resolve(brightness, SemanticStatus.warning);
+    final dangerTone = AppSemanticColors.resolve(brightness, SemanticStatus.danger);
+    final neutralTone = AppSemanticColors.resolve(brightness, SemanticStatus.neutral);
+
     final metricCards = [
       Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Theme.of(context).dividerColor),
+          border: Border.all(color: theme.dividerColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Lifetime Billed', style: TextStyle(fontSize: 11, color: Colors.grey)),
+            Text('Lifetime Billed', style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: 4),
             FittedBox(
               fit: BoxFit.scaleDown,
@@ -390,21 +498,21 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
       Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.green.shade50.withValues(alpha: 0.4),
+          color: successTone.background,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.green.shade200),
+          border: Border.all(color: successTone.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Total Collected', style: TextStyle(fontSize: 11, color: Colors.green)),
+            Text('Total Collected', style: TextStyle(fontSize: 11, color: successTone.text)),
             const SizedBox(height: 4),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: Text(
                 rollup.formattedTotalPaid,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()], color: Colors.green.shade800),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()], color: successTone.text),
               ),
             ),
           ],
@@ -413,14 +521,14 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
       Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: hasDue ? Colors.amber.shade50.withValues(alpha: 0.4) : Colors.green.shade50.withValues(alpha: 0.2),
+          color: hasDue ? warningTone.background : successTone.background,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: hasDue ? Colors.amber.shade300 : Colors.green.shade200),
+          border: Border.all(color: hasDue ? warningTone.border : successTone.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Outstanding Balance', style: TextStyle(fontSize: 11, color: hasDue ? Colors.amber.shade900 : Colors.green)),
+            Text('Outstanding Balance', style: TextStyle(fontSize: 11, color: hasDue ? warningTone.text : successTone.text)),
             const SizedBox(height: 4),
             FittedBox(
               fit: BoxFit.scaleDown,
@@ -431,7 +539,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   fontFeatures: const [FontFeature.tabularFigures()],
-                  color: hasDue ? Colors.amber.shade900 : Colors.green.shade800,
+                  color: hasDue ? warningTone.text : successTone.text,
                 ),
               ),
             ),
@@ -454,14 +562,14 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
               final infoCol = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(client.name, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                  Text(client.name, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text(
                     '${client.email.isNotEmpty ? client.email : "No Email"} • ${client.phone.isNotEmpty ? client.phone : "No Phone"} • Tax ID: ${client.taxId.isNotEmpty ? client.taxId : "None"}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                   ),
                   if (client.address.isNotEmpty)
-                    Text(client.address, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    Text(client.address, style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant)),
                 ],
               );
               final actionsRow = Wrap(
@@ -476,7 +584,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                   ),
                   IconButton(
                     tooltip: 'Delete Client',
-                    icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                    icon: Icon(Icons.delete_outline, size: 18, color: colorScheme.error),
                     onPressed: () => _handleDeleteClient(client),
                   ),
                 ],
@@ -617,7 +725,12 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                 (() {
                   final nonDraftInvoices = allClientInvoices.where((i) => !i.isDraft).toList();
                   if (nonDraftInvoices.isEmpty) {
-                    return const Center(child: Text('No finalized invoices issued to this client yet.', style: TextStyle(color: Colors.grey)));
+                    return Center(
+                      child: Text(
+                        'No finalized invoices issued to this client yet.',
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
+                      ),
+                    );
                   }
                   return ListView.separated(
                     itemCount: nonDraftInvoices.length,
@@ -625,28 +738,23 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                     itemBuilder: (context, i) {
                       final inv = nonDraftInvoices[i];
                       final isVoid = inv.isVoid;
+                      final badgeTone = isVoid
+                          ? neutralTone
+                          : (inv.isFullyPaid ? successTone : warningTone);
                       return ListTile(
                         leading: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: isVoid
-                                ? Colors.grey.shade100
-                                : (inv.isFullyPaid ? Colors.green.shade50 : Colors.amber.shade50),
+                            color: badgeTone.background,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isVoid
-                                  ? Colors.grey.shade400
-                                  : (inv.isFullyPaid ? Colors.green.shade300 : Colors.amber.shade300),
-                            ),
+                            border: Border.all(color: badgeTone.border),
                           ),
                           child: Text(
                             isVoid ? 'VOID' : inv.invoiceNumber,
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: isVoid
-                                  ? Colors.grey.shade800
-                                  : (inv.isFullyPaid ? Colors.green.shade800 : Colors.amber.shade900),
+                              color: badgeTone.text,
                             ),
                           ),
                         ),
@@ -658,35 +766,43 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                           ),
                         ),
                         subtitle: Text('Terms: ${inv.paymentTerms} • Due: ${inv.dueDate}', style: const TextStyle(fontSize: 11)),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              formatInvMoney(
-                                inv.totalCents,
-                                inv.currencyCode,
-                                inv.currencySymbol,
-                                inv.currencyDecimals,
+                        trailing: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 132),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                formatInvMoney(
+                                  inv.totalCents,
+                                  inv.currencyCode,
+                                  inv.currencySymbol,
+                                  inv.currencyDecimals,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, fontFeatures: [FontFeature.tabularFigures()]),
                               ),
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, fontFeatures: [FontFeature.tabularFigures()]),
-                            ),
-                            Text(
-                              isVoid
-                                  ? 'Voided'
-                                  : (inv.balanceDueCents > 0
-                                      ? 'Bal: ${formatInvMoney(inv.balanceDueCents, inv.currencyCode, inv.currencySymbol, inv.currencyDecimals)}'
-                                      : '✓ Paid'),
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontFeatures: const [FontFeature.tabularFigures()],
-                                color: isVoid
-                                    ? Colors.grey.shade600
-                                    : (inv.balanceDueCents > 0 ? Colors.red.shade700 : Colors.green.shade700),
-                                fontWeight: FontWeight.bold,
+                              Text(
+                                isVoid
+                                    ? 'Voided'
+                                    : (inv.balanceDueCents > 0
+                                        ? 'Bal: ${formatInvMoney(inv.balanceDueCents, inv.currencyCode, inv.currencySymbol, inv.currencyDecimals)}'
+                                        : '✓ Paid'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontFeatures: const [FontFeature.tabularFigures()],
+                                  color: isVoid
+                                      ? colorScheme.onSurfaceVariant
+                                      : (inv.balanceDueCents > 0 ? dangerTone.text : successTone.text),
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       );
                     },
@@ -722,7 +838,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                     const SizedBox(height: 12),
                     Expanded(
                       child: activeInvoices.isEmpty
-                          ? const Center(child: Text('No active transactions to show.', style: TextStyle(color: Colors.grey)))
+                          ? Center(child: Text('No active transactions to show.', style: TextStyle(color: colorScheme.onSurfaceVariant)))
                           : ListView.separated(
                               itemCount: activeInvoices.length,
                               separatorBuilder: (_, __) => const Divider(height: 1),

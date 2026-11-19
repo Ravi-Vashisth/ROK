@@ -1,6 +1,9 @@
 import 'dart:typed_data';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:billing_app/core/theme/app_theme.dart';
+import 'package:billing_app/core/theme/theme_provider.dart';
 import 'package:billing_app/core/utils/backup_service.dart';
 import 'package:billing_app/core/utils/csv_export_service.dart';
 import 'package:billing_app/core/utils/file_validation_utils.dart';
@@ -11,6 +14,8 @@ import 'package:billing_app/core/utils/telephony_utils.dart';
 import 'package:billing_app/features/billing/services/invoice_pdf_service.dart';
 import 'package:billing_app/features/business_profile/models/business_profile.dart';
 import 'package:billing_app/features/clients/models/client.dart';
+import 'package:billing_app/features/estimates/models/estimate_item.dart';
+import 'package:billing_app/features/estimates/models/estimate_record.dart';
 import 'package:billing_app/features/expenses/models/expense_record.dart';
 import 'package:billing_app/features/invoices/models/invoice_item.dart';
 import 'package:billing_app/features/invoices/models/invoice_record.dart';
@@ -973,6 +978,471 @@ void main() {
       final sizeRes = validateUploadedFileBytes(bytes: oversized, filename: 'huge.png', allowPdf: false);
       expect(sizeRes.isValid, isFalse);
       expect(sizeRes.errorMessage, contains('5 MB'));
+    });
+  });
+
+  group('Group 13: Task 7 Sync Columns Allowlist, Backup Hardening & CSV Security', () {
+    test('BackupService.allowedTableColumns includes sync columns updated_at and deleted_at across all 9 tables', () {
+      expect(BackupService.allowedTableColumns.keys.length, equals(9));
+      for (final entry in BackupService.allowedTableColumns.entries) {
+        expect(entry.value.contains('updated_at'), isTrue, reason: '${entry.key} missing updated_at');
+        expect(entry.value.contains('deleted_at'), isTrue, reason: '${entry.key} missing deleted_at');
+      }
+    });
+
+    test('BackupService.validateBackupMap validates NOT NULL fields and column value types cleanly', () {
+      final validSnapshot = <String, dynamic>{
+        'business_profile': [
+          {
+            'id': 'default',
+            'business_name': 'Studio One',
+            'currency_decimals': 2,
+            'next_invoice_number': 4,
+            'updated_at': '2026-11-18T00:00:00Z',
+            'deleted_at': null,
+          },
+        ],
+        'clients': [
+          {
+            'id': 'c1',
+            'name': 'Acme Corp',
+            'email': 'ap@acme.test',
+            'created_at': '2026-10-01T00:00:00Z',
+            'updated_at': '2026-10-01T00:00:00Z',
+            'deleted_at': null,
+          },
+        ],
+        'invoices': [
+          {
+            'id': 'inv-1',
+            'client_id': 'c1',
+            'invoice_number': 'INV-0001',
+            'subtotal_cents': 10000,
+            'tax_cents': 1800,
+            'total_cents': 11800,
+            'status': 'PENDING',
+            'created_at': '2026-10-01T00:00:00Z',
+          },
+        ],
+        'expenses': [
+          {
+            'id': 'exp-1',
+            'category': 'Software',
+            'vendor': 'AWS',
+            'amount_cents': 5000,
+            'tax_cents': 500,
+            'expense_date': '2026-10-02',
+            'created_at': '2026-10-02T00:00:00Z',
+          },
+        ],
+      };
+
+      expect(() => BackupService.validateBackupMap(validSnapshot), returnsNormally);
+
+      // Missing NOT NULL client name throws FormatException
+      expect(
+        () => BackupService.validateBackupMap({
+          'business_profile': [
+            {'id': 'default', 'business_name': 'Studio One'},
+          ],
+          'clients': [
+            {'id': 'c1', 'name': '   ', 'created_at': '2026-10-01T00:00:00Z'},
+          ],
+          'invoices': [],
+        }),
+        throwsA(isA<FormatException>()),
+      );
+
+      // Missing NOT NULL invoice_number throws FormatException
+      expect(
+        () => BackupService.validateBackupMap({
+          'business_profile': [
+            {'id': 'default', 'business_name': 'Studio One'},
+          ],
+          'clients': [
+            {'id': 'c1', 'name': 'Acme', 'created_at': '2026-10-01T00:00:00Z'},
+          ],
+          'invoices': [
+            {
+              'id': 'inv-1',
+              'client_id': 'c1',
+              'subtotal_cents': 1000,
+              'tax_cents': 0,
+              'total_cents': 1000,
+              'status': 'PENDING',
+              'created_at': '2026-10-01T00:00:00Z',
+            },
+          ],
+        }),
+        throwsA(isA<FormatException>()),
+      );
+
+      // Wrong type inside integer column ('1000' instead of 1000) throws FormatException
+      expect(
+        () => BackupService.validateBackupMap({
+          'business_profile': [
+            {'id': 'default', 'business_name': 'Studio One'},
+          ],
+          'clients': [
+            {'id': 'c1', 'name': 'Acme', 'created_at': '2026-10-01T00:00:00Z'},
+          ],
+          'invoices': [
+            {
+              'id': 'inv-1',
+              'client_id': 'c1',
+              'invoice_number': 'INV-0001',
+              'subtotal_cents': 1000,
+              'tax_cents': 0,
+              'total_cents': '1000',
+              'status': 'PENDING',
+              'created_at': '2026-10-01T00:00:00Z',
+            },
+          ],
+        }),
+        throwsA(isA<FormatException>()),
+      );
+
+      // Wrong type inside string column (int instead of String) throws FormatException
+      expect(
+        () => BackupService.validateBackupMap({
+          'business_profile': [
+            {'id': 'default', 'business_name': 'Studio One'},
+          ],
+          'clients': [
+            {'id': 'c1', 'name': 'Acme', 'email': 12345, 'created_at': '2026-10-01T00:00:00Z'},
+          ],
+          'invoices': [],
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('CsvExportService neutralizes formula-injection prefixes and uses ISO currencyCode', () {
+      expect(CsvExportService.sanitizeCsvCell('=1+1'), equals("'=1+1"));
+      expect(CsvExportService.sanitizeCsvCell('+CMD|calc'), equals("'+CMD|calc"));
+      expect(CsvExportService.sanitizeCsvCell('-2+3'), equals("'-2+3"));
+      expect(CsvExportService.sanitizeCsvCell('@SUM(A1:A2)'), equals("'@SUM(A1:A2)"));
+      expect(CsvExportService.sanitizeCsvCell('\t=1+1'), equals("'\t=1+1"));
+      expect(CsvExportService.sanitizeCsvCell('\r+1'), equals("'\r+1"));
+      expect(CsvExportService.sanitizeCsvCell('  =1+1'), equals("'  =1+1"));
+      expect(CsvExportService.sanitizeCsvCell('Safe Client LLC'), equals('Safe Client LLC'));
+
+      final invCsv = CsvExportService.generateInvoicesCsv(
+        invoices: const [
+          InvoiceRecord(
+            id: 'inv-sec',
+            clientId: 'c1',
+            clientName: '=1+1',
+            invoiceNumber: 'INV-0009',
+            subtotalCents: 10000,
+            taxCents: 0,
+            totalCents: 10000,
+            paidCents: 0,
+            balanceDueCents: 10000,
+            status: 'PENDING',
+            issueDate: '2026-10-01',
+            dueDate: '2026-10-15',
+            paymentTerms: 'Net 15 Days',
+            createdAt: '2026-10-01T00:00:00Z',
+          ),
+        ],
+        clients: const [
+          Client(id: 'c1', name: '=1+1', taxId: '+TAX99', createdAt: '2026-10-01T00:00:00Z'),
+        ],
+        currencyCode: 'USD',
+      );
+      expect(invCsv.contains('"USD"'), isTrue);
+      expect(invCsv.contains('"\'=1+1"'), isTrue);
+      expect(invCsv.contains('"\'+TAX99"'), isTrue);
+
+      final expCsv = CsvExportService.generateExpensesCsv(
+        expenses: const [
+          ExpenseRecord(
+            id: 'exp-sec',
+            category: '@SaaS',
+            vendor: '-BadVendor',
+            amountCents: 2500,
+            taxCents: 250,
+            expenseDate: '2026-10-05',
+            notes: '\t=CMD|calc',
+            createdAt: '2026-10-05T00:00:00Z',
+          ),
+        ],
+        currencyCode: 'USD',
+      );
+      expect(expCsv.contains('"USD"'), isTrue);
+      expect(expCsv.contains('"\'@SaaS"'), isTrue);
+      expect(expCsv.contains('"\'-BadVendor"'), isTrue);
+      expect(expCsv.contains('"\'\t=CMD|calc"'), isTrue);
+      expect(expCsv.contains(',25.00,2.50,27.50,'), isTrue);
+    });
+  });
+
+  group('Group 14: Task 8 Dark Mode Contrast, Accent Presets & Theme Persistence', () {
+    test('AppSemanticColors preserves WCAG AA text contrast across light and dark modes', () {
+      double contrastRatio(Color a, Color b) {
+        final l1 = a.computeLuminance();
+        final l2 = b.computeLuminance();
+        final bright = l1 > l2 ? l1 : l2;
+        final dark = l1 > l2 ? l2 : l1;
+        return (bright + 0.05) / (dark + 0.05);
+      }
+
+      for (final status in SemanticStatus.values) {
+        final lightTone = AppSemanticColors.resolve(Brightness.light, status);
+        final darkTone = AppSemanticColors.resolve(Brightness.dark, status);
+
+        expect(
+          lightTone.text.computeLuminance() < lightTone.background.computeLuminance(),
+          isTrue,
+          reason: 'Light $status text must be darker than background',
+        );
+        expect(
+          darkTone.text.computeLuminance() > darkTone.background.computeLuminance(),
+          isTrue,
+          reason: 'Dark $status text must be lighter than background',
+        );
+        expect(
+          contrastRatio(lightTone.text, lightTone.background) >= 4.5,
+          isTrue,
+          reason: 'Light $status fails WCAG AA contrast',
+        );
+        expect(
+          contrastRatio(darkTone.text, darkTone.background) >= 4.5,
+          isTrue,
+          reason: 'Dark $status fails WCAG AA contrast',
+        );
+      }
+    });
+
+    test('AppTheme storage helpers and preset accent color resolution match design palette', () {
+      expect(AppTheme.parseThemeModeStorage('light'), equals(ThemeMode.light));
+      expect(AppTheme.parseThemeModeStorage('DARK'), equals(ThemeMode.dark));
+      expect(AppTheme.parseThemeModeStorage('system'), equals(ThemeMode.system));
+      expect(AppTheme.parseThemeModeStorage('unknown'), equals(ThemeMode.system));
+      expect(AppTheme.parseThemeModeStorage(null), equals(ThemeMode.system));
+
+      expect(AppTheme.themeModeToStorage(ThemeMode.light), equals('light'));
+      expect(AppTheme.themeModeToStorage(ThemeMode.dark), equals('dark'));
+      expect(AppTheme.themeModeToStorage(ThemeMode.system), equals('system'));
+
+      expect(AppPalette.slateSteel.toARGB32(), equals(0xFF475569));
+      for (final preset in AppTheme.presetAccents) {
+        expect(AppTheme.resolveAccentColor(preset.toARGB32()), equals(preset));
+      }
+      expect(AppTheme.resolveAccentColor(null), equals(AppTheme.seedColor));
+      expect(AppTheme.resolveAccentColor(0), equals(AppTheme.seedColor));
+      expect(AppTheme.resolveAccentColor(0xFF123456), equals(AppTheme.seedColor));
+
+      final lightTheme = AppTheme.lightTheme(seed: AppPalette.emerald);
+      final darkTheme = AppTheme.darkTheme(seed: AppPalette.emerald);
+      expect(lightTheme.colorScheme.primary, equals(AppPalette.emerald));
+      expect(darkTheme.colorScheme.primary, equals(AppPalette.emerald));
+      expect(darkTheme.scaffoldBackgroundColor, equals(AppPalette.darkScaffold));
+    });
+
+    test('ThemeModeNotifier and AccentColorNotifier cycle and resolve valid states safely', () {
+      final themeNotifier = ThemeModeNotifier();
+      expect(themeNotifier.state, equals(ThemeMode.system));
+      themeNotifier.cycleThemeMode();
+      expect(themeNotifier.state, equals(ThemeMode.light));
+      themeNotifier.cycleThemeMode();
+      expect(themeNotifier.state, equals(ThemeMode.dark));
+      themeNotifier.cycleThemeMode();
+      expect(themeNotifier.state, equals(ThemeMode.system));
+
+      final accentNotifier = AccentColorNotifier();
+      expect(accentNotifier.state, equals(AppTheme.seedColor));
+      accentNotifier.setAccentColor(AppPalette.roseRed);
+      expect(accentNotifier.state, equals(AppPalette.roseRed));
+      accentNotifier.setAccentColor(const Color(0xFF999999));
+      expect(accentNotifier.state, equals(AppTheme.seedColor));
+    });
+
+    test('BackupService allows and validates theme_mode and accent_color on business_profile', () {
+      final cols = BackupService.allowedTableColumns['business_profile']!;
+      expect(cols.contains('theme_mode'), isTrue);
+      expect(cols.contains('accent_color'), isTrue);
+
+      expect(
+        () => BackupService.validateBackupMap({
+          'business_profile': [
+            {
+              'id': 'default',
+              'business_name': 'Studio',
+              'theme_mode': 'dark',
+              'accent_color': AppPalette.emerald.toARGB32(),
+            },
+          ],
+          'clients': const [],
+          'invoices': const [],
+        }),
+        returnsNormally,
+      );
+
+      expect(
+        () => BackupService.validateBackupMap({
+          'business_profile': [
+            {
+              'id': 'default',
+              'business_name': 'Studio',
+              'theme_mode': 123,
+            },
+          ],
+          'clients': const [],
+          'invoices': const [],
+        }),
+        throwsA(isA<FormatException>()),
+      );
+
+      expect(
+        () => BackupService.validateBackupMap({
+          'business_profile': [
+            {
+              'id': 'default',
+              'business_name': 'Studio',
+              'accent_color': 'emerald',
+            },
+          ],
+          'clients': const [],
+          'invoices': const [],
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+  });
+
+  group('Group 15: Task 9 PDF Multi-Page Repeating Headers & Image Downsampling', () {
+    test('InvoicePdfService.downsampleImageBytes leaves small payloads unchanged and falls back safely on invalid bytes', () async {
+      final smallPayload = Uint8List.fromList(List<int>.filled(64, 1));
+      final keptSmall = await InvoicePdfService.downsampleImageBytes(
+        smallPayload,
+        downsampleThresholdBytes: 1024,
+      );
+      expect(keptSmall, equals(smallPayload));
+
+      final invalidLarge = Uint8List.fromList(List<int>.filled(128 * 1024, 7));
+      final fallbackResult = await InvoicePdfService.downsampleImageBytes(
+        invalidLarge,
+        downsampleThresholdBytes: 1024,
+      );
+      expect(fallbackResult.length, equals(invalidLarge.length));
+    });
+
+    test('InvoicePdfService generates MultiPage Estimate, Statement, and VOID Invoice PDFs cleanly', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+
+      const profile = BusinessProfile(
+        id: 'default',
+        businessName: 'Northstar Studio',
+        email: 'billing@northstar.example',
+        currencySymbol: '\$',
+        currencyCode: 'USD',
+        currencyDecimals: 2,
+      );
+      const client = Client(
+        id: 'c-1',
+        name: 'Horizon Labs',
+        email: 'ap@horizon.example',
+        createdAt: '2026-10-01T00:00:00Z',
+      );
+
+      // Multi-page Estimate PDF (40 items triggers page break & repeat header row)
+      const estimate = EstimateRecord(
+        id: 'est-multi',
+        clientId: 'c-1',
+        clientName: 'Horizon Labs',
+        estimateNumber: 'EST-0040',
+        subtotalCents: 400000,
+        taxCents: 40000,
+        totalCents: 440000,
+        status: 'PENDING',
+        issueDate: '2026-10-01',
+        expiryDate: '2026-10-31',
+        currencyCode: 'USD',
+        currencySymbol: '\$',
+        currencyDecimals: 2,
+        createdAt: '2026-10-01T00:00:00Z',
+      );
+      final estItems = List.generate(
+        40,
+        (i) => EstimateItem(
+          id: 'ei-$i',
+          estimateId: 'est-multi',
+          description: 'Milestone Deliverable #${i + 1}',
+          quantity: 1,
+          unitPriceCents: 10000,
+          taxRatePercentage: 10,
+          taxCents: 1000,
+          totalCents: 10000,
+          createdAt: '2026-10-01T00:00:00Z',
+        ),
+      );
+      final estPdf = await InvoicePdfService.generateEstimatePdf(
+        estimate: estimate,
+        items: estItems,
+        client: client,
+        businessProfile: profile,
+      );
+      expect(estPdf.length, greaterThan(1000));
+      expect(estPdf.sublist(0, 5), equals([0x25, 0x50, 0x44, 0x46, 0x2D]));
+
+      // Multi-page Statement PDF (45 invoices triggers multi-page table repeat header row)
+      final statementInvoices = List.generate(
+        45,
+        (i) => InvoiceRecord(
+          id: 'stmt-inv-$i',
+          clientId: 'c-1',
+          clientName: 'Horizon Labs',
+          invoiceNumber: 'INV-${(i + 1).toString().padLeft(4, '0')}',
+          subtotalCents: 10000,
+          taxCents: 1000,
+          totalCents: 11000,
+          paidCents: i.isEven ? 11000 : 0,
+          balanceDueCents: i.isEven ? 0 : 11000,
+          status: i.isEven ? 'PAID' : 'PENDING',
+          issueDate: '2026-10-${((i % 28) + 1).toString().padLeft(2, '0')}',
+          dueDate: '2026-11-${((i % 28) + 1).toString().padLeft(2, '0')}',
+          paymentTerms: 'Net 30 Days',
+          currencyCode: i % 5 == 0 ? 'JPY' : 'USD',
+          currencySymbol: i % 5 == 0 ? '¥' : '\$',
+          currencyDecimals: i % 5 == 0 ? 0 : 2,
+          createdAt: '2026-10-01T00:00:00Z',
+        ),
+      );
+      final stmtPdf = await InvoicePdfService.generateStatementPdf(
+        client: client,
+        invoices: statementInvoices,
+        businessProfile: profile,
+      );
+      expect(stmtPdf.length, greaterThan(1000));
+      expect(stmtPdf.sublist(0, 5), equals([0x25, 0x50, 0x44, 0x46, 0x2D]));
+
+      // VOID Invoice PDF
+      const voidInvoice = InvoiceRecord(
+        id: 'inv-void-pdf',
+        clientId: 'c-1',
+        clientName: 'Horizon Labs',
+        invoiceNumber: 'INV-0999',
+        subtotalCents: 50000,
+        taxCents: 0,
+        totalCents: 50000,
+        paidCents: 0,
+        balanceDueCents: 0,
+        status: 'VOID',
+        issueDate: '2026-10-01',
+        dueDate: '2026-10-15',
+        paymentTerms: 'Net 15 Days',
+        createdAt: '2026-10-01T00:00:00Z',
+      );
+      final voidPdf = await InvoicePdfService.generateInvoicePdf(
+        invoice: voidInvoice,
+        items: const [],
+        client: client,
+        businessProfile: profile,
+      );
+      expect(voidPdf.length, greaterThan(1000));
+      expect(voidPdf.sublist(0, 5), equals([0x25, 0x50, 0x44, 0x46, 0x2D]));
     });
   });
 }

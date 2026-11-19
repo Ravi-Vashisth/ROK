@@ -110,6 +110,114 @@ class FrostedGlassDialog extends StatelessWidget {
   }
 }
 
+enum SemanticStatus { danger, success, warning, purple, info, neutral }
+
+class SemanticTone {
+  final Color background;
+  final Color border;
+  final Color text;
+  final Color icon;
+
+  const SemanticTone({
+    required this.background,
+    required this.border,
+    required this.text,
+    required this.icon,
+  });
+}
+
+class AppSemanticColors {
+  static SemanticTone resolve(Brightness brightness, SemanticStatus status) {
+    final isDark = brightness == Brightness.dark;
+    switch (status) {
+      case SemanticStatus.danger:
+        return isDark
+            ? const SemanticTone(
+                background: Color(0xFF2A1215),
+                border: Color(0xFF7F1D1D),
+                text: Color(0xFFFCA5A5),
+                icon: Color(0xFFF87171),
+              )
+            : const SemanticTone(
+                background: Color(0xFFFEF2F2),
+                border: Color(0xFFFECACA),
+                text: Color(0xFF7F1D1D),
+                icon: Color(0xFFB91C1C),
+              );
+      case SemanticStatus.success:
+        return isDark
+            ? const SemanticTone(
+                background: Color(0xFF0B291E),
+                border: Color(0xFF14532D),
+                text: Color(0xFF86EFAC),
+                icon: Color(0xFF4ADE80),
+              )
+            : const SemanticTone(
+                background: Color(0xFFF0FDF4),
+                border: Color(0xFFBBF7D0),
+                text: Color(0xFF14532D),
+                icon: Color(0xFF15803D),
+              );
+      case SemanticStatus.warning:
+        return isDark
+            ? const SemanticTone(
+                background: Color(0xFF2A1D0D),
+                border: Color(0xFF78350F),
+                text: Color(0xFFFCD34D),
+                icon: Color(0xFFFBBF24),
+              )
+            : const SemanticTone(
+                background: Color(0xFFFFFBEB),
+                border: Color(0xFFFDE68A),
+                text: Color(0xFF78350F),
+                icon: Color(0xFFB45309),
+              );
+      case SemanticStatus.purple:
+        return isDark
+            ? const SemanticTone(
+                background: Color(0xFF231433),
+                border: Color(0xFF581C87),
+                text: Color(0xFFD8B4FE),
+                icon: Color(0xFFC084FC),
+              )
+            : const SemanticTone(
+                background: Color(0xFFFAF5FF),
+                border: Color(0xFFE9D5FF),
+                text: Color(0xFF581C87),
+                icon: Color(0xFF7E22CE),
+              );
+      case SemanticStatus.info:
+        return isDark
+            ? const SemanticTone(
+                background: Color(0xFF10213D),
+                border: Color(0xFF1E3A8A),
+                text: Color(0xFF93C5FD),
+                icon: Color(0xFF60A5FA),
+              )
+            : const SemanticTone(
+                background: Color(0xFFEFF6FF),
+                border: Color(0xFFBFDBFE),
+                text: Color(0xFF1E3A8A),
+                icon: Color(0xFF1D4ED8),
+              );
+      case SemanticStatus.neutral:
+        return isDark
+            ? const SemanticTone(
+                background: Color(0xFF1E293B),
+                border: Color(0xFF334155),
+                text: Color(0xFFE2E8F0),
+                icon: Color(0xFF94A3B8),
+              )
+            : const SemanticTone(
+                background: Color(0xFFF1F5F9),
+                border: Color(0xFFCBD5E1),
+                text: Color(0xFF334155),
+                icon: Color(0xFF475569),
+              );
+    }
+  }
+}
+
 class AppTheme {
   static const Color seedColor = AppPalette.indigo;
 
@@ -121,6 +229,39 @@ class AppTheme {
     AppPalette.amberGold,
     AppPalette.slateSteel,
   ];
+
+  static ThemeMode parseThemeModeStorage(String? raw) {
+    switch ((raw ?? '').trim().toLowerCase()) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      case 'system':
+      default:
+        return ThemeMode.system;
+    }
+  }
+
+  static String themeModeToStorage(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return 'light';
+      case ThemeMode.dark:
+        return 'dark';
+      case ThemeMode.system:
+        return 'system';
+    }
+  }
+
+  static Color resolveAccentColor(int? argb) {
+    if (argb == null || argb == 0) return seedColor;
+    for (final preset in presetAccents) {
+      if (preset.toARGB32() == argb) {
+        return preset;
+      }
+    }
+    return seedColor;
+  }
 
   // Squircle Radius Definitions: 10px Buttons/Inputs, 12px Cards, 16px Dialogs
   static const double buttonBorderRadius = 10.0;

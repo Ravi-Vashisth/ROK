@@ -525,6 +525,40 @@ export function formatCents(cents: number, symbol = '$', decimals = 2): string {
 }
 
 /**
+ * Neutralizes spreadsheet formula-injection prefixes (=, +, -, @, \t, \r)
+ * so Excel, Google Sheets, and LibreOffice treat exported cells as plain text.
+ */
+export function sanitizeCsvCell(value: string): string {
+  if (!value) return value;
+  const first = value[0];
+  const trimmedLeft = value.trimStart();
+  if (
+    first === '=' ||
+    first === '+' ||
+    first === '-' ||
+    first === '@' ||
+    first === '\t' ||
+    first === '\r' ||
+    (trimmedLeft.length > 0 &&
+      (trimmedLeft[0] === '=' ||
+        trimmedLeft[0] === '+' ||
+        trimmedLeft[0] === '-' ||
+        trimmedLeft[0] === '@'))
+  ) {
+    return `'${value}`;
+  }
+  return value;
+}
+
+/**
+ * Quotes and escapes a CSV text field after neutralizing formula-injection prefixes.
+ */
+export function quoteCsvField(value: string): string {
+  const safe = sanitizeCsvCell(String(value ?? ''));
+  return `"${safe.replace(/"/g, '""')}"`;
+}
+
+/**
  * Generates Accountant CSV Export string from invoices list.
  */
 export function generateInvoicesCsvString(
@@ -558,17 +592,17 @@ export function generateInvoicesCsvString(
     const dec = inv.currencyDecimals ?? getCurrencyDecimals(inv.currencyCode || symbol);
     const invSym = inv.currencySymbol || symbol;
     rows.push([
-      inv.invoiceNumber,
-      inv.issueDate,
-      inv.dueDate,
-      inv.clientName,
-      clientTaxId,
+      sanitizeCsvCell(inv.invoiceNumber),
+      sanitizeCsvCell(inv.issueDate),
+      sanitizeCsvCell(inv.dueDate),
+      sanitizeCsvCell(inv.clientName),
+      sanitizeCsvCell(clientTaxId),
       formatCents(inv.subtotalCents, invSym, dec),
       formatCents(inv.taxCents, invSym, dec),
       formatCents(inv.totalCents, invSym, dec),
       formatCents(inv.paidCents || 0, invSym, dec),
       formatCents(inv.balanceDueCents ?? inv.totalCents, invSym, dec),
-      inv.status,
+      sanitizeCsvCell(inv.status),
     ]);
   }
 
@@ -585,6 +619,95 @@ export function generateInvoicesCsvString(
         .join(',')
     )
     .join('\n');
+}
+
+/**
+ * Generates single-table Accountant Invoices CSV (1:1 mirror of Flutter CsvExportService.generateInvoicesCsv).
+ */
+export function exportInvoicesToCsv(
+  invoices: any[],
+  clients: any[],
+  defaultCurrencyCode = 'USD'
+): string {
+  const fallbackCode = defaultCurrencyCode.trim() || 'USD';
+  const lines = [
+    'Invoice Number,Issue Date,Due Date,Currency Code,Client Name,Client Tax ID,Subtotal,Tax,Total,Amount Paid,Balance Due,Status',
+  ];
+
+  for (const inv of invoices) {
+    const rawStatus = String(inv.computed_status || inv.status || '').toUpperCase();
+    if (rawStatus === 'DRAFT') continue;
+
+    const isVoid = rawStatus === 'VOID';
+    const paidUnits = inv.paid_cents ?? inv.paidCents ?? 0;
+    const totalUnits = inv.total_cents ?? inv.totalCents ?? 0;
+    const subtotalUnits = inv.subtotal_cents ?? inv.subtotalCents ?? 0;
+    const taxUnits = inv.tax_cents ?? inv.taxCents ?? 0;
+    const dueUnits = isVoid ? 0 : Math.max(0, totalUnits - paidUnits);
+    const clientId = inv.client_id ?? inv.clientId ?? '';
+    const client = clients.find((c) => c.id === clientId);
+    const taxId = client?.tax_id ?? client?.taxId ?? '';
+    const rawCode = String(inv.currency_code ?? inv.currencyCode ?? '').trim();
+    const isoCode = rawCode || fallbackCode;
+    const rawDec = inv.currency_decimals ?? inv.currencyDecimals;
+    const dec = rawCode && rawDec !== undefined && rawDec !== null ? clampDecimals(rawDec) : getCurrencyDecimals(isoCode);
+    const invNum = inv.invoice_number ?? inv.invoiceNumber ?? '';
+    const issueDate = inv.issue_date ?? inv.issueDate ?? '';
+    const dueDate = inv.due_date ?? inv.dueDate ?? '';
+    const clientName = inv.client_name ?? inv.clientName ?? '';
+
+    lines.push(
+      [
+        quoteCsvField(invNum),
+        quoteCsvField(issueDate),
+        quoteCsvField(dueDate),
+        quoteCsvField(isoCode),
+        quoteCsvField(clientName),
+        quoteCsvField(taxId),
+        formatDecimalUnits(subtotalUnits, dec),
+        formatDecimalUnits(taxUnits, dec),
+        formatDecimalUnits(totalUnits, dec),
+        formatDecimalUnits(paidUnits, dec),
+        formatDecimalUnits(dueUnits, dec),
+        quoteCsvField(isVoid ? 'VOID' : rawStatus),
+      ].join(',')
+    );
+  }
+
+  return '\uFEFF' + lines.join('\n');
+}
+
+/**
+ * Generates single-table Accountant Expenses CSV (1:1 mirror of Flutter CsvExportService.generateExpensesCsv).
+ */
+export function exportExpensesToCsv(
+  expenses: any[],
+  currencyCode = 'USD'
+): string {
+  const effectiveCode = currencyCode.trim() || 'USD';
+  const dec = getCurrencyDecimals(effectiveCode);
+  const lines = ['Expense ID,Date,Category,Vendor,Currency Code,Amount,Tax,Total,Notes'];
+
+  for (const exp of expenses) {
+    const amountUnits = exp.amount_cents ?? exp.amountCents ?? 0;
+    const taxUnits = exp.tax_cents ?? exp.taxCents ?? 0;
+    const totalUnits = exp.total_cents ?? exp.totalCents ?? (amountUnits + taxUnits);
+    lines.push(
+      [
+        quoteCsvField(exp.id || ''),
+        quoteCsvField(exp.expense_date ?? exp.expenseDate ?? ''),
+        quoteCsvField(exp.category || ''),
+        quoteCsvField(exp.vendor || ''),
+        quoteCsvField(effectiveCode),
+        formatDecimalUnits(amountUnits, dec),
+        formatDecimalUnits(taxUnits, dec),
+        formatDecimalUnits(totalUnits, dec),
+        quoteCsvField(exp.notes || ''),
+      ].join(',')
+    );
+  }
+
+  return '\uFEFF' + lines.join('\n');
 }
 
 /**
@@ -1112,8 +1235,126 @@ export function generateDynamicQrPayload(
   return trimmed;
 }
 
+interface BackupTableRule {
+  requiredNonEmptyStrings: string[];
+  requiredInts: string[];
+  optionalInts: string[];
+  optionalStrings: string[];
+}
+
+const BACKUP_TABLE_RULES: Record<string, BackupTableRule> = {
+  clients: {
+    requiredNonEmptyStrings: ['id', 'name'],
+    requiredInts: [],
+    optionalInts: [],
+    optionalStrings: [
+      'email',
+      'phone',
+      'address',
+      'tax_id',
+      'taxId',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+    ],
+  },
+  invoices: {
+    requiredNonEmptyStrings: ['id', 'client_id', 'invoice_number', 'status'],
+    requiredInts: ['subtotal_cents', 'tax_cents', 'total_cents'],
+    optionalInts: [
+      'paid_cents',
+      'balance_due_cents',
+      'discount_value',
+      'discount_cents',
+      'currency_decimals',
+      'pst_rate_percentage',
+    ],
+    optionalStrings: [
+      'client_name',
+      'issue_date',
+      'due_date',
+      'payment_terms',
+      'terms',
+      'notes',
+      'discount_type',
+      'po_number',
+      'currency_code',
+      'currency_symbol',
+      'tax_mode',
+      'tax_exemption_id',
+      'computed_status',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+    ],
+  },
+  estimates: {
+    requiredNonEmptyStrings: ['id', 'client_id', 'estimate_number', 'status'],
+    requiredInts: ['subtotal_cents', 'tax_cents', 'total_cents'],
+    optionalInts: [
+      'discount_value',
+      'discount_cents',
+      'currency_decimals',
+      'pst_rate_percentage',
+    ],
+    optionalStrings: [
+      'client_name',
+      'issue_date',
+      'expiry_date',
+      'payment_terms',
+      'converted_invoice_id',
+      'terms',
+      'notes',
+      'discount_type',
+      'po_number',
+      'currency_code',
+      'currency_symbol',
+      'tax_mode',
+      'tax_exemption_id',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+    ],
+  },
+  expenses: {
+    requiredNonEmptyStrings: ['id', 'category', 'vendor', 'expense_date'],
+    requiredInts: ['amount_cents'],
+    optionalInts: ['tax_cents', 'total_cents'],
+    optionalStrings: [
+      'notes',
+      'receipt_base64',
+      'receipt_name',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+    ],
+  },
+  savedItems: {
+    requiredNonEmptyStrings: ['id', 'title'],
+    requiredInts: [],
+    optionalInts: ['default_price_cents', 'defaultPriceCents'],
+    optionalStrings: [
+      'sac_hsn',
+      'sacHsn',
+      'description',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+    ],
+  },
+};
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isStrictInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && Number.isFinite(value);
+}
+
 /**
- * Validates parsed backup JSON snapshot before mutating application state.
+ * Validates parsed backup JSON snapshot, column NOT NULL requirements, and value types
+ * before mutating application state.
  */
 export function validateBackupPayload(data: unknown): {
   valid: boolean;
@@ -1144,29 +1385,120 @@ export function validateBackupPayload(data: unknown): {
         error: `Invalid backup file: "${key}" must be an array.`,
       };
     }
-    for (const item of val) {
+    const rule = BACKUP_TABLE_RULES[key];
+    for (let i = 0; i < val.length; i++) {
+      const item = val[i];
       if (!item || typeof item !== 'object' || Array.isArray(item)) {
         return {
           valid: false,
           error: `Invalid backup file: Entries in "${key}" must be JSON objects.`,
         };
       }
+      const row = item as Record<string, unknown>;
+
+      for (const col of rule.requiredNonEmptyStrings) {
+        if (!isNonEmptyString(row[col])) {
+          return {
+            valid: false,
+            error: `Invalid backup file: "${key}" row ${i + 1} missing required non-empty string "${col}".`,
+          };
+        }
+      }
+
+      for (const col of rule.requiredInts) {
+        if (!isStrictInteger(row[col])) {
+          return {
+            valid: false,
+            error: `Invalid backup file: "${key}" row ${i + 1} requires integer value for "${col}".`,
+          };
+        }
+      }
+
+      if (key === 'savedItems') {
+        const hasSnake = row.default_price_cents !== undefined;
+        const hasCamel = row.defaultPriceCents !== undefined;
+        if (!hasSnake && !hasCamel) {
+          return {
+            valid: false,
+            error: `Invalid backup file: "savedItems" row ${i + 1} requires integer "default_price_cents".`,
+          };
+        }
+      }
+
+      for (const col of rule.optionalInts) {
+        if (row[col] !== undefined && row[col] !== null && !isStrictInteger(row[col])) {
+          return {
+            valid: false,
+            error: `Invalid backup file: "${key}" row ${i + 1} expected integer for "${col}".`,
+          };
+        }
+      }
+
+      for (const col of rule.optionalStrings) {
+        if (row[col] !== undefined && row[col] !== null && typeof row[col] !== 'string') {
+          return {
+            valid: false,
+            error: `Invalid backup file: "${key}" row ${i + 1} expected string for "${col}".`,
+          };
+        }
+      }
     }
   }
 
-  if (
-    record.businessProfile !== undefined &&
-    (!record.businessProfile ||
+  if (record.businessProfile !== undefined) {
+    if (
+      !record.businessProfile ||
       typeof record.businessProfile !== 'object' ||
-      Array.isArray(record.businessProfile))
-  ) {
-    return {
-      valid: false,
-      error: 'Invalid backup file: "businessProfile" must be a JSON object.',
-    };
+      Array.isArray(record.businessProfile)
+    ) {
+      return {
+        valid: false,
+        error: 'Invalid backup file: "businessProfile" must be a JSON object.',
+      };
+    }
+    const prof = record.businessProfile as Record<string, unknown>;
+    if (!isNonEmptyString(prof.business_name)) {
+      return {
+        valid: false,
+        error: 'Invalid backup file: "businessProfile" missing required non-empty "business_name".',
+      };
+    }
+    for (const intCol of [
+      'currency_decimals',
+      'next_invoice_number',
+      'default_pst_rate_percentage',
+      'accent_color',
+    ]) {
+      if (prof[intCol] !== undefined && prof[intCol] !== null && !isStrictInteger(prof[intCol])) {
+        return {
+          valid: false,
+          error: `Invalid backup file: "businessProfile.${intCol}" must be an integer.`,
+        };
+      }
+    }
+    if (prof.theme_mode !== undefined && prof.theme_mode !== null && typeof prof.theme_mode !== 'string') {
+      return {
+        valid: false,
+        error: 'Invalid backup file: "businessProfile.theme_mode" must be a string.',
+      };
+    }
   }
 
   return { valid: true };
+}
+
+/**
+ * Detects browser localStorage QuotaExceededError variants reliably across Chrome, Firefox, Safari, and Edge.
+ */
+export function isQuotaExceededError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const anyErr = err as { name?: string; code?: number };
+  return (
+    anyErr.name === 'QuotaExceededError' ||
+    anyErr.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+    anyErr.code === 22 ||
+    anyErr.code === 1014
+  );
 }
 
 export interface WhatsAppPhoneValidation {
@@ -1759,5 +2091,97 @@ export function generateUniqueId(): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
 
+export const ACCENT_PRESET_KEYS = [
+  'indigo',
+  'emerald',
+  'royalBlue',
+  'roseRed',
+  'amberGold',
+  'slateSteel',
+] as const;
 
+export type AccentPresetKey = (typeof ACCENT_PRESET_KEYS)[number];
 
+/**
+ * Normalizes a persisted accent preset key, falling back to 'indigo'.
+ */
+export function normalizeAccentColorKey(raw: unknown): AccentPresetKey {
+  if (typeof raw !== 'string') return 'indigo';
+  const trimmed = raw.trim();
+  if ((ACCENT_PRESET_KEYS as readonly string[]).includes(trimmed)) {
+    return trimmed as AccentPresetKey;
+  }
+  return 'indigo';
+}
+
+/**
+ * Normalizes a persisted theme mode ('light' | 'dark' | 'system'), falling back to 'system'.
+ */
+export function normalizeThemeMode(raw: unknown): 'light' | 'dark' | 'system' {
+  if (typeof raw !== 'string') return 'system';
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === 'light' || normalized === 'dark') {
+    return normalized;
+  }
+  return 'system';
+}
+
+/**
+ * Clones an existing invoice with today's local date, a fresh UUID, a sequential
+ * document number, PENDING status, zero paid_cents, and full balance due.
+ */
+export function duplicateInvoiceRecord<T extends Record<string, any>>(
+  source: T,
+  existingInvoices: Array<Record<string, any>>,
+  invoicePrefix = 'INV-',
+  minNext = 1,
+  referenceNow?: Date
+): T {
+  const now = referenceNow ?? new Date();
+  const todayIso = formatLocalCalendarDate(now);
+  const paymentTerms = source.payment_terms || 'Due on Receipt';
+  const dueIso = calculateDueDate(todayIso, paymentTerms);
+  const nextInvNumber = getNextSequentialDocNumber(
+    existingInvoices.map((inv) => String(inv.invoice_number || '')),
+    invoicePrefix,
+    Math.max(1, minNext)
+  );
+  const clonedItems = Array.isArray(source.items)
+    ? source.items.map((item: any) => ({
+        ...item,
+        id: generateUniqueId(),
+      }))
+    : source.items;
+
+  return {
+    ...source,
+    id: generateUniqueId(),
+    invoice_number: nextInvNumber,
+    status: 'PENDING',
+    computed_status: 'PENDING',
+    issue_date: todayIso,
+    due_date: dueIso,
+    payment_terms: paymentTerms,
+    paid_cents: 0,
+    balance_due_cents: source.total_cents ?? 0,
+    items: clonedItems,
+    created_at: now.toISOString(),
+  };
+}
+
+/**
+ * Transitions a finalized invoice into VOID status with zero balance due.
+ * Draft invoices remain unchanged (matching Flutter voidInvoice/menu rules).
+ */
+export function voidInvoiceRecord<T extends Record<string, any>>(source: T): T {
+  const currentStatus = String(source.computed_status || source.status || '').toUpperCase();
+  if (currentStatus === 'DRAFT') {
+    return source;
+  }
+  return {
+    ...source,
+    status: 'VOID',
+    computed_status: 'VOID',
+    balance_due_cents: 0,
+  };
+}

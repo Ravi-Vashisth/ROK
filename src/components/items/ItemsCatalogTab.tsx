@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package, Plus, Trash2, Edit2, ArrowLeft, Check } from 'lucide-react';
 import { formatDecimalUnits, getCurrencyDecimals, parsePriceToUnits } from '../../billingRules';
 
@@ -38,6 +38,17 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
   const [editDescription, setEditDescription] = useState<string>('');
 
   const curDec = getCurrencyDecimals(currencySymbol);
+
+  useEffect(() => {
+    if (!editingItem) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setEditingItem(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editingItem]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,7 +141,7 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
           />
           <button
             type="submit"
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer transition shadow-xs shrink-0"
+            className="px-4 py-2.5 accent-btn font-bold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer transition shadow-xs shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Save Service Preset</span>
@@ -178,7 +189,7 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
                     <td className="p-3 text-slate-400 font-mono">
                       {item.sac_hsn || item.sacHsn || '—'}
                     </td>
-                    <td className="p-3 text-right font-mono tabular-nums font-bold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
+                    <td className="p-3 text-right font-mono tabular-nums font-bold accent-text whitespace-nowrap">
                       {formatMoney(item.default_price_cents ?? item.defaultPriceCents ?? 0)}
                     </td>
                     <td className="p-3 text-center">
@@ -209,8 +220,19 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
 
       {/* Edit Item Modal */}
       {editingItem && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setEditingItem(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}
+          >
             <h3 className="font-bold text-sm">Edit Catalog Item</h3>
             <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
               <div>
@@ -262,7 +284,7 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-1.5 accent-btn rounded-xl text-xs font-bold cursor-pointer flex items-center gap-1.5"
                 >
                   <Check className="w-3.5 h-3.5" />
                   <span>Save Item</span>

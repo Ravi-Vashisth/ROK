@@ -61,6 +61,7 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
     String defaultTaxMode = 'standard',
     int defaultPstRatePercentage = 0,
   }) {
+    final updatedAt = DateTime.now().toUtc().toIso8601String();
     _db.execute(
       '''
       UPDATE business_profile
@@ -79,7 +80,8 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
           signature_base64 = ?,
           signature_label = ?,
           default_tax_mode = ?,
-          default_pst_rate_percentage = ?
+          default_pst_rate_percentage = ?,
+          updated_at = ?
       WHERE id = 'default';
       ''',
       [
@@ -99,6 +101,7 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
         signatureLabel,
         defaultTaxMode,
         defaultPstRatePercentage,
+        updatedAt,
       ],
     );
 

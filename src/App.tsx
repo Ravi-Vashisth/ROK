@@ -13,15 +13,20 @@ import {
 import {
   TaxMode,
   calculateDueDate,
+  duplicateInvoiceRecord,
+  exportExpensesToCsv,
+  exportInvoicesToCsv,
   extractSequenceNumber,
-  formatDecimalUnits,
   formatLocalCalendarDate,
   formatMoney as formatMoneyUnits,
   generateUniqueId,
   getCurrencyDecimals,
   getNextSequentialDocNumber,
+  isQuotaExceededError,
+  normalizeAccentColorKey,
   parsePriceToCents,
   validateBackupPayload,
+  voidInvoiceRecord,
 } from './billingRules';
 
 import { DashboardTab } from './components/dashboard/DashboardTab';
@@ -33,6 +38,7 @@ import { BusinessProfileDialog } from './components/business_profile/BusinessPro
 import { RecordPaymentModal } from './components/payments/RecordPaymentModal';
 import { PaymentReminderModal } from './components/billing/PaymentReminderModal';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
+import { PrintPreviewModal, PrintTarget } from './components/common/PrintPreviewModal';
 import { ExpenseDrawerModal } from './components/expenses/ExpenseDrawerModal';
 
 export interface Client {
@@ -129,10 +135,6 @@ export interface StoredItem {
 }
 
 export const App: React.FC = () => {
-  // Theme state
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
-  const [accentColor, setAccentColor] = useState<string>('indigo');
-
   // Active Primary Tab: 0 = Dashboard, 1 = Sales & Clients, 2 = Expenses, 3 = Settings
   const [activeTab, setActiveTab] = useState<number>(0);
   const [salesSubTab, setSalesSubTab] = useState<number>(0); // 0=Invoices, 1=Quotes, 2=Clients
@@ -157,6 +159,7 @@ export const App: React.FC = () => {
   } | null>(null);
   const [paymentModalInvoice, setPaymentModalInvoice] = useState<InvoiceRecord | null>(null);
   const [reminderModalInvoice, setReminderModalInvoice] = useState<InvoiceRecord | null>(null);
+  const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
   const [toast, setToast] = useState<{ message: string; isError?: boolean } | null>(null);
 
   const showToast = (message: string, isError = false) => {
@@ -169,49 +172,80 @@ export const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  const readFromStorage = <T,>(key: string, fallback: T): T => {
+    try {
+      const saved = localStorage.getItem(key);
+      if (!saved) return fallback;
+      const parsed = JSON.parse(saved);
+      return (parsed ?? fallback) as T;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const storageWarningShownRef = useRef<boolean>(false);
+  const persistToStorage = (key: string, value: unknown) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      storageWarningShownRef.current = false;
+    } catch (err) {
+      if (!storageWarningShownRef.current) {
+        storageWarningShownRef.current = true;
+        showToast(
+          isQuotaExceededError(err)
+            ? 'Browser storage quota exceeded! Export a JSON backup and trim large receipt/logo images to avoid losing new edits.'
+            : 'Unable to persist changes to browser storage. Please export a JSON backup.',
+          true
+        );
+      }
+    }
+  };
+
+  // Persistent Theme & Accent State
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() =>
+    readFromStorage<boolean>('freelance_dark_mode', false)
+  );
+  const [accentColor, setAccentColor] = useState<string>(() =>
+    normalizeAccentColorKey(readFromStorage<string>('freelance_accent_color', 'indigo'))
+  );
+
   // Persistent State
-  const [clients, setClients] = useState<Client[]>(() => {
-    const saved = localStorage.getItem('freelance_clients');
-    return saved ? JSON.parse(saved) : [
+  const [clients, setClients] = useState<Client[]>(() =>
+    readFromStorage<Client[]>('freelance_clients', [
       { id: 'c1', name: 'Acme Technologies', email: 'billing@acme.com', phone: '+1 555-0192', address: '100 Tech Blvd, CA', tax_id: 'US-9876543', created_at: new Date().toISOString() },
       { id: 'c2', name: 'Global Logistics', email: 'accounts@global.com', phone: '+1 555-0381', address: '450 Shipping Way, NY', tax_id: 'US-1234567', created_at: new Date().toISOString() },
-    ];
-  });
+    ])
+  );
 
-  const [invoices, setInvoices] = useState<InvoiceRecord[]>(() => {
-    const saved = localStorage.getItem('freelance_invoices');
-    return saved ? JSON.parse(saved) : [
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>(() =>
+    readFromStorage<InvoiceRecord[]>('freelance_invoices', [
       { id: 'inv-1', client_id: 'c1', client_name: 'Acme Technologies', invoice_number: 'INV-0001', subtotal_cents: 150000, tax_cents: 15000, total_cents: 165000, paid_cents: 165000, balance_due_cents: 0, status: 'PAID', computed_status: 'PAID', issue_date: '2026-10-01', due_date: '2026-10-15', payment_terms: 'Net 15 Days', created_at: new Date().toISOString() },
       { id: 'inv-2', client_id: 'c2', client_name: 'Global Logistics', invoice_number: 'INV-0002', subtotal_cents: 240000, tax_cents: 24000, total_cents: 264000, paid_cents: 100000, balance_due_cents: 164000, status: 'PARTIALLY_PAID', computed_status: 'PARTIALLY_PAID', issue_date: '2026-10-10', due_date: '2026-10-25', payment_terms: 'Net 15 Days', created_at: new Date().toISOString() },
-    ];
-  });
+    ])
+  );
 
-  const [estimates, setEstimates] = useState<StoredEstimateRecord[]>(() => {
-    const saved = localStorage.getItem('freelance_estimates');
-    return saved ? JSON.parse(saved) : [
+  const [estimates, setEstimates] = useState<StoredEstimateRecord[]>(() =>
+    readFromStorage<StoredEstimateRecord[]>('freelance_estimates', [
       { id: 'est-1', client_id: 'c1', client_name: 'Acme Technologies', estimate_number: 'EST-0001', subtotal_cents: 300000, tax_cents: 30000, total_cents: 330000, status: 'PENDING', issue_date: '2026-10-20', expiry_date: '2026-11-20', created_at: new Date().toISOString() },
-    ];
-  });
+    ])
+  );
 
-  const [expenses, setExpenses] = useState<ExpenseRecord[]>(() => {
-    const saved = localStorage.getItem('freelance_expenses');
-    return saved ? JSON.parse(saved) : [
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>(() =>
+    readFromStorage<ExpenseRecord[]>('freelance_expenses', [
       { id: 'exp-1', vendor: 'Amazon Web Services', category: 'Software & SaaS', amount_cents: 12000, tax_cents: 1200, total_cents: 13200, expense_date: '2026-10-05', created_at: new Date().toISOString() },
       { id: 'exp-2', vendor: 'Apple Store', category: 'Hardware', amount_cents: 199900, tax_cents: 19990, total_cents: 219890, expense_date: '2026-10-12', created_at: new Date().toISOString() },
-    ];
-  });
+    ])
+  );
 
-  const [savedItems, setSavedItems] = useState<any[]>(() => {
-    const saved = localStorage.getItem('freelance_saved_items');
-    return saved ? JSON.parse(saved) : [
+  const [savedItems, setSavedItems] = useState<any[]>(() =>
+    readFromStorage<any[]>('freelance_saved_items', [
       { id: 'si-1', title: 'Full Stack Web Development (Hourly)', defaultPriceCents: 8500, sacHsn: '998314' },
       { id: 'si-2', title: 'UI/UX Mobile Design Package', defaultPriceCents: 150000, sacHsn: '998313' },
-    ];
-  });
+    ])
+  );
 
-  const [businessProfile, setBusinessProfile] = useState<any>(() => {
-    const saved = localStorage.getItem('freelance_business_profile');
-    return saved ? JSON.parse(saved) : {
+  const [businessProfile, setBusinessProfile] = useState<any>(() =>
+    readFromStorage<any>('freelance_business_profile', {
       business_name: 'My Freelance Studio',
       email: 'billing@studio.com',
       phone: '+1 (555) 019-2834',
@@ -224,8 +258,8 @@ export const App: React.FC = () => {
       payment_details: 'Bank: Silicon Valley Bank\nAccount: 987654321098\nRouting / SWIFT: SVB12345',
       default_terms: 'Payment due within agreed terms. Thank you for your business!',
       default_notes: 'All work includes 30 days post-delivery support.',
-    };
-  });
+    })
+  );
 
   // LocalStorage Sync Effects
   useEffect(() => {
@@ -234,14 +268,21 @@ export const App: React.FC = () => {
     } else {
       document.documentElement.classList.remove('dark');
     }
+    persistToStorage('freelance_dark_mode', isDarkMode);
   }, [isDarkMode]);
 
-  useEffect(() => { localStorage.setItem('freelance_clients', JSON.stringify(clients)); }, [clients]);
-  useEffect(() => { localStorage.setItem('freelance_invoices', JSON.stringify(invoices)); }, [invoices]);
-  useEffect(() => { localStorage.setItem('freelance_estimates', JSON.stringify(estimates)); }, [estimates]);
-  useEffect(() => { localStorage.setItem('freelance_expenses', JSON.stringify(expenses)); }, [expenses]);
-  useEffect(() => { localStorage.setItem('freelance_saved_items', JSON.stringify(savedItems)); }, [savedItems]);
-  useEffect(() => { localStorage.setItem('freelance_business_profile', JSON.stringify(businessProfile)); }, [businessProfile]);
+  useEffect(() => {
+    const normalized = normalizeAccentColorKey(accentColor);
+    document.documentElement.dataset.accent = normalized;
+    persistToStorage('freelance_accent_color', normalized);
+  }, [accentColor]);
+
+  useEffect(() => { persistToStorage('freelance_clients', clients); }, [clients]);
+  useEffect(() => { persistToStorage('freelance_invoices', invoices); }, [invoices]);
+  useEffect(() => { persistToStorage('freelance_estimates', estimates); }, [estimates]);
+  useEffect(() => { persistToStorage('freelance_expenses', expenses); }, [expenses]);
+  useEffect(() => { persistToStorage('freelance_saved_items', savedItems); }, [savedItems]);
+  useEffect(() => { persistToStorage('freelance_business_profile', businessProfile); }, [businessProfile]);
 
   const sym = businessProfile.currency_symbol || '$';
   const curDec =
@@ -529,6 +570,37 @@ export const App: React.FC = () => {
         next_invoice_number: Math.max((Number(prevProf.next_invoice_number) || 1) + 1, seq + 1),
       }));
     }
+  };
+
+  const handleDuplicateInvoice = (inv: InvoiceRecord) => {
+    const invPrefix = businessProfile.invoice_prefix || 'INV-';
+    const invMinNext = Math.max(1, Number(businessProfile.next_invoice_number) || 1);
+    const duplicated = duplicateInvoiceRecord(inv, invoices, invPrefix, invMinNext);
+    setInvoices((prev) => [duplicated, ...prev]);
+    const seq = extractSequenceNumber(duplicated.invoice_number, invPrefix);
+    setBusinessProfile((prevProf: any) => ({
+      ...prevProf,
+      next_invoice_number: Math.max((Number(prevProf.next_invoice_number) || 1) + 1, seq + 1),
+    }));
+    showToast(`Invoice duplicated as ${duplicated.invoice_number}!`);
+  };
+
+  const handleVoidInvoice = (inv: InvoiceRecord) => {
+    const status = String(inv.computed_status || inv.status || '').toUpperCase();
+    if (status === 'DRAFT' || status === 'VOID') return;
+    setConfirmState({
+      title: 'Void Invoice',
+      message: `Are you sure you want to void invoice ${inv.invoice_number}? This action cannot be undone.`,
+      confirmLabel: 'Void Invoice',
+      isDestructive: true,
+      onConfirm: () => {
+        setInvoices((prev) =>
+          prev.map((i) => (i.id === inv.id ? voidInvoiceRecord(i) : i))
+        );
+        setConfirmState(null);
+        showToast(`Invoice ${inv.invoice_number} marked as VOID.`);
+      },
+    });
   };
 
   const handleFinalizeEstimate = (est: StoredEstimateRecord) => {
@@ -831,13 +903,13 @@ export const App: React.FC = () => {
   };
 
   // Color palette options matching Flutter AppPalette presetAccents
-  const accentColors: Record<string, { name: string; hex: string; bg: string; text: string }> = {
-    indigo: { name: 'Indigo', hex: '#4F46E5', bg: 'bg-indigo-600', text: 'text-indigo-600' },
-    emerald: { name: 'Emerald', hex: '#10B981', bg: 'bg-emerald-600', text: 'text-emerald-600' },
-    royalBlue: { name: 'Royal Blue', hex: '#2563EB', bg: 'bg-blue-600', text: 'text-blue-600' },
-    roseRed: { name: 'Rose Red', hex: '#F43F5E', bg: 'bg-rose-600', text: 'text-rose-600' },
-    amberGold: { name: 'Amber Gold', hex: '#F59E0B', bg: 'bg-amber-600', text: 'text-amber-600' },
-    slateSteel: { name: 'Slate Steel', hex: '#64748B', bg: 'bg-slate-600', text: 'text-slate-600' },
+  const accentColors: Record<string, { name: string; hex: string; bg: string }> = {
+    indigo: { name: 'Indigo', hex: '#4F46E5', bg: 'bg-indigo-600' },
+    emerald: { name: 'Emerald', hex: '#10B981', bg: 'bg-emerald-600' },
+    royalBlue: { name: 'Royal Blue', hex: '#2563EB', bg: 'bg-blue-600' },
+    roseRed: { name: 'Rose Red', hex: '#F43F5E', bg: 'bg-rose-600' },
+    amberGold: { name: 'Amber Gold', hex: '#F59E0B', bg: 'bg-amber-600' },
+    slateSteel: { name: 'Slate Steel', hex: '#475569', bg: 'bg-slate-600' },
   };
 
   const [isPaletteOpen, setIsPaletteOpen] = useState<boolean>(false);
@@ -863,12 +935,24 @@ export const App: React.FC = () => {
     };
   }, [isPaletteOpen]);
 
+  useEffect(() => {
+    if (!isCsvModalOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsCsvModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCsvModalOpen]);
+
   return (
-    <div className={`min-h-screen font-sans flex antialiased ${isDarkMode ? 'bg-[#0B0F19] text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+    <>
+      <div className={`no-print min-h-screen font-sans flex antialiased ${isDarkMode ? 'bg-[#0B0F19] text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       {/* 1. MASTER SIDEBAR NAVIGATION (4 First-Class Desktop Tabs) */}
       <aside className={`hidden min-[900px]:flex flex-col w-[220px] border-r select-none sticky top-0 h-screen shrink-0 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
         <div className={`p-5 border-b flex flex-col items-center text-center gap-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-          <div className={`w-12 h-12 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-xs shrink-0 ${accentColors[accentColor]?.bg || 'bg-indigo-600'}`}>
+          <div className="w-12 h-12 rounded-full text-white flex items-center justify-center font-bold text-lg shadow-xs shrink-0 accent-bg">
             {businessProfile.business_name ? businessProfile.business_name[0].toUpperCase() : 'F'}
           </div>
           <div className="min-w-0 w-full px-1">
@@ -897,11 +981,11 @@ export const App: React.FC = () => {
                 }}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                   isActive
-                    ? isDarkMode ? 'bg-indigo-950/60 text-indigo-300 border border-indigo-800/40' : 'bg-indigo-50 text-indigo-700 shadow-xs'
+                    ? 'accent-nav-active shadow-xs'
                     : isDarkMode ? 'text-slate-400 hover:bg-slate-800/60 hover:text-white' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'accent-text' : 'text-slate-400'}`} />
                 <span>{item.label}</span>
               </button>
             );
@@ -914,9 +998,16 @@ export const App: React.FC = () => {
         <main className="flex-1 p-4 min-[900px]:p-6 overflow-y-auto max-w-7xl mx-auto w-full space-y-6">
           {/* Top Utility Bar */}
           <div className="flex flex-wrap items-center justify-end gap-2 mb-2">
+            <span
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold tabular-nums ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}
+              title="Active Ledger Currency"
+            >
+              {businessProfile.currency_code || 'USD'} ({sym})
+            </span>
+
             <button
               onClick={() => setIsCsvModalOpen(true)}
-              className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition shadow-xs"
+              className="px-3 py-2 accent-soft-btn border text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition shadow-xs"
               title="Export Accountant CSV"
             >
               <Download className="w-3.5 h-3.5" />
@@ -940,7 +1031,7 @@ export const App: React.FC = () => {
                 className={`p-2 rounded-xl border transition cursor-pointer flex items-center justify-center ${isDarkMode ? 'bg-[#0F172A] border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
                 title="Accent Color"
               >
-                <span className={`w-4 h-4 rounded-full ${accentColors[accentColor]?.bg || 'bg-indigo-600'}`}></span>
+                <span className={`w-4 h-4 rounded-full ${accentColors[accentColor]?.bg || 'accent-bg'}`}></span>
               </button>
 
               {isPaletteOpen && (
@@ -957,7 +1048,7 @@ export const App: React.FC = () => {
                     >
                       <span className={`w-3.5 h-3.5 rounded-full ${info.bg}`}></span>
                       <span className="flex-1 text-left">{info.name}</span>
-                      {accentColor === key && <span className="text-xs font-bold text-indigo-600">✓</span>}
+                      {accentColor === key && <span className="text-xs font-bold accent-text">✓</span>}
                     </button>
                   ))}
                 </div>
@@ -1042,6 +1133,11 @@ export const App: React.FC = () => {
               onEditEstimateDraft={handleEditEstimateDraft}
               onFinalizeInvoice={handleFinalizeInvoice}
               onFinalizeEstimate={handleFinalizeEstimate}
+              onDuplicateInvoice={handleDuplicateInvoice}
+              onVoidInvoice={handleVoidInvoice}
+              onPrintInvoice={(inv) => setPrintTarget({ type: 'invoice', data: inv })}
+              onPrintEstimate={(est) => setPrintTarget({ type: 'estimate', data: est })}
+              onPrintStatement={(client) => setPrintTarget({ type: 'statement', client })}
               onAddClient={handleAddClient}
               onUpdateClient={handleUpdateClient}
               onDeleteClient={handleDeleteClient}
@@ -1098,7 +1194,7 @@ export const App: React.FC = () => {
                 setActiveTab(item.id);
                 if (item.id === 3) setSettingsSubTab(0);
               }}
-              className={`flex-1 min-w-0 flex flex-col items-center gap-1 text-[10px] font-bold cursor-pointer truncate px-1 ${isActive ? 'text-indigo-600' : ''}`}
+              className={`flex-1 min-w-0 flex flex-col items-center gap-1 text-[10px] font-bold cursor-pointer truncate px-1 ${isActive ? 'accent-text' : ''}`}
             >
               <Icon className="w-5 h-5 shrink-0" />
               <span className="truncate max-w-full">{item.label}</span>
@@ -1118,37 +1214,30 @@ export const App: React.FC = () => {
       )}
 
       {isCsvModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsCsvModalOpen(false);
+          }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+        >
           <div className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm">Export Financial CSV Data</h3>
-              <button onClick={() => setIsCsvModalOpen(false)} className="cursor-pointer text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+              <button onClick={() => setIsCsvModalOpen(false)} aria-label="Close CSV export dialog" className="cursor-pointer text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
             </div>
             <p className="text-xs text-slate-500">Download formatted accounting CSV spreadsheet files compliant with Excel, QuickBooks, and tax software.</p>
             <div className="space-y-3">
               {/* Invoices CSV (Finalized only) */}
               <button
                 onClick={() => {
-                  const finalizedInvoices = invoices.filter((i) => {
-                    const s = (i.computed_status || i.status || '').toUpperCase();
-                    return s !== 'DRAFT';
-                  });
-                  const lines = ['Invoice Number,Issue Date,Due Date,Currency Code,Client Name,Client Tax ID,Subtotal,Tax,Total,Amount Paid,Balance Due,Status'];
-                  finalizedInvoices.forEach((i) => {
-                    const status = (i.computed_status || i.status || '').toUpperCase();
-                    const isVoid = status === 'VOID';
-                    const paidUnits = i.paid_cents || 0;
-                    const totalUnits = i.total_cents || 0;
-                    const dueUnits = isVoid ? 0 : Math.max(0, totalUnits - paidUnits);
-                    const client = clients.find((c) => c.id === i.client_id);
-                    const taxId = client?.tax_id || '';
-                    const isoCode = i.currency_code || businessProfile.currency_code || 'USD';
-                    const dec = i.currency_decimals ?? getCurrencyDecimals(isoCode);
-                    lines.push(
-                      `"${i.invoice_number}","${i.issue_date}","${i.due_date}","${isoCode}","${(i.client_name || '').replace(/"/g, '""')}","${taxId}",${formatDecimalUnits(i.subtotal_cents || 0, dec)},${formatDecimalUnits(i.tax_cents || 0, dec)},${formatDecimalUnits(totalUnits, dec)},${formatDecimalUnits(paidUnits, dec)},${formatDecimalUnits(dueUnits, dec)},"${isVoid ? 'VOID' : status}"`
-                    );
-                  });
-                  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+                  const csvContent = exportInvoicesToCsv(
+                    invoices,
+                    clients,
+                    businessProfile.currency_code || 'USD'
+                  );
+                  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
@@ -1157,7 +1246,7 @@ export const App: React.FC = () => {
                   URL.revokeObjectURL(url);
                   setIsCsvModalOpen(false);
                 }}
-                className="w-full p-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl flex items-center justify-between transition cursor-pointer"
+                className="w-full p-3 accent-soft-btn border font-bold text-xs rounded-xl flex items-center justify-between transition cursor-pointer"
               >
                 <div className="text-left">
                   <div>Invoices CSV ({invoices.filter((i) => (i.computed_status || i.status || '').toUpperCase() !== 'DRAFT').length})</div>
@@ -1169,15 +1258,11 @@ export const App: React.FC = () => {
               {/* Expenses CSV */}
               <button
                 onClick={() => {
-                  const lines = ['Expense ID,Date,Category,Vendor,Currency Code,Amount,Tax,Total,Notes'];
-                  const isoCode = businessProfile.currency_code || 'USD';
-                  expenses.forEach((e) => {
-                    const safeNotes = (e.notes || '').replace(/"/g, '""');
-                    lines.push(
-                      `"${e.id}","${e.expense_date}","${e.category}","${(e.vendor || '').replace(/"/g, '""')}","${isoCode}",${formatDecimalUnits(e.amount_cents || 0, curDec)},${formatDecimalUnits(e.tax_cents || 0, curDec)},${formatDecimalUnits(e.total_cents || 0, curDec)},"${safeNotes}"`
-                    );
-                  });
-                  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+                  const csvContent = exportExpensesToCsv(
+                    expenses,
+                    businessProfile.currency_code || 'USD'
+                  );
+                  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
@@ -1273,7 +1358,16 @@ export const App: React.FC = () => {
           </button>
         </div>
       )}
-    </div>
+      </div>
+      <PrintPreviewModal
+        target={printTarget}
+        clients={clients}
+        invoices={invoices}
+        businessProfile={businessProfile}
+        isDarkMode={isDarkMode}
+        onClose={() => setPrintTarget(null)}
+      />
+    </>
   );
 };
 

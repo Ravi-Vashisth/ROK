@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:billing_app/core/theme/app_theme.dart';
 import 'package:billing_app/core/utils/money_utils.dart';
 import 'package:billing_app/features/billing/presentation/widgets/pdf_preview_dialog.dart';
 import 'package:billing_app/features/billing/services/invoice_pdf_service.dart';
@@ -18,6 +19,7 @@ class OfflineEstimatesList extends ConsumerWidget {
   final String statusFilter;
   final String dateFilter;
   final Function(String invoiceNumber)? onViewInvoice;
+  final List<Widget> leadingSlivers;
 
   const OfflineEstimatesList({
     super.key,
@@ -25,6 +27,7 @@ class OfflineEstimatesList extends ConsumerWidget {
     this.statusFilter = 'All',
     this.dateFilter = 'All Time',
     this.onViewInvoice,
+    this.leadingSlivers = const [],
   });
 
   @override
@@ -34,6 +37,11 @@ class OfflineEstimatesList extends ConsumerWidget {
     final businessProfile = ref.watch(businessProfileProvider);
     final invoices = ref.watch(invoicesProvider);
     final sym = businessProfile.currencySymbol;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final brightness = theme.brightness;
+    final successTone = AppSemanticColors.resolve(brightness, SemanticStatus.success);
+    final warningTone = AppSemanticColors.resolve(brightness, SemanticStatus.warning);
 
     // Filter estimates
     final filtered = estimates.where((est) {
@@ -58,68 +66,97 @@ class OfflineEstimatesList extends ConsumerWidget {
       return true;
     }).toList();
 
+    final pagePadding = MediaQuery.sizeOf(context).width >= 900 ? 24.0 : 16.0;
+
     if (estimates.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            children: [
-              Icon(Icons.request_quote_outlined, size: 48, color: Colors.grey.shade400),
-              const SizedBox(height: 12),
-              const Text('No Estimates / Proposals Found', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 4),
-              const Text('Create an estimate above to send project quotes to clients.', style: TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
+      return CustomScrollView(
+        slivers: [
+          ...leadingSlivers,
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(pagePadding, 0, pagePadding, pagePadding),
+            sliver: SliverToBoxAdapter(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    children: [
+                      Icon(Icons.request_quote_outlined, size: 48, color: colorScheme.onSurfaceVariant),
+                      const SizedBox(height: 12),
+                      const Text('No Estimates / Proposals Found', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 4),
+                      Text('Create an estimate above to send project quotes to clients.', style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.list_alt_outlined, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Saved Estimates (${filtered.length} of ${estimates.length})',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+    return CustomScrollView(
+      slivers: [
+        ...leadingSlivers,
+        SliverPadding(
+          padding: EdgeInsets.symmetric(horizontal: pagePadding),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.list_alt_outlined, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Saved Estimates (${filtered.length} of ${estimates.length})',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ],
             ),
-          ],
+          ),
         ),
-        const SizedBox(height: 12),
         if (filtered.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              border: Border.all(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Center(
-              child: Text('No estimates match your current search and filter criteria.', style: TextStyle(color: Colors.grey)),
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(pagePadding, 0, pagePadding, pagePadding),
+            sliver: SliverToBoxAdapter(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  border: Border.all(color: theme.dividerColor),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text('No estimates match your current search and filter criteria.', style: TextStyle(color: colorScheme.onSurfaceVariant)),
+                ),
+              ),
             ),
           )
         else
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: filtered.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final est = filtered[index];
-              final isConverted = est.isConverted;
-              final convertedInvoice = isConverted && est.convertedInvoiceId.isNotEmpty
-                  ? invoices.cast<dynamic?>().firstWhere(
-                      (i) => i?.id == est.convertedInvoiceId,
-                      orElse: () => null,
-                    )
-                  : null;
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(pagePadding, 0, pagePadding, pagePadding),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final est = filtered[index];
+                  final isConverted = est.isConverted;
+                  final isLast = index == filtered.length - 1;
+                  final convertedInvoice = isConverted && est.convertedInvoiceId.isNotEmpty
+                      ? invoices.cast<dynamic?>().firstWhere(
+                          (i) => i?.id == est.convertedInvoiceId,
+                          orElse: () => null,
+                        )
+                      : null;
 
-              return Card(
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
+                    child: Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -130,11 +167,14 @@ class OfflineEstimatesList extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: Colors.indigo.shade50,
+                              color: colorScheme.primaryContainer,
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.indigo.shade200),
+                              border: Border.all(color: colorScheme.primary.withValues(alpha: 0.35)),
                             ),
-                            child: Text(est.estimateNumber, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.indigo)),
+                            child: Text(
+                              est.estimateNumber,
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: colorScheme.onPrimaryContainer),
+                            ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -143,23 +183,23 @@ class OfflineEstimatesList extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: isConverted ? Colors.green.shade50 : Colors.amber.shade50,
+                              color: isConverted ? successTone.background : warningTone.background,
                               borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: isConverted ? Colors.green.shade300 : Colors.amber.shade300),
+                              border: Border.all(color: isConverted ? successTone.border : warningTone.border),
                             ),
                             child: Text(
                               est.status,
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                color: isConverted ? Colors.green.shade800 : Colors.amber.shade900,
+                                color: isConverted ? successTone.text : warningTone.text,
                               ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text('Issue: ${est.issueDate} • Valid Until: ${est.expiryDate}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      Text('Issue: ${est.issueDate} • Valid Until: ${est.expiryDate}', style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant)),
                       if (isConverted && convertedInvoice != null) ...[
                         const SizedBox(height: 8),
                         InkWell(
@@ -172,24 +212,24 @@ class OfflineEstimatesList extends ConsumerWidget {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: Colors.green.shade50,
+                              color: successTone.background,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.green.shade300),
+                              border: Border.all(color: successTone.border),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.receipt_outlined, size: 14, color: Colors.green.shade800),
+                                Icon(Icons.receipt_outlined, size: 14, color: successTone.icon),
                                 const SizedBox(width: 6),
                                 Flexible(
                                   child: Text(
                                     'View Invoice: ${convertedInvoice.invoiceNumber}',
                                     overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: successTone.text),
                                   ),
                                 ),
                                 const SizedBox(width: 4),
-                                Icon(Icons.arrow_forward, size: 13, color: Colors.green.shade800),
+                                Icon(Icons.arrow_forward, size: 13, color: successTone.icon),
                               ],
                             ),
                           ),
@@ -208,7 +248,7 @@ class OfflineEstimatesList extends ConsumerWidget {
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                               fontFeatures: const [FontFeature.tabularFigures()],
-                              color: Colors.indigo.shade800,
+                              color: colorScheme.primary,
                             ),
                           ),
                           Wrap(
@@ -233,7 +273,10 @@ class OfflineEstimatesList extends ConsumerWidget {
                                   },
                                 ),
                                 FilledButton.icon(
-                                  style: FilledButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: colorScheme.primary,
+                                    foregroundColor: colorScheme.onPrimary,
+                                  ),
                                   icon: const Icon(Icons.check_circle_outline, size: 16),
                                   label: const Text('Finalize Quote', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                   onPressed: () {
@@ -245,7 +288,12 @@ class OfflineEstimatesList extends ConsumerWidget {
                                 ),
                               ] else if (!isConverted) ...[
                                 FilledButton.icon(
-                                  style: FilledButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: brightness == Brightness.dark
+                                        ? const Color(0xFF15803D)
+                                        : const Color(0xFF16A34A),
+                                    foregroundColor: Colors.white,
+                                  ),
                                   icon: const Icon(Icons.receipt_long, size: 16),
                                   label: const Text('Convert to Invoice', style: TextStyle(fontSize: 12)),
                                   onPressed: () {
@@ -313,8 +361,12 @@ class OfflineEstimatesList extends ConsumerWidget {
                     ],
                   ),
                 ),
-              );
-            },
+              ),
+            );
+                },
+                childCount: filtered.length,
+              ),
+            ),
           ),
       ],
     );

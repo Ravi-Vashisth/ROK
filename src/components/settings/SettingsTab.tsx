@@ -159,7 +159,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             onClick={() => setActiveSubTab(0)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeSubTab === 0
-                ? 'bg-indigo-600 text-white shadow-xs'
+                ? 'accent-tab-active shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
             }`}
           >
@@ -170,7 +170,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             onClick={() => setActiveSubTab(1)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeSubTab === 1
-                ? 'bg-indigo-600 text-white shadow-xs'
+                ? 'accent-tab-active shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
             }`}
           >
@@ -181,7 +181,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             onClick={() => setActiveSubTab(2)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeSubTab === 2
-                ? 'bg-indigo-600 text-white shadow-xs'
+                ? 'accent-tab-active shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
             }`}
           >
@@ -192,7 +192,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             onClick={() => setActiveSubTab(3)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeSubTab === 3
-                ? 'bg-indigo-600 text-white shadow-xs'
+                ? 'accent-tab-active shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
             }`}
           >
@@ -336,7 +336,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   </button>
                 </div>
               ) : (
-                <button type="button" onClick={() => logoInputRef.current?.click()} className="w-full py-2 px-3 border border-dashed rounded-lg text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition text-center cursor-pointer">
+                <button type="button" onClick={() => logoInputRef.current?.click()} className="w-full py-2 px-3 border border-dashed rounded-lg text-slate-500 accent-dashed-hover transition text-center cursor-pointer">
                   + Upload Logo Image
                 </button>
               )}
@@ -361,7 +361,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   </button>
                 </div>
               ) : (
-                <button type="button" onClick={() => signatureInputRef.current?.click()} className="w-full py-2 px-3 border border-dashed rounded-lg text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition text-center cursor-pointer">
+                <button type="button" onClick={() => signatureInputRef.current?.click()} className="w-full py-2 px-3 border border-dashed rounded-lg text-slate-500 accent-dashed-hover transition text-center cursor-pointer">
                   + Upload Signature Image
                 </button>
               )}
@@ -371,7 +371,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <div className="flex justify-end pt-3 border-t dark:border-slate-800">
             <button
               type="submit"
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition shadow-xs"
+              className="px-5 py-2 accent-btn font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition shadow-xs"
             >
               <Save className="w-4 h-4" />
               <span>Save Business Settings</span>
@@ -444,7 +444,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   });
                   onNotify?.('Payment and banking instructions saved!');
                 }}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition shadow-xs"
+                className="px-5 py-2 accent-btn font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition shadow-xs"
               >
                 <Save className="w-4 h-4" />
                 <span>Save Payment Settings</span>
@@ -465,7 +465,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-6 text-xs">
             {/* Export */}
             <div className={`p-5 rounded-xl border space-y-3 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-              <div className="flex items-center gap-2 font-bold text-sm text-indigo-600">
+              <div className="flex items-center gap-2 font-bold text-sm accent-text">
                 <Download className="w-4 h-4" />
                 <span>Backup Database JSON</span>
               </div>
@@ -475,7 +475,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               {onExportDatabase && (
                 <button
                   onClick={onExportDatabase}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer transition shadow-xs"
+                  className="w-full py-2.5 accent-btn font-bold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer transition shadow-xs"
                 >
                   <Download className="w-4 h-4" />
                   <span>Download Backup JSON</span>

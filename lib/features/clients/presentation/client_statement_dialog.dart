@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
+import 'package:billing_app/core/theme/app_theme.dart';
 import 'package:billing_app/core/utils/money_utils.dart';
 import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
 import 'package:billing_app/features/billing/services/invoice_pdf_service.dart';
@@ -53,6 +54,12 @@ class ClientStatementDialog extends ConsumerWidget {
 
     final screenSize = MediaQuery.sizeOf(context);
     final isCompactWidth = screenSize.width < 520;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final brightness = theme.brightness;
+    final successTone = AppSemanticColors.resolve(brightness, SemanticStatus.success);
+    final dangerTone = AppSemanticColors.resolve(brightness, SemanticStatus.danger);
+    final infoTone = AppSemanticColors.resolve(brightness, SemanticStatus.info);
 
     Future<void> printStatement() async {
       final businessProfile = ref.read(businessProfileProvider);
@@ -114,17 +121,17 @@ class ClientStatementDialog extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(client.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          if (client.email.isNotEmpty) Text('Email: ${client.email}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                          if (client.phone.isNotEmpty) Text('Phone: ${client.phone}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                          if (client.taxId.isNotEmpty) Text('Tax ID: ${client.taxId}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          if (client.email.isNotEmpty) Text('Email: ${client.email}', style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant)),
+                          if (client.phone.isNotEmpty) Text('Phone: ${client.phone}', style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant)),
+                          if (client.taxId.isNotEmpty) Text('Tax ID: ${client.taxId}', style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant)),
                         ],
                       );
                       final summaryBox = Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Theme.of(context).dividerColor),
+                          border: Border.all(color: theme.dividerColor),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -135,7 +142,7 @@ class ClientStatementDialog extends ConsumerWidget {
                             ),
                             Text(
                               'Total Paid: ${rollup.formattedTotalPaid}',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()], color: Colors.green.shade700),
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()], color: successTone.icon),
                             ),
                             const Divider(height: 8),
                             Text(
@@ -144,7 +151,7 @@ class ClientStatementDialog extends ConsumerWidget {
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 fontFeatures: const [FontFeature.tabularFigures()],
-                                color: hasDue ? Colors.red.shade700 : Colors.green.shade700,
+                                color: hasDue ? dangerTone.icon : successTone.icon,
                               ),
                             ),
                           ],
@@ -181,7 +188,7 @@ class ClientStatementDialog extends ConsumerWidget {
                   const SizedBox(height: 10),
                   Expanded(
                     child: invoices.isEmpty
-                        ? const Center(child: Text('No invoices recorded for this client yet.', style: TextStyle(color: Colors.grey)))
+                        ? Center(child: Text('No invoices recorded for this client yet.', style: TextStyle(color: colorScheme.onSurfaceVariant)))
                         : ListView.separated(
                             itemCount: invoices.length,
                             separatorBuilder: (_, __) => const Divider(),
@@ -189,10 +196,10 @@ class ClientStatementDialog extends ConsumerWidget {
                               final inv = invoices[index];
                               return ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: inv.isFullyPaid ? Colors.green.shade100 : Colors.indigo.shade100,
+                                  backgroundColor: inv.isFullyPaid ? successTone.background : infoTone.background,
                                   child: Icon(
                                     inv.isFullyPaid ? Icons.check : Icons.receipt,
-                                    color: inv.isFullyPaid ? Colors.green.shade800 : Colors.indigo.shade800,
+                                    color: inv.isFullyPaid ? successTone.icon : infoTone.icon,
                                     size: 18,
                                   ),
                                 ),
@@ -214,10 +221,10 @@ class ClientStatementDialog extends ConsumerWidget {
                                     if (inv.balanceDueCents > 0)
                                       Text(
                                         'Due: ${formatInvMoney(inv.balanceDueCents, inv.currencyCode, inv.currencySymbol, inv.currencyDecimals)}',
-                                        style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()]),
+                                        style: TextStyle(fontSize: 11, color: dangerTone.icon, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()]),
                                       )
                                     else
-                                      const Text('Paid in Full', style: TextStyle(fontSize: 11, color: Colors.green)),
+                                      Text('Paid in Full', style: TextStyle(fontSize: 11, color: successTone.icon)),
                                   ],
                                 ),
                               );

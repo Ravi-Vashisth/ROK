@@ -118,7 +118,7 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
           <div>
             <h3 id="payment-reminder-title" className="font-bold text-sm">Send Payment Reminder</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Invoice <span className="font-mono font-bold text-indigo-500">{invoice.invoice_number}</span> for {clientName}
+              Invoice <span className="font-mono font-bold accent-text">{invoice.invoice_number}</span> for {clientName}
             </p>
             {(clientEmail || normalizedPhone) && (
               <p className="text-[11px] text-slate-400 mt-0.5">
@@ -144,7 +144,7 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={4}
-            className={`w-full p-3 rounded-xl border text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+            className={`w-full p-3 rounded-xl border text-xs leading-relaxed accent-focus ${
               isDarkMode
                 ? 'bg-slate-900 border-slate-800 text-slate-200'
                 : 'bg-slate-50 border-slate-200 text-slate-800'
@@ -216,14 +216,10 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
                   'Opening SMS — message copied to clipboard as desktop backup.'
                 )
               }
-              className={`w-full p-3 rounded-xl border text-xs font-bold flex items-center justify-between transition ${
-                isDarkMode
-                  ? 'bg-indigo-950/30 border-indigo-900/50 hover:bg-indigo-950/50 text-indigo-300'
-                  : 'bg-indigo-50 border-indigo-200 hover:bg-indigo-100 text-indigo-800'
-              }`}
+              className="w-full p-3 rounded-xl border accent-soft-btn text-xs font-bold flex items-center justify-between transition"
             >
               <span className="flex items-center gap-2.5">
-                <MessageSquare className="w-4 h-4 text-indigo-600" />
+                <MessageSquare className="w-4 h-4 accent-text" />
                 <span>Send SMS</span>
               </span>
               <span className="text-[11px] font-normal opacity-80">{normalizedPhone}</span>

@@ -8,7 +8,33 @@ import 'package:billing_app/core/utils/money_utils.dart';
 
 class CsvExportService {
   static String formatDecimal(int units, [int decimals = 2]) => formatDecimalUnits(units, decimals);
-  static String quote(String text) => '"${text.replaceAll('"', '""')}"';
+
+  /// Neutralizes spreadsheet formula-injection prefixes (`=`, `+`, `-`, `@`, `\t`, `\r`)
+  /// before quoting CSV text cells so Excel, Google Sheets, and LibreOffice treat values as literals.
+  static String sanitizeCsvCell(String text) {
+    if (text.isEmpty) return text;
+    final first = text[0];
+    final trimmedLeft = text.trimLeft();
+    if (first == '=' ||
+        first == '+' ||
+        first == '-' ||
+        first == '@' ||
+        first == '\t' ||
+        first == '\r' ||
+        (trimmedLeft.isNotEmpty &&
+            (trimmedLeft[0] == '=' ||
+                trimmedLeft[0] == '+' ||
+                trimmedLeft[0] == '-' ||
+                trimmedLeft[0] == '@'))) {
+      return "'$text";
+    }
+    return text;
+  }
+
+  static String quote(String text) {
+    final safe = sanitizeCsvCell(text);
+    return '"${safe.replaceAll('"', '""')}"';
+  }
 
   /// Generates 1 uniform single-table CSV for Invoices (Row 1 = headers, Rows 2..N = records)
   static String generateInvoicesCsv({
@@ -23,6 +49,8 @@ class CsvExportService {
     // Row 1: Headers
     buffer.writeln('Invoice Number,Issue Date,Due Date,Currency Code,Client Name,Client Tax ID,Subtotal,Tax,Total,Amount Paid,Balance Due,Status');
 
+    final fallbackCode = currencyCode.trim().isNotEmpty ? currencyCode.trim() : 'USD';
+
     // Rows 2..N: Data (Finalized/issued invoices only - drafts excluded)
     for (final inv in invoices) {
       if (inv.isDraft || inv.status.toUpperCase() == 'DRAFT') continue;
@@ -32,8 +60,8 @@ class CsvExportService {
       final total = inv.totalCents;
       final due = isVoid ? 0 : ((total - paid) > 0 ? (total - paid) : 0);
       final status = isVoid ? 'VOID' : inv.computedStatus;
-      final isoCode = inv.currencyCode.isNotEmpty ? inv.currencyCode : currencyCode;
-      final dec = inv.currencyCode.isNotEmpty ? inv.currencyDecimals : getCurrencyDecimals(isoCode);
+      final isoCode = inv.currencyCode.trim().isNotEmpty ? inv.currencyCode.trim() : fallbackCode;
+      final dec = inv.currencyCode.trim().isNotEmpty ? inv.currencyDecimals : getCurrencyDecimals(isoCode);
 
       final client = clients.firstWhere(
         (c) => c.id == inv.clientId,
@@ -71,7 +99,8 @@ class CsvExportService {
     // Row 1: Headers
     buffer.writeln('Expense ID,Date,Category,Vendor,Currency Code,Amount,Tax,Total,Notes');
 
-    final dec = getCurrencyDecimals(currencyCode);
+    final effectiveCode = currencyCode.trim().isNotEmpty ? currencyCode.trim() : 'USD';
+    final dec = getCurrencyDecimals(effectiveCode);
 
     // Rows 2..N: Data
     for (final exp in expenses) {
@@ -80,7 +109,7 @@ class CsvExportService {
         quote(exp.expenseDate),
         quote(exp.category),
         quote(exp.vendor),
-        quote(currencyCode),
+        quote(effectiveCode),
         formatDecimal(exp.amountCents, dec),
         formatDecimal(exp.taxCents, dec),
         formatDecimal(exp.totalCents, dec),
@@ -94,12 +123,12 @@ class CsvExportService {
   static Future<String?> downloadInvoicesCsv({
     required List<InvoiceRecord> invoices,
     required List<Client> clients,
-    String currencySymbol = 'USD',
+    String currencyCode = 'USD',
   }) async {
     final csvContent = generateInvoicesCsv(
       invoices: invoices,
       clients: clients,
-      currencyCode: currencySymbol,
+      currencyCode: currencyCode,
     );
     final bytes = utf8.encode(csvContent);
     return ExportFileHelper.saveExportFile(
@@ -112,11 +141,11 @@ class CsvExportService {
 
   static Future<String?> downloadExpensesCsv({
     required List<ExpenseRecord> expenses,
-    String currencySymbol = 'USD',
+    String currencyCode = 'USD',
   }) async {
     final csvContent = generateExpensesCsv(
       expenses: expenses,
-      currencyCode: currencySymbol,
+      currencyCode: currencyCode,
     );
     final bytes = utf8.encode(csvContent);
     return ExportFileHelper.saveExportFile(
@@ -133,7 +162,7 @@ class CsvExportService {
     required List<InvoiceRecord> invoices,
     required List<ExpenseRecord> expenses,
     required List<Client> clients,
-    required String currencySymbol,
+    required String currencyCode,
   }) {
     final messenger = ScaffoldMessenger.of(context);
     showDialog(
@@ -186,7 +215,7 @@ class CsvExportService {
                       final saved = await downloadInvoicesCsv(
                         invoices: invoices,
                         clients: clients,
-                        currencySymbol: currencySymbol,
+                        currencyCode: currencyCode,
                       );
                       messenger.showSnackBar(
                         SnackBar(
@@ -218,7 +247,7 @@ class CsvExportService {
                     try {
                       final saved = await downloadExpensesCsv(
                         expenses: expenses,
-                        currencySymbol: currencySymbol,
+                        currencyCode: currencyCode,
                       );
                       messenger.showSnackBar(
                         SnackBar(

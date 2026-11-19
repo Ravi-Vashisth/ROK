@@ -28,11 +28,11 @@ class ClientsNotifier extends StateNotifier<List<Client>> {
     if (trimmedName.isEmpty) return;
 
     final id = generateUniqueId();
-    final createdAt = DateTime.now().toUtc().toIso8601String();
+    final nowIso = DateTime.now().toUtc().toIso8601String();
 
     final stmt = _db.prepare('''
-      INSERT INTO clients (id, name, email, phone, address, tax_id, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO clients (id, name, email, phone, address, tax_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ''');
     try {
       stmt.execute([
@@ -42,7 +42,8 @@ class ClientsNotifier extends StateNotifier<List<Client>> {
         phone.trim(),
         address.trim(),
         taxId.trim(),
-        createdAt,
+        nowIso,
+        nowIso,
       ]);
     } finally {
       stmt.dispose();
@@ -62,9 +63,10 @@ class ClientsNotifier extends StateNotifier<List<Client>> {
     final trimmedName = name.trim();
     if (trimmedName.isEmpty) return;
 
+    final updatedAt = DateTime.now().toUtc().toIso8601String();
     final stmt = _db.prepare('''
       UPDATE clients 
-      SET name = ?, email = ?, phone = ?, address = ?, tax_id = ?
+      SET name = ?, email = ?, phone = ?, address = ?, tax_id = ?, updated_at = ?
       WHERE id = ?
     ''');
     try {
@@ -74,6 +76,7 @@ class ClientsNotifier extends StateNotifier<List<Client>> {
         phone.trim(),
         address.trim(),
         taxId.trim(),
+        updatedAt,
         id,
       ]);
     } finally {

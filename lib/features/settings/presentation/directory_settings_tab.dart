@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:billing_app/core/database/database_provider.dart';
+import 'package:billing_app/core/theme/theme_provider.dart';
 import 'package:billing_app/core/utils/backup_service.dart';
 import 'package:billing_app/core/utils/export_file_helper.dart';
 import 'package:billing_app/core/utils/file_validation_utils.dart';
@@ -37,88 +38,113 @@ class _DirectorySettingsTabState extends ConsumerState<DirectorySettingsTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              Text(
-                'Application Settings & System Preferences',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ToggleButtons(
-                  isSelected: [_subTab == 0, _subTab == 1, _subTab == 2, _subTab == 3],
-                  onPressed: (index) {
-                    setState(() => _subTab = index);
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  constraints: const BoxConstraints(minHeight: 38, minWidth: 100),
-                  children: const [
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      child: Row(
-                        children: [
-                          Icon(Icons.business_outlined, size: 16),
-                          SizedBox(width: 6),
-                          Text('Profile & Branding', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      child: Row(
-                        children: [
-                          Icon(Icons.inventory_2_outlined, size: 16),
-                          SizedBox(width: 6),
-                          Text('Catalog & Services', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      child: Row(
-                        children: [
-                          Icon(Icons.account_balance_outlined, size: 16),
-                          SizedBox(width: 6),
-                          Text('Payment & Banking', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      child: Row(
-                        children: [
-                          Icon(Icons.settings_backup_restore, size: 16),
-                          SizedBox(width: 6),
-                          Text('Data Backup', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    final isWide = MediaQuery.sizeOf(context).width >= 900;
+    final pagePadding = isWide ? 24.0 : 16.0;
+
+    final settingsHeader = SizedBox(
+      width: double.infinity,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          Text(
+            'Application Settings & System Preferences',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
           ),
-        ),
-        const SizedBox(height: 20),
-        if (_subTab == 0) ...[
-          _BusinessProfileSettingsCard(),
-        ] else if (_subTab == 1) ...[
-          const ItemsCatalogTab(),
-        ] else if (_subTab == 2) ...[
-          _PaymentBankingSettingsCard(),
-        ] else ...[
-          _BackupRecoveryCard(),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ToggleButtons(
+              isSelected: [_subTab == 0, _subTab == 1, _subTab == 2, _subTab == 3],
+              onPressed: (index) {
+                setState(() => _subTab = index);
+              },
+              borderRadius: BorderRadius.circular(12),
+              constraints: const BoxConstraints(minHeight: 38, minWidth: 100),
+              children: const [
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.business_outlined, size: 16),
+                      SizedBox(width: 6),
+                      Text('Profile & Branding', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.inventory_2_outlined, size: 16),
+                      SizedBox(width: 6),
+                      Text('Catalog & Services', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.account_balance_outlined, size: 16),
+                      SizedBox(width: 6),
+                      Text('Payment & Banking', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.settings_backup_restore, size: 16),
+                      SizedBox(width: 6),
+                      Text('Data Backup', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
-      ],
+      ),
+    );
+
+    if (_subTab == 1) {
+      return ItemsCatalogTab(
+        leadingSlivers: [
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(pagePadding, pagePadding, pagePadding, 0),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  settingsHeader,
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(pagePadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          settingsHeader,
+          const SizedBox(height: 20),
+          if (_subTab == 0) ...[
+            _BusinessProfileSettingsCard(),
+          ] else if (_subTab == 2) ...[
+            _PaymentBankingSettingsCard(),
+          ] else ...[
+            _BackupRecoveryCard(),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -324,6 +350,8 @@ class _BackupRecoveryCard extends ConsumerWidget {
         ref.invalidate(expensesProvider);
         ref.invalidate(savedItemsProvider);
         ref.invalidate(businessProfileProvider);
+        ref.invalidate(themeModeProvider);
+        ref.invalidate(accentColorProvider);
 
         messenger.showSnackBar(
           const SnackBar(content: Text('Database successfully restored from backup!')),

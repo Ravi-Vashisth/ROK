@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -48,6 +49,72 @@ class InvoicePdfService {
     }
   }
 
+  /// Downsamples encoded image bytes (PNG/JPEG/WEBP) via Flutter's native codec
+  /// when byte length exceeds [downsampleThresholdBytes] and dimensions exceed
+  /// [maxDimensionPx]. Falls back safely to [rawBytes] on codec error.
+  static Future<Uint8List> downsampleImageBytes(
+    Uint8List rawBytes, {
+    int maxDimensionPx = 480,
+    int downsampleThresholdBytes = 96 * 1024,
+  }) async {
+    if (rawBytes.length <= downsampleThresholdBytes) {
+      return rawBytes;
+    }
+    ui.Codec? probeCodec;
+    ui.Codec? scaledCodec;
+    ui.Image? probeImage;
+    ui.Image? scaledImage;
+    try {
+      probeCodec = await ui.instantiateImageCodec(rawBytes);
+      final probeFrame = await probeCodec.getNextFrame();
+      probeImage = probeFrame.image;
+      final srcW = probeImage.width;
+      final srcH = probeImage.height;
+      if (srcW <= maxDimensionPx && srcH <= maxDimensionPx) {
+        return rawBytes;
+      }
+
+      final int? targetWidth = srcW >= srcH ? maxDimensionPx : null;
+      final int? targetHeight = srcH > srcW ? maxDimensionPx : null;
+
+      scaledCodec = await ui.instantiateImageCodec(
+        rawBytes,
+        targetWidth: targetWidth,
+        targetHeight: targetHeight,
+      );
+      final scaledFrame = await scaledCodec.getNextFrame();
+      scaledImage = scaledFrame.image;
+      final byteData = await scaledImage.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+      if (byteData == null) return rawBytes;
+      final resized = byteData.buffer.asUint8List();
+      return resized.length < rawBytes.length ? resized : rawBytes;
+    } catch (_) {
+      return rawBytes;
+    } finally {
+      probeImage?.dispose();
+      scaledImage?.dispose();
+      probeCodec?.dispose();
+      scaledCodec?.dispose();
+    }
+  }
+
+  /// Safely decodes and downsamples base64 image payloads for PDF embedding.
+  static Future<Uint8List?> _decodeAndDownsampleImageBytes(
+    String input, {
+    int maxDimensionPx = 480,
+    int downsampleThresholdBytes = 96 * 1024,
+  }) async {
+    final decoded = _safeDecodeBase64(input);
+    if (decoded == null || decoded.isEmpty) return null;
+    return downsampleImageBytes(
+      decoded,
+      maxDimensionPx: maxDimensionPx,
+      downsampleThresholdBytes: downsampleThresholdBytes,
+    );
+  }
+
   /// Safely unescape literal \n into real newlines.
   static String _cleanText(String input) {
     return input.replaceAll(r'\n', '\n').trim();
@@ -91,7 +158,12 @@ class InvoicePdfService {
     PdfColor statusTextColor = PdfColor.fromHex('#047857');
     String statusDisplay = 'PAID IN FULL';
 
-    if (invoice.isDraft) {
+    if (invoice.isVoid) {
+      statusBgColor = PdfColor.fromHex('#F1F5F9');
+      statusBorderColor = PdfColor.fromHex('#64748B');
+      statusTextColor = PdfColor.fromHex('#475569');
+      statusDisplay = 'VOID';
+    } else if (invoice.isDraft) {
       statusBgColor = PdfColor.fromHex('#F1F5F9');
       statusBorderColor = PdfColor.fromHex('#94A3B8');
       statusTextColor = PdfColor.fromHex('#475569');
@@ -121,8 +193,8 @@ class InvoicePdfService {
     );
     final paymentInstructions = _cleanText(businessProfile.paymentDetails);
 
-    final logoBytes = _safeDecodeBase64(businessProfile.logoBase64);
-    final signatureBytes = _safeDecodeBase64(businessProfile.signatureBase64);
+    final logoBytes = await _decodeAndDownsampleImageBytes(businessProfile.logoBase64);
+    final signatureBytes = await _decodeAndDownsampleImageBytes(businessProfile.signatureBase64);
     final taxBreakdown = resolveRegionalTaxBreakdown(
       taxMode: invoice.taxMode,
       netSubtotalCents: invoice.netSubtotalCents,
@@ -411,6 +483,7 @@ class InvoicePdfService {
                 },
                 children: [
                   pw.TableRow(
+                    repeat: true,
                     decoration: pw.BoxDecoration(
                       color: PdfColor.fromHex('#F8FAFC'),
                       border: pw.Border(
@@ -475,6 +548,7 @@ class InvoicePdfService {
                   },
                   children: [
                     pw.TableRow(
+                      repeat: true,
                       decoration: pw.BoxDecoration(
                         color: PdfColor.fromHex('#F0FDF4'),
                         border: pw.Border(
@@ -784,8 +858,8 @@ class InvoicePdfService {
       estimate.notes.trim().isNotEmpty ? estimate.notes : businessProfile.defaultNotes,
     );
 
-    final logoBytes = _safeDecodeBase64(businessProfile.logoBase64);
-    final signatureBytes = _safeDecodeBase64(businessProfile.signatureBase64);
+    final logoBytes = await _decodeAndDownsampleImageBytes(businessProfile.logoBase64);
+    final signatureBytes = await _decodeAndDownsampleImageBytes(businessProfile.signatureBase64);
     final estBreakdown = resolveRegionalTaxBreakdown(
       taxMode: estimate.taxMode,
       netSubtotalCents: estimate.netSubtotalCents,
@@ -1013,6 +1087,7 @@ class InvoicePdfService {
                 },
                 children: [
                   pw.TableRow(
+                    repeat: true,
                     decoration: pw.BoxDecoration(
                       color: PdfColor.fromHex('#F8FAFC'),
                       border: pw.Border(
@@ -1197,7 +1272,10 @@ class InvoicePdfService {
     final sym = businessProfile.currencySymbol;
     final dec = businessProfile.currencyDecimals;
 
-    final activeInvoices = invoices.where((inv) => !inv.isVoid && !inv.isDraft).toList();
+    final activeInvoices = invoices
+        .where((inv) => !inv.isVoid && !inv.isDraft)
+        .toList()
+      ..sort((a, b) => a.issueDate.compareTo(b.issueDate));
     final rollup = computeClientRollup(
       activeInvoices.map((inv) => CurrencyLedgerEntry(
             currencyCode: inv.currencyCode,
@@ -1213,7 +1291,7 @@ class InvoicePdfService {
     );
     final hasDue = rollup.hasOutstandingBalance;
 
-    final logoBytes = _safeDecodeBase64(businessProfile.logoBase64);
+    final logoBytes = await _decodeAndDownsampleImageBytes(businessProfile.logoBase64);
     final now = DateTime.now();
     final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
@@ -1328,6 +1406,7 @@ class InvoicePdfService {
               border: pw.TableBorder.all(color: PdfColor.fromHex('#E2E8F0'), width: 0.5),
               children: [
                 pw.TableRow(
+                  repeat: true,
                   decoration: pw.BoxDecoration(color: PdfColor.fromHex('#F1F5F9')),
                   children: [
                     _buildHeaderCell('Invoice #', align: pw.TextAlign.left),

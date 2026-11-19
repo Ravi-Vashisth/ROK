@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, ArrowRightLeft, Trash2 } from 'lucide-react';
+import { FileText, ArrowRightLeft, Trash2, Printer } from 'lucide-react';
 import { formatMoney as formatMoneyUnits, getCurrencyDecimals, matchesDateFilter } from '../../billingRules';
 
 interface OfflineEstimatesListProps {
@@ -13,6 +13,7 @@ interface OfflineEstimatesListProps {
   onDeleteEstimate: (estimate: any) => void;
   onEditDraft?: (estimate: any) => void;
   onFinalizeEstimate?: (estimate: any) => void;
+  onPrintEstimate?: (estimate: any) => void;
 }
 
 export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
@@ -26,6 +27,7 @@ export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
   onDeleteEstimate,
   onEditDraft,
   onFinalizeEstimate,
+  onPrintEstimate,
 }) => {
   const filteredEstimates = estimates.filter((est) => {
     // Status filter
@@ -88,7 +90,7 @@ export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
                 estSym ? formatMoneyUnits(amt, estSym, estDec) : formatMoney(amt);
 
               return (
-                <tr key={est.id} className={`hover:bg-indigo-50/20 transition ${isDarkMode ? 'hover:bg-slate-800/40' : ''}`}>
+                <tr key={est.id} className="accent-hover-row transition">
                   <td className="p-3.5 font-bold font-mono text-amber-600 whitespace-nowrap">{est.estimate_number}</td>
                   <td className="p-3.5 font-semibold whitespace-nowrap">{est.client_name || 'Client'}</td>
                   <td className="p-3.5 text-slate-500 whitespace-nowrap">{est.issue_date}</td>
@@ -116,7 +118,7 @@ export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
                     {isDraft && onFinalizeEstimate && (
                       <button
                         onClick={() => onFinalizeEstimate(est)}
-                        className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg inline-flex items-center gap-1 cursor-pointer transition shadow-xs"
+                        className="px-2.5 py-1 accent-btn text-[11px] font-bold rounded-lg inline-flex items-center gap-1 cursor-pointer transition shadow-xs"
                         title="Finalize & Issue Quote"
                       >
                         <span>Finalize</span>
@@ -130,6 +132,15 @@ export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
                       >
                         <ArrowRightLeft className="w-3 h-3" />
                         <span>Convert</span>
+                      </button>
+                    )}
+                    {onPrintEstimate && (
+                      <button
+                        onClick={() => onPrintEstimate(est)}
+                        className="p-1.5 rounded-lg border accent-soft-btn transition cursor-pointer inline-flex"
+                        title="Print / Save PDF"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
                       </button>
                     )}
                     <button

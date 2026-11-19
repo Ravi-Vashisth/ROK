@@ -37,135 +37,179 @@ class _SalesTabState extends ConsumerState<SalesTab> {
     ref.watch(estimatesProvider);
     final clients = ref.watch(clientsProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final isWide = MediaQuery.sizeOf(context).width >= 900;
+    final pagePadding = isWide ? 24.0 : 16.0;
+
+    final salesHeader = Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 12,
+      runSpacing: 12,
       children: [
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 12,
-          runSpacing: 12,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Sales & Clients CRM',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  'Manage client invoices, proposals, and customer dossiers in one place',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
-                ),
-              ],
+            Text(
+              'Sales & Clients CRM',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: ToggleButtons(
-                    isSelected: [_subTab == 0, _subTab == 1, _subTab == 2],
-                    onPressed: (index) {
-                      setState(() {
-                        _subTab = index;
-                        _statusFilter = 'All';
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    constraints: const BoxConstraints(minHeight: 36, minWidth: 90),
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 10),
-                        child: Row(
-                          children: [
-                            Icon(Icons.receipt_outlined, size: 16),
-                            SizedBox(width: 6),
-                            Text('Invoices', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 10),
-                        child: Row(
-                          children: [
-                            Icon(Icons.request_quote_outlined, size: 16),
-                            SizedBox(width: 6),
-                            Text('Quotes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.people_outline, size: 16),
-                            const SizedBox(width: 6),
-                            Text('Clients (${clients.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_subTab == 0)
-                  FilledButton.icon(
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('Create Invoice'),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const InvoiceEditorScreen(isQuote: false),
-                        ),
-                      );
-                    },
-                  )
-                else if (_subTab == 1)
-                  FilledButton.icon(
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('New Quote'),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const InvoiceEditorScreen(isQuote: true),
-                        ),
-                      );
-                    },
-                  ),
-              ],
+            Text(
+              'Manage client invoices, proposals, and customer dossiers in one place',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ],
         ),
-        const SizedBox(height: 20),
-        if (_subTab == 2)
-          const ClientsTab()
-        else ...[
-          _buildFilterHeader(),
-          const SizedBox(height: 16),
-          if (_subTab == 0)
-            OfflineInvoicesList(
-              searchQuery: _searchController.text,
-              statusFilter: _statusFilter,
-              dateFilter: _dateFilter,
-            )
-          else
-            OfflineEstimatesList(
-              searchQuery: _searchController.text,
-              statusFilter: _statusFilter,
-              dateFilter: _dateFilter,
-              onViewInvoice: (invNum) {
-                setState(() {
-                  _subTab = 0;
-                  _searchController.text = invNum;
-                });
-              },
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ToggleButtons(
+                isSelected: [_subTab == 0, _subTab == 1, _subTab == 2],
+                onPressed: (index) {
+                  setState(() {
+                    _subTab = index;
+                    _statusFilter = 'All';
+                  });
+                },
+                borderRadius: BorderRadius.circular(12),
+                constraints: const BoxConstraints(minHeight: 36, minWidth: 90),
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    child: Row(
+                      children: [
+                        Icon(Icons.receipt_outlined, size: 16),
+                        SizedBox(width: 6),
+                        Text('Invoices', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    child: Row(
+                      children: [
+                        Icon(Icons.request_quote_outlined, size: 16),
+                        SizedBox(width: 6),
+                        Text('Quotes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.people_outline, size: 16),
+                        const SizedBox(width: 6),
+                        Text('Clients (${clients.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-        ],
+            if (_subTab == 0)
+              FilledButton.icon(
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Create Invoice'),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const InvoiceEditorScreen(isQuote: false),
+                    ),
+                  );
+                },
+              )
+            else if (_subTab == 1)
+              FilledButton.icon(
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('New Quote'),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const InvoiceEditorScreen(isQuote: true),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
       ],
+    );
+
+    if (_subTab == 2) {
+      if (isWide) {
+        return Padding(
+          padding: EdgeInsets.all(pagePadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              salesHeader,
+              const SizedBox(height: 20),
+              const Expanded(child: ClientsTab()),
+            ],
+          ),
+        );
+      }
+      return ClientsTab(
+        leadingSlivers: [
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(pagePadding, pagePadding, pagePadding, 0),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  salesHeader,
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final leadingSlivers = [
+      SliverPadding(
+        padding: EdgeInsets.fromLTRB(pagePadding, pagePadding, pagePadding, 0),
+        sliver: SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              salesHeader,
+              const SizedBox(height: 20),
+              _buildFilterHeader(),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    ];
+
+    if (_subTab == 0) {
+      return OfflineInvoicesList(
+        searchQuery: _searchController.text,
+        statusFilter: _statusFilter,
+        dateFilter: _dateFilter,
+        leadingSlivers: leadingSlivers,
+      );
+    }
+
+    return OfflineEstimatesList(
+      searchQuery: _searchController.text,
+      statusFilter: _statusFilter,
+      dateFilter: _dateFilter,
+      leadingSlivers: leadingSlivers,
+      onViewInvoice: (invNum) {
+        setState(() {
+          _subTab = 0;
+          _searchController.text = invNum;
+        });
+      },
     );
   }
 

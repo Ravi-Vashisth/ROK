@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:billing_app/core/theme/app_theme.dart';
 import 'package:billing_app/core/utils/currency_formatter_provider.dart';
 import 'package:billing_app/core/utils/file_validation_utils.dart';
 import 'package:billing_app/core/utils/money_utils.dart';
@@ -210,13 +211,14 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
   }
 
   void _showReceiptDialog(BuildContext context, ExpenseRecord item) {
+    final colorScheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Row(
           children: [
-            const Icon(Icons.receipt_long, color: Colors.indigo),
+            Icon(Icons.receipt_long, color: colorScheme.primary),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -241,7 +243,7 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                     padding: const EdgeInsets.only(bottom: 12.0),
                     child: Text(
                       'File: ${item.receiptName}',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                     ),
                   ),
                 if (item.receiptBase64.startsWith('data:image')) ...[
@@ -263,12 +265,12 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
+                      color: colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Column(
+                    child: Column(
                       children: [
-                        Icon(Icons.picture_as_pdf, size: 48, color: Colors.red),
+                        Icon(Icons.picture_as_pdf, size: 48, color: colorScheme.error),
                         SizedBox(height: 8),
                         Text(
                           'PDF Receipt Document Attached',
@@ -308,6 +310,9 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
           e.notes.toLowerCase().contains(query);
     }).toList();
 
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final warningTone = AppSemanticColors.resolve(theme.brightness, SemanticStatus.warning);
     final width = MediaQuery.sizeOf(context).width;
     final isWide = width >= 900;
     final zeroHint = formatDecimalUnits(0, decimals);
@@ -354,244 +359,274 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
       ),
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Card(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            side: BorderSide(color: Theme.of(context).dividerColor),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
+    final pagePadding = isWide ? 24.0 : 16.0;
+
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(pagePadding, pagePadding, pagePadding, 0),
+          sliver: SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Book New Business Expense',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    side: BorderSide(color: Theme.of(context).dividerColor),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Book New Business Expense',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 14),
+                        if (isWide) ...[
+                          Row(
+                            children: [
+                              Expanded(flex: 3, child: categoryField),
+                              const SizedBox(width: 12),
+                              Expanded(flex: 4, child: vendorField),
+                              const SizedBox(width: 12),
+                              Expanded(flex: 3, child: dateField),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(flex: 3, child: amountField),
+                              const SizedBox(width: 12),
+                              Expanded(flex: 3, child: taxField),
+                              const SizedBox(width: 12),
+                              Expanded(flex: 4, child: notesField),
+                            ],
+                          ),
+                        ] else ...[
+                          categoryField,
+                          const SizedBox(height: 12),
+                          vendorField,
+                          const SizedBox(height: 12),
+                          dateField,
+                          const SizedBox(height: 12),
+                          amountField,
+                          const SizedBox(height: 12),
+                          taxField,
+                          const SizedBox(height: 12),
+                          notesField,
+                        ],
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  OutlinedButton.icon(
+                                    onPressed: _pickReceiptFile,
+                                    icon: const Icon(Icons.attach_file, size: 16),
+                                    label: ConstrainedBox(
+                                      constraints: const BoxConstraints(maxWidth: 210),
+                                      child: Text(
+                                        _receiptName.isNotEmpty ? 'Receipt: $_receiptName' : 'Attach Receipt (Image/PDF)',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                  if (_receiptName.isNotEmpty) ...[
+                                    const SizedBox(width: 4),
+                                    IconButton(
+                                      tooltip: 'Remove Attachment',
+                                      icon: const Icon(Icons.close, color: Colors.red, size: 18),
+                                      onPressed: () => setState(() {
+                                        _receiptBase64 = '';
+                                        _receiptName = '';
+                                      }),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              FilledButton.icon(
+                                onPressed: _handleAddExpense,
+                                icon: const Icon(Icons.add),
+                                label: const Text('Book Expense'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 14),
-                if (isWide) ...[
-                  Row(
-                    children: [
-                      Expanded(flex: 3, child: categoryField),
-                      const SizedBox(width: 12),
-                      Expanded(flex: 4, child: vendorField),
-                      const SizedBox(width: 12),
-                      Expanded(flex: 3, child: dateField),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(flex: 3, child: amountField),
-                      const SizedBox(width: 12),
-                      Expanded(flex: 3, child: taxField),
-                      const SizedBox(width: 12),
-                      Expanded(flex: 4, child: notesField),
-                    ],
-                  ),
-                ] else ...[
-                  categoryField,
-                  const SizedBox(height: 12),
-                  vendorField,
-                  const SizedBox(height: 12),
-                  dateField,
-                  const SizedBox(height: 12),
-                  amountField,
-                  const SizedBox(height: 12),
-                  taxField,
-                  const SizedBox(height: 12),
-                  notesField,
-                ],
-                const SizedBox(height: 14),
+                const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   child: Wrap(
                     alignment: WrapAlignment.spaceBetween,
                     crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 10,
+                    spacing: 12,
                     runSpacing: 10,
                     children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: _pickReceiptFile,
-                            icon: const Icon(Icons.attach_file, size: 16),
-                            label: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 210),
-                              child: Text(
-                                _receiptName.isNotEmpty ? 'Receipt: $_receiptName' : 'Attach Receipt (Image/PDF)',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                          if (_receiptName.isNotEmpty) ...[
-                            const SizedBox(width: 4),
-                            IconButton(
-                              tooltip: 'Remove Attachment',
-                              icon: const Icon(Icons.close, color: Colors.red, size: 18),
-                              onPressed: () => setState(() {
-                                _receiptBase64 = '';
-                                _receiptName = '';
-                              }),
-                            ),
-                          ],
-                        ],
+                      Text(
+                        'Expense Ledger (${filtered.length})',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                       ),
-                      FilledButton.icon(
-                        onPressed: _handleAddExpense,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Book Expense'),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: width < 600 ? double.infinity : 280),
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: const InputDecoration(
+                            hintText: 'Search vendor or category...',
+                            prefixIcon: Icon(Icons.search, size: 18),
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(height: 12),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          child: Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
-            runSpacing: 10,
-            children: [
-              Text(
-                'Expense Ledger (${filtered.length})',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: width < 600 ? double.infinity : 280),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: const InputDecoration(
-                    hintText: 'Search vendor or category...',
-                    prefixIcon: Icon(Icons.search, size: 18),
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (_) => setState(() {}),
+        if (filtered.isEmpty)
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(pagePadding, 0, pagePadding, pagePadding),
+            sliver: SliverToBoxAdapter(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  border: Border.all(color: theme.dividerColor),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text('No expenses recorded matching criteria.', style: TextStyle(color: colorScheme.onSurfaceVariant)),
                 ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (filtered.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              border: Border.all(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Center(
-              child: Text('No expenses recorded matching criteria.', style: TextStyle(color: Colors.grey)),
             ),
           )
         else
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              side: BorderSide(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: filtered.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final item = filtered[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.orange.shade100,
-                    child: const Icon(Icons.receipt, color: Colors.orange, size: 18),
-                  ),
-                  title: Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text('${item.vendor} (${item.category})', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      if (item.hasReceipt)
-                        InkWell(
-                          onTap: () => _showReceiptDialog(context, item),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.indigo.shade50,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.indigo.shade200),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.attach_file, size: 12, color: Colors.indigo),
-                                SizedBox(width: 2),
-                                Text(
-                                  'Receipt',
-                                  style: TextStyle(fontSize: 10, color: Colors.indigo, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  subtitle: Text(
-                    'Date: ${item.expenseDate}${item.notes.isNotEmpty ? " • ${item.notes}" : ""}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(pagePadding, 0, pagePadding, pagePadding),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final item = filtered[index];
+                  final isLast = index == filtered.length - 1;
+                  return Card(
+                    elevation: 0,
+                    margin: EdgeInsets.only(bottom: isLast ? 0 : 8),
+                    shape: RoundedRectangleBorder(
+                      side: BorderSide(color: theme.dividerColor),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: warningTone.background,
+                        child: Icon(Icons.receipt, color: warningTone.icon, size: 18),
+                      ),
+                      title: Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Text(
-                            formatCurrency(item.totalCents),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              fontFeatures: [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                          if (item.taxCents > 0)
-                            Text(
-                              'Tax: ${formatCurrency(item.taxCents)}',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey,
-                                fontFeatures: [FontFeature.tabularFigures()],
+                          Text('${item.vendor} (${item.category})', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          if (item.hasReceipt)
+                            InkWell(
+                              onTap: () => _showReceiptDialog(context, item),
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.attach_file, size: 12, color: colorScheme.onPrimaryContainer),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      'Receipt',
+                                      style: TextStyle(fontSize: 10, color: colorScheme.onPrimaryContainer, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                         ],
                       ),
-                      const SizedBox(width: 4),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined, size: 18),
-                        onPressed: () => _showEditExpenseDialog(context, item),
-                        tooltip: 'Edit Expense',
+                      subtitle: Text(
+                        'Date: ${item.expenseDate}${item.notes.isNotEmpty ? " • ${item.notes}" : ""}',
+                        style: const TextStyle(fontSize: 12),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
-                        onPressed: () => _confirmDeleteExpense(context, item),
-                        tooltip: 'Delete Expense',
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 112),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  formatCurrency(item.totalCents),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    fontFeatures: [FontFeature.tabularFigures()],
+                                  ),
+                                ),
+                                if (item.taxCents > 0)
+                                  Text(
+                                    'Tax: ${formatCurrency(item.taxCents)}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontFeatures: const [FontFeature.tabularFigures()],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.edit_outlined, size: 18),
+                            onPressed: () => _showEditExpenseDialog(context, item),
+                            tooltip: 'Edit Expense',
+                          ),
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            icon: Icon(Icons.delete_outline, color: colorScheme.error, size: 18),
+                            onPressed: () => _confirmDeleteExpense(context, item),
+                            tooltip: 'Delete Expense',
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                );
-              },
+                    ),
+                  );
+                },
+                childCount: filtered.length,
+              ),
             ),
           ),
       ],

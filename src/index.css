@@ -1,6 +1,91 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+:root,
+[data-accent="indigo"] {
+  --accent-primary: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
+  --accent-soft-hover: #e0e7ff;
+  --accent-soft-border: #c7d2fe;
+  --accent-text: #4338ca;
+  --accent-dark-soft: rgba(49, 46, 129, 0.42);
+  --accent-dark-hover: rgba(49, 46, 129, 0.62);
+  --accent-dark-border: rgba(129, 140, 248, 0.42);
+  --accent-dark-text: #a5b4fc;
+  --accent-ring: rgba(79, 70, 229, 0.28);
+}
+
+[data-accent="emerald"] {
+  --accent-primary: #059669;
+  --accent-hover: #047857;
+  --accent-soft: #ecfdf5;
+  --accent-soft-hover: #d1fae5;
+  --accent-soft-border: #a7f3d0;
+  --accent-text: #047857;
+  --accent-dark-soft: rgba(6, 78, 59, 0.42);
+  --accent-dark-hover: rgba(6, 78, 59, 0.62);
+  --accent-dark-border: rgba(52, 211, 153, 0.42);
+  --accent-dark-text: #6ee7b7;
+  --accent-ring: rgba(16, 185, 129, 0.28);
+}
+
+[data-accent="royalBlue"] {
+  --accent-primary: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: #eff6ff;
+  --accent-soft-hover: #dbeafe;
+  --accent-soft-border: #bfdbfe;
+  --accent-text: #1d4ed8;
+  --accent-dark-soft: rgba(30, 58, 138, 0.42);
+  --accent-dark-hover: rgba(30, 58, 138, 0.62);
+  --accent-dark-border: rgba(96, 165, 250, 0.42);
+  --accent-dark-text: #93c5fd;
+  --accent-ring: rgba(37, 99, 235, 0.28);
+}
+
+[data-accent="roseRed"] {
+  --accent-primary: #e11d48;
+  --accent-hover: #be123c;
+  --accent-soft: #fff1f2;
+  --accent-soft-hover: #ffe4e6;
+  --accent-soft-border: #fecdd3;
+  --accent-text: #be123c;
+  --accent-dark-soft: rgba(136, 19, 55, 0.42);
+  --accent-dark-hover: rgba(136, 19, 55, 0.62);
+  --accent-dark-border: rgba(251, 113, 133, 0.42);
+  --accent-dark-text: #fda4af;
+  --accent-ring: rgba(244, 63, 94, 0.28);
+}
+
+[data-accent="amberGold"] {
+  --accent-primary: #d97706;
+  --accent-hover: #b45309;
+  --accent-soft: #fffbeb;
+  --accent-soft-hover: #fef3c7;
+  --accent-soft-border: #fde68a;
+  --accent-text: #b45309;
+  --accent-dark-soft: rgba(120, 53, 15, 0.42);
+  --accent-dark-hover: rgba(120, 53, 15, 0.62);
+  --accent-dark-border: rgba(251, 191, 36, 0.42);
+  --accent-dark-text: #fcd34d;
+  --accent-ring: rgba(245, 158, 11, 0.28);
+}
+
+[data-accent="slateSteel"] {
+  --accent-primary: #475569;
+  --accent-hover: #334155;
+  --accent-soft: #f1f5f9;
+  --accent-soft-hover: #e2e8f0;
+  --accent-soft-border: #cbd5e1;
+  --accent-text: #334155;
+  --accent-dark-soft: rgba(51, 65, 85, 0.52);
+  --accent-dark-hover: rgba(71, 85, 105, 0.68);
+  --accent-dark-border: rgba(148, 163, 184, 0.42);
+  --accent-dark-text: #cbd5e1;
+  --accent-ring: rgba(71, 85, 105, 0.28);
+}
+
 @layer base {
   body {
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
@@ -10,6 +95,133 @@
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
+}
+
+/* Dynamic Accent Theme Utilities */
+.accent-bg {
+  background-color: var(--accent-primary);
+}
+
+.accent-btn {
+  background-color: var(--accent-primary);
+  color: #ffffff;
+}
+.accent-btn:hover {
+  background-color: var(--accent-hover);
+}
+
+.accent-text {
+  color: var(--accent-text);
+}
+.dark .accent-text {
+  color: var(--accent-dark-text);
+}
+
+.accent-soft-btn {
+  background-color: var(--accent-soft);
+  color: var(--accent-text);
+  border-color: var(--accent-soft-border);
+}
+.accent-soft-btn:hover {
+  background-color: var(--accent-soft-hover);
+}
+.dark .accent-soft-btn {
+  background-color: var(--accent-dark-soft);
+  color: var(--accent-dark-text);
+  border-color: var(--accent-dark-border);
+}
+.dark .accent-soft-btn:hover {
+  background-color: var(--accent-dark-hover);
+}
+
+.accent-soft-card {
+  background-color: var(--accent-soft);
+  border-color: var(--accent-soft-border);
+  color: var(--accent-text);
+}
+.dark .accent-soft-card {
+  background-color: var(--accent-dark-soft);
+  border-color: var(--accent-dark-border);
+  color: var(--accent-dark-text);
+}
+
+.accent-badge {
+  background-color: var(--accent-soft);
+  border-color: var(--accent-soft-border);
+  color: var(--accent-text);
+}
+.dark .accent-badge {
+  background-color: var(--accent-dark-soft);
+  border-color: var(--accent-dark-border);
+  color: var(--accent-dark-text);
+}
+
+.dark .a4-paper .accent-text {
+  color: var(--accent-text);
+}
+.dark .a4-paper .accent-badge {
+  background-color: var(--accent-soft);
+  border-color: var(--accent-soft-border);
+  color: var(--accent-text);
+}
+
+.accent-nav-active {
+  background-color: var(--accent-soft);
+  color: var(--accent-text);
+}
+.dark .accent-nav-active {
+  background-color: var(--accent-dark-soft);
+  color: var(--accent-dark-text);
+  border: 1px solid var(--accent-dark-border);
+}
+
+.accent-tab-active {
+  background-color: var(--accent-primary);
+  color: #ffffff;
+}
+
+.accent-border-tab-active {
+  border-color: var(--accent-primary);
+  color: var(--accent-text);
+}
+.dark .accent-border-tab-active {
+  border-color: var(--accent-primary);
+  color: var(--accent-dark-text);
+}
+
+.accent-border-subtle {
+  border-color: var(--accent-soft-border);
+}
+.dark .accent-border-subtle {
+  border-color: var(--accent-dark-border);
+}
+
+.accent-hover-row:hover {
+  background-color: var(--accent-soft);
+}
+.dark .accent-hover-row:hover {
+  background-color: var(--accent-dark-soft);
+}
+
+.accent-dashed-hover:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-text);
+  background-color: var(--accent-soft);
+}
+.dark .accent-dashed-hover:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-dark-text);
+  background-color: var(--accent-dark-soft);
+}
+
+.accent-focus:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-ring);
+}
+
+.accent-checkbox {
+  accent-color: var(--accent-primary);
 }
 
 /* Luxury Rim Highlight & Micro-Shadow Utilities */
@@ -44,3 +256,75 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.5);
 }
+
+/* Lightweight A4 Print / Save-as-PDF Stylesheet */
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-portal-backdrop {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  .print-dialog-shell {
+    max-width: none !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .a4-paper {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    overflow: visible !important;
+  }
+
+  .a4-paper table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .a4-paper thead {
+    display: table-header-group;
+  }
+
+  .a4-paper tr,
+  .a4-paper .print-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+

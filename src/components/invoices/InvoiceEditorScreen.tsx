@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   Save,
@@ -92,6 +92,27 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
   );
   const [clientSearch, setClientSearch] = useState<string>('');
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState<boolean>(false);
+  const clientDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isClientDropdownOpen) return;
+    const handlePointerDown = (e: MouseEvent) => {
+      if (clientDropdownRef.current && !clientDropdownRef.current.contains(e.target as Node)) {
+        setIsClientDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsClientDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isClientDropdownOpen]);
 
   const [issueDate, setIssueDate] = useState<string>(
     initialData?.issue_date || formatLocalCalendarDate()
@@ -171,6 +192,17 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
 
   // Add Client Modal State
   const [isAddClientOpen, setIsAddClientOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isAddClientOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsAddClientOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAddClientOpen]);
   const [newClientName, setNewClientName] = useState<string>('');
   const [newClientEmail, setNewClientEmail] = useState<string>('');
   const [newClientPhone, setNewClientPhone] = useState<string>('');
@@ -434,7 +466,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
           </button>
           <button
             onClick={() => handleSaveDoc(false)}
-            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition shadow-sm"
+            className="px-4 py-1.5 accent-btn text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition shadow-sm"
           >
             <Check className="w-3.5 h-3.5" />
             <span>{isQuote ? 'Save & Issue Quote' : 'Save & Issue Invoice'}</span>
@@ -459,7 +491,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
               <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">1. Client Selection & Billing Details</h4>
               <button
                 onClick={() => setIsAddClientOpen(true)}
-                className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-xs font-bold accent-text hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 <span>+ Add New Client</span>
@@ -467,7 +499,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
             </div>
 
             {/* Client Search Autocomplete */}
-            <div className="relative">
+            <div ref={clientDropdownRef} className="relative">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
@@ -479,7 +511,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
                   }}
                   onFocus={() => setIsClientDropdownOpen(true)}
                   placeholder="Search Client by Name, Email or Tax ID..."
-                  className={`w-full pl-9 pr-3 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-indigo-500 ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                  className={`w-full pl-9 pr-3 py-2.5 rounded-xl text-xs border accent-focus ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
               </div>
 
@@ -506,7 +538,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
                         setIsClientDropdownOpen(false);
                         setIsAddClientOpen(true);
                       }}
-                      className="w-full text-left p-2.5 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-xs text-indigo-600 font-bold transition cursor-pointer flex items-center gap-1.5"
+                      className="w-full text-left p-2.5 accent-hover-row text-xs accent-text font-bold transition cursor-pointer flex items-center gap-1.5"
                     >
                       <UserPlus className="w-3.5 h-3.5" />
                       <span>+ Add new client "{clientSearch}"</span>
@@ -518,8 +550,8 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
 
             {/* Selected Client Card */}
             {selectedClient && (
-              <div className={`p-3 rounded-xl border flex items-center gap-2.5 text-xs ${isDarkMode ? 'bg-indigo-950/40 border-indigo-900/60 text-indigo-200' : 'bg-indigo-50/70 border-indigo-200 text-indigo-900'}`}>
-                <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
+              <div className="p-3 rounded-xl border flex items-center gap-2.5 text-xs accent-soft-card">
+                <CheckCircle2 className="w-4 h-4 accent-text shrink-0" />
                 <div className="min-w-0">
                   <div className="font-bold">{selectedClient.name}</div>
                   <div className="text-[11px] opacity-80">{selectedClient.email} {selectedClient.tax_id ? `• Tax ID: ${selectedClient.tax_id}` : ''} {selectedClient.address ? `• ${selectedClient.address}` : ''}</div>
@@ -532,7 +564,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
           <div className={`p-5 rounded-xl border space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">2. Invoice Line Items & Payment Terms</h4>
-              <span className="font-mono text-xs font-bold text-indigo-600">
+              <span className="font-mono text-xs font-bold accent-text">
                 {initialData?.invoice_number || initialData?.estimate_number
                   ? `Editing: ${initialData.invoice_number || initialData.estimate_number}`
                   : `Next: ${nextDocNumber || (isQuote ? 'EST-0001' : 'INV-0001')}`}
@@ -575,10 +607,10 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
               </div>
 
               <div className={`p-2.5 rounded-xl border flex items-center gap-2 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                <Clock className="w-4 h-4 text-indigo-600 shrink-0" />
+                <Clock className="w-4 h-4 accent-text shrink-0" />
                 <div className="min-w-0">
                   <div className="text-[10px] font-bold text-slate-400">{isQuote ? 'Expiry Date:' : 'Computed Due Date:'}</div>
-                  <div className="font-mono font-bold text-xs text-indigo-600">{computedDueDate}</div>
+                  <div className="font-mono font-bold text-xs accent-text">{computedDueDate}</div>
                 </div>
               </div>
             </div>
@@ -625,7 +657,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className={taxMode === 'ca_dual' || taxMode === 'us_exempt' ? '' : 'sm:col-span-2'}>
                 <label className="block text-[11px] font-bold text-slate-500 mb-1 flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
+                  <ShieldCheck className="w-3.5 h-3.5 accent-text" />
                   <span>Regional Tax Compliance Mode</span>
                 </label>
                 <select
@@ -759,7 +791,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
               <div className="sm:col-span-2">
                 <button
                   onClick={handleAddQuickItem}
-                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  className="w-full py-2 accent-btn font-bold text-xs rounded-lg flex items-center justify-center gap-1.5 transition cursor-pointer"
                 >
                   <ShoppingCart className="w-3.5 h-3.5" />
                   <span>Add</span>
@@ -882,7 +914,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
                     {line.label}: <span className="font-bold">{formatDocMoney(line.cents)}</span>
                   </div>
                 ))}
-                <div className="text-sm font-bold text-indigo-600">Total: {formatDocMoney(totalCents)}</div>
+                <div className="text-sm font-bold accent-text">Total: {formatDocMoney(totalCents)}</div>
               </div>
             </div>
           </div>
@@ -890,7 +922,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
 
         {/* Live A4 Preview Canvas Column */}
         <div className="p-4 sm:p-6 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-center items-start overflow-y-auto">
-          <div className="w-full max-w-[580px] bg-white text-slate-900 p-5 sm:p-8 rounded-xl shadow-lg border border-slate-200 space-y-6 text-xs font-sans">
+          <div className="a4-paper w-full max-w-[580px] bg-white text-slate-900 p-5 sm:p-8 rounded-xl shadow-lg border border-slate-200 space-y-6 text-xs font-sans">
             {/* Header */}
             <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-4">
               <div className="min-w-0">
@@ -903,7 +935,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
                   </p>
                 )}
               </div>
-              <div className="px-3 py-1 rounded-md bg-indigo-50 text-indigo-900 font-bold uppercase text-xs shrink-0">
+              <div className="px-3 py-1 rounded-md accent-badge border font-bold uppercase text-xs shrink-0">
                 {isQuote ? 'ESTIMATE / QUOTE' : 'TAX INVOICE'}
               </div>
             </div>
@@ -978,7 +1010,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
                 ))}
                 <div className="flex justify-between text-sm font-bold border-t pt-1.5 text-slate-900">
                   <span>Total:</span>
-                  <span className="text-indigo-600">{formatDocMoney(totalCents)}</span>
+                  <span className="accent-text">{formatDocMoney(totalCents)}</span>
                 </div>
               </div>
             </div>
@@ -1028,8 +1060,19 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
 
       {/* Add Client Modal */}
       {isAddClientOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsAddClientOpen(false);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}
+          >
             <h3 className="font-bold text-sm">Add New Client</h3>
             <div className="space-y-3 text-xs">
               <div>
@@ -1092,7 +1135,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
               </button>
               <button
                 onClick={handleSaveNewClientModal}
-                className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold cursor-pointer"
+                className="px-4 py-1.5 accent-btn rounded-xl text-xs font-bold cursor-pointer"
               >
                 Save Client
               </button>

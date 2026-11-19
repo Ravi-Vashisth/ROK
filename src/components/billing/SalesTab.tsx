@@ -24,6 +24,11 @@ interface SalesTabProps {
   onEditEstimateDraft?: (estimate: any) => void;
   onFinalizeInvoice?: (invoice: any) => void;
   onFinalizeEstimate?: (estimate: any) => void;
+  onDuplicateInvoice?: (invoice: any) => void;
+  onVoidInvoice?: (invoice: any) => void;
+  onPrintInvoice?: (invoice: any) => void;
+  onPrintEstimate?: (estimate: any) => void;
+  onPrintStatement?: (client: any) => void;
   onAddClient?: (clientData: any) => void;
   onUpdateClient?: (id: string, updatedData: any) => void;
   onDeleteClient?: (client: any) => void;
@@ -51,6 +56,11 @@ export const SalesTab: React.FC<SalesTabProps> = ({
   onEditEstimateDraft,
   onFinalizeInvoice,
   onFinalizeEstimate,
+  onDuplicateInvoice,
+  onVoidInvoice,
+  onPrintInvoice,
+  onPrintEstimate,
+  onPrintStatement,
   onAddClient,
   onUpdateClient,
   onDeleteClient,
@@ -78,8 +88,8 @@ export const SalesTab: React.FC<SalesTabProps> = ({
               onClick={() => { setSubTab(0); setStatusFilter('All'); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap shrink-0 ${
                 subTab === 0
-                  ? isDarkMode ? 'bg-indigo-600 text-white' : 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? isDarkMode ? 'accent-tab-active' : 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               <ReceiptText className="w-3.5 h-3.5" />
@@ -89,8 +99,8 @@ export const SalesTab: React.FC<SalesTabProps> = ({
               onClick={() => { setSubTab(1); setStatusFilter('All'); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap shrink-0 ${
                 subTab === 1
-                  ? isDarkMode ? 'bg-indigo-600 text-white' : 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? isDarkMode ? 'accent-tab-active' : 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
@@ -100,8 +110,8 @@ export const SalesTab: React.FC<SalesTabProps> = ({
               onClick={() => { setSubTab(2); setStatusFilter('All'); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap shrink-0 ${
                 subTab === 2
-                  ? isDarkMode ? 'bg-indigo-600 text-white' : 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? isDarkMode ? 'accent-tab-active' : 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               <Users className="w-3.5 h-3.5" />
@@ -113,7 +123,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
           {subTab === 0 ? (
             <button
               onClick={onCreateInvoice}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer shadow-sm transition"
+              className="px-4 py-2 accent-btn font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer shadow-sm transition"
             >
               <Plus className="w-4 h-4" />
               <span>Create Invoice</span>
@@ -144,6 +154,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
           onAddClient={onAddClient || (() => {})}
           onUpdateClient={onUpdateClient || (() => {})}
           onDeleteClient={onDeleteClient || (() => {})}
+          onPrintStatement={onPrintStatement}
           onNotify={onNotify}
         />
       ) : (
@@ -158,7 +169,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by client name or invoice / quote #"
-                  className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-indigo-500 ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                  className={`w-full pl-9 pr-3 py-2 rounded-xl text-xs border accent-focus ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 />
               </div>
               <select
@@ -185,7 +196,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
                     onClick={() => setStatusFilter(st)}
                     className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
                       isSelected
-                        ? 'bg-indigo-600 text-white'
+                        ? 'accent-tab-active'
                         : isDarkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
@@ -210,6 +221,9 @@ export const SalesTab: React.FC<SalesTabProps> = ({
               onDeleteInvoice={onDeleteInvoice}
               onEditDraft={onEditInvoiceDraft}
               onFinalizeInvoice={onFinalizeInvoice}
+              onDuplicateInvoice={onDuplicateInvoice}
+              onVoidInvoice={onVoidInvoice}
+              onPrintInvoice={onPrintInvoice}
             />
           ) : (
             <OfflineEstimatesList
@@ -223,6 +237,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
               onDeleteEstimate={onDeleteEstimate}
               onEditDraft={onEditEstimateDraft}
               onFinalizeEstimate={onFinalizeEstimate}
+              onPrintEstimate={onPrintEstimate}
             />
           )}
         </>

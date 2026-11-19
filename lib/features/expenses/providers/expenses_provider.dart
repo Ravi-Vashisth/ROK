@@ -27,14 +27,14 @@ class ExpensesNotifier extends StateNotifier<List<ExpenseRecord>> {
     String receiptName = '',
   }) {
     final id = generateUniqueId();
-    final createdAt = DateTime.now().toUtc().toIso8601String();
+    final nowIso = DateTime.now().toUtc().toIso8601String();
 
     final stmt = _db.prepare('''
-      INSERT INTO expenses (id, category, vendor, amount_cents, tax_cents, expense_date, notes, receipt_base64, receipt_name, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO expenses (id, category, vendor, amount_cents, tax_cents, expense_date, notes, receipt_base64, receipt_name, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''');
     try {
-      stmt.execute([id, category, vendor, amountCents, taxCents, expenseDate, notes, receiptBase64, receiptName, createdAt]);
+      stmt.execute([id, category, vendor, amountCents, taxCents, expenseDate, notes, receiptBase64, receiptName, nowIso, nowIso]);
     } finally {
       stmt.dispose();
     }
@@ -52,9 +52,10 @@ class ExpensesNotifier extends StateNotifier<List<ExpenseRecord>> {
     String receiptBase64 = '',
     String receiptName = '',
   }) {
+    final updatedAt = DateTime.now().toUtc().toIso8601String();
     final stmt = _db.prepare('''
       UPDATE expenses
-      SET category = ?, vendor = ?, amount_cents = ?, tax_cents = ?, expense_date = ?, notes = ?, receipt_base64 = ?, receipt_name = ?
+      SET category = ?, vendor = ?, amount_cents = ?, tax_cents = ?, expense_date = ?, notes = ?, receipt_base64 = ?, receipt_name = ?, updated_at = ?
       WHERE id = ?
     ''');
     try {
@@ -67,6 +68,7 @@ class ExpensesNotifier extends StateNotifier<List<ExpenseRecord>> {
         notes,
         receiptBase64,
         receiptName,
+        updatedAt,
         id,
       ]);
     } finally {

@@ -37,7 +37,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
       invoices: invoices,
       expenses: expenses,
       clients: clients,
-      currencySymbol: profile.currencySymbol,
+      currencyCode: profile.currencyCode.isNotEmpty ? profile.currencyCode : 'USD',
     );
   }
 
@@ -93,6 +93,31 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 900;
+        final isVeryNarrow = constraints.maxWidth < 460;
+        final colorScheme = Theme.of(context).colorScheme;
+        final curCode = profile.currencyCode.isNotEmpty ? profile.currencyCode : 'USD';
+        final curSym = profile.currencySymbol.isNotEmpty ? profile.currencySymbol : '\$';
+        final currencyLabel = '$curCode ($curSym)';
+
+        Widget buildCurrencyBadge() {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Theme.of(context).dividerColor),
+            ),
+            child: Text(
+              currencyLabel,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                fontFeatures: const [FontFeature.tabularFigures()],
+                color: colorScheme.onSurface,
+              ),
+            ),
+          );
+        }
 
         if (isWide) {
           // Desktop (width >= 900px) with 220px left NavigationRail
@@ -117,10 +142,10 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                       child: Row(
                         children: [
                           CircleAvatar(
-                            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                            backgroundColor: colorScheme.primaryContainer,
                             child: Text(
                               profile.businessName.isNotEmpty ? profile.businessName[0].toUpperCase() : 'F',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                              style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.onPrimaryContainer),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -166,10 +191,12 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                       title: const SizedBox.shrink(),
                       elevation: 0,
                       actions: [
+                        buildCurrencyBadge(),
+                        const SizedBox(width: 10),
                         FilledButton.icon(
                           style: FilledButton.styleFrom(
-                            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                            foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                            backgroundColor: colorScheme.primaryContainer,
+                            foregroundColor: colorScheme.onPrimaryContainer,
                           ),
                           icon: const Icon(Icons.file_download, size: 16),
                           label: const Text('Export Accountant CSV', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
@@ -195,10 +222,7 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
                         const SizedBox(width: 8),
                       ],
                     ),
-                    body: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24.0),
-                      child: desktopTabs[_selectedTab < 4 ? _selectedTab : 0],
-                    ),
+                    body: desktopTabs[_selectedTab < 4 ? _selectedTab : 0],
                   ),
                 ),
               ],
@@ -210,40 +234,86 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
             appBar: AppBar(
               title: Text(
                 profile.businessName.isNotEmpty ? profile.businessName : 'Freelance',
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
               elevation: 0,
-              actions: [
-                IconButton(
-                  tooltip: 'Export Accountant CSV',
-                  icon: const Icon(Icons.file_download),
-                  onPressed: _handleExportCsv,
-                ),
-                IconButton(
-                  tooltip: 'Business Profile',
-                  icon: const Icon(Icons.business_outlined),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => const BusinessProfileDialog(),
-                    );
-                  },
-                ),
-                _buildAccentColorPicker(currentAccent),
-                IconButton(
-                  tooltip: _getThemeModeTooltip(themeMode),
-                  icon: Icon(_getThemeModeIcon(themeMode)),
-                  onPressed: () => ref.read(themeModeProvider.notifier).cycleThemeMode(),
-                ),
-              ],
+              actions: isVeryNarrow
+                  ? [
+                      _buildAccentColorPicker(currentAccent, compact: true),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        tooltip: _getThemeModeTooltip(themeMode),
+                        icon: Icon(_getThemeModeIcon(themeMode)),
+                        onPressed: () => ref.read(themeModeProvider.notifier).cycleThemeMode(),
+                      ),
+                      PopupMenuButton<String>(
+                        tooltip: 'More Actions',
+                        icon: const Icon(Icons.more_vert),
+                        onSelected: (value) {
+                          if (value == 'export_csv') {
+                            _handleExportCsv();
+                          } else if (value == 'profile') {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const BusinessProfileDialog(),
+                            );
+                          }
+                        },
+                        itemBuilder: (ctx) => [
+                          PopupMenuItem<String>(
+                            value: 'profile',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.business_outlined, size: 18),
+                                const SizedBox(width: 10),
+                                Expanded(child: Text('Profile & Currency ($currencyLabel)')),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: 'export_csv',
+                            child: Row(
+                              children: [
+                                Icon(Icons.file_download, size: 18),
+                                SizedBox(width: 10),
+                                Expanded(child: Text('Export Accountant CSV')),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ]
+                  : [
+                      buildCurrencyBadge(),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        tooltip: 'Export Accountant CSV',
+                        icon: const Icon(Icons.file_download),
+                        onPressed: _handleExportCsv,
+                      ),
+                      IconButton(
+                        tooltip: 'Business Profile',
+                        icon: const Icon(Icons.business_outlined),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => const BusinessProfileDialog(),
+                          );
+                        },
+                      ),
+                      _buildAccentColorPicker(currentAccent),
+                      IconButton(
+                        tooltip: _getThemeModeTooltip(themeMode),
+                        icon: Icon(_getThemeModeIcon(themeMode)),
+                        onPressed: () => ref.read(themeModeProvider.notifier).cycleThemeMode(),
+                      ),
+                    ],
             ),
             body: SafeArea(
               top: false,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: desktopTabs[_selectedTab < 4 ? _selectedTab : 0],
-              ),
+              child: desktopTabs[_selectedTab < 4 ? _selectedTab : 0],
             ),
             bottomNavigationBar: Container(
               color: Theme.of(context).navigationBarTheme.backgroundColor,
@@ -273,14 +343,15 @@ class _BillingDashboardScreenState extends ConsumerState<BillingDashboardScreen>
     );
   }
 
-  Widget _buildAccentColorPicker(Color currentAccent) {
+  Widget _buildAccentColorPicker(Color currentAccent, {bool compact = false}) {
     return PopupMenuButton<Color>(
       tooltip: 'Accent Color',
+      padding: compact ? const EdgeInsets.all(6) : const EdgeInsets.all(8),
       icon: Icon(Icons.palette_outlined, color: currentAccent),
       onSelected: (color) => ref.read(accentColorProvider.notifier).setAccentColor(color),
       itemBuilder: (context) {
         return AppTheme.presetAccents.map((color) {
-          final isSelected = color.value == currentAccent.value;
+          final isSelected = color.toARGB32() == currentAccent.toARGB32();
           return PopupMenuItem<Color>(
             value: color,
             child: Row(

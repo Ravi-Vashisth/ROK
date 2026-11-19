@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, CheckCircle2, Trash2, DollarSign, Send } from 'lucide-react';
+import { FileText, CheckCircle2, Trash2, DollarSign, Send, Copy, Ban, Printer } from 'lucide-react';
 import { formatMoney as formatMoneyUnits, getCurrencyDecimals, matchesDateFilter } from '../../../billingRules';
 
 interface OfflineInvoicesListProps {
@@ -15,6 +15,8 @@ interface OfflineInvoicesListProps {
   onEditDraft?: (invoice: any) => void;
   onFinalizeInvoice?: (invoice: any) => void;
   onDuplicateInvoice?: (invoice: any) => void;
+  onVoidInvoice?: (invoice: any) => void;
+  onPrintInvoice?: (invoice: any) => void;
 }
 
 export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
@@ -30,6 +32,8 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
   onEditDraft,
   onFinalizeInvoice,
   onDuplicateInvoice,
+  onVoidInvoice,
+  onPrintInvoice,
 }) => {
   const filteredInvoices = invoices.filter((inv) => {
     // Status filter
@@ -98,8 +102,8 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
                 invSym ? formatMoneyUnits(amt, invSym, invDec) : formatMoney(amt);
 
               return (
-                <tr key={inv.id} className={`hover:bg-indigo-50/20 transition ${isDarkMode ? 'hover:bg-slate-800/40' : ''} ${isVoid ? 'opacity-60' : ''}`}>
-                  <td className="p-3.5 font-bold font-mono text-indigo-500 whitespace-nowrap">{inv.invoice_number}</td>
+                <tr key={inv.id} className={`accent-hover-row transition ${isVoid ? 'opacity-60' : ''}`}>
+                  <td className="p-3.5 font-bold font-mono accent-text whitespace-nowrap">{inv.invoice_number}</td>
                   <td className="p-3.5 font-semibold whitespace-nowrap">{inv.client_name || 'Client'}</td>
                   <td className="p-3.5 text-slate-500 whitespace-nowrap">{inv.issue_date}</td>
                   <td className="p-3.5 text-slate-500 whitespace-nowrap">{inv.due_date}</td>
@@ -114,7 +118,7 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
                       isPaid ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
                       isOverdue ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
                       isPartiallyPaid ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
-                      'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                      'accent-badge border'
                     }`}>
                       {status === 'PARTIALLY_PAID' ? 'PARTIAL' : status}
                     </span>
@@ -132,7 +136,7 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
                     {isDraft && onFinalizeInvoice && (
                       <button
                         onClick={() => onFinalizeInvoice(inv)}
-                        className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] transition cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                        className="px-2.5 py-1 rounded-lg accent-btn font-bold text-[11px] transition cursor-pointer inline-flex items-center gap-1 shadow-xs"
                         title="Finalize & Issue Invoice"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
@@ -144,7 +148,7 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
                         {onSendReminder && (
                           <button
                             onClick={() => onSendReminder(inv)}
-                            className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 transition cursor-pointer"
+                            className="p-1.5 rounded-lg border accent-soft-btn transition cursor-pointer"
                             title="Send Payment Reminder"
                           >
                             <Send className="w-3.5 h-3.5" />
@@ -158,6 +162,37 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
                           <DollarSign className="w-3.5 h-3.5" />
                         </button>
                       </>
+                    )}
+                    {onPrintInvoice && (
+                      <button
+                        onClick={() => onPrintInvoice(inv)}
+                        className="p-1.5 rounded-lg border accent-soft-btn transition cursor-pointer"
+                        title="Print / Save PDF"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {onDuplicateInvoice && (
+                      <button
+                        onClick={() => onDuplicateInvoice(inv)}
+                        className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                          isDarkMode
+                            ? 'border-slate-700 text-slate-300 hover:bg-slate-800'
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                        }`}
+                        title="Duplicate Invoice"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {!isDraft && !isVoid && onVoidInvoice && (
+                      <button
+                        onClick={() => onVoidInvoice(inv)}
+                        className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 transition cursor-pointer"
+                        title="Void / Cancel Invoice"
+                      >
+                        <Ban className="w-3.5 h-3.5" />
+                      </button>
                     )}
                     <button
                       onClick={() => onDeleteInvoice(inv)}

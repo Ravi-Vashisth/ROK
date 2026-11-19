@@ -92,7 +92,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </div>
         <button
           onClick={onCreateInvoice}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer shadow-sm transition shrink-0"
+          className="px-4 py-2 accent-btn font-bold text-xs rounded-xl flex items-center gap-2 cursor-pointer shadow-sm transition shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>Create New Invoice</span>
@@ -103,7 +103,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       <div className="grid grid-cols-1 min-[460px]:grid-cols-2 min-[900px]:grid-cols-4 gap-4">
         <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2">
-            <TrendingUp className="w-4 h-4 text-indigo-500" />
+            <TrendingUp className="w-4 h-4 accent-text" />
             <span>Total Invoiced</span>
           </div>
           <div className="text-xl font-extrabold font-mono tabular-nums break-words">{formattedTotalInvoiced}</div>
@@ -185,13 +185,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               return (
                 <div key={inv.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
                   <span className="text-slate-700 dark:text-slate-300">
-                    Invoice <strong className="text-indigo-600">{inv.invoice_number}</strong> for {inv.client_name || 'Client'} is {days} {days === 1 ? 'day' : 'days'} overdue ({fmtDocMoney(inv, inv.balance_due_cents || 0)} balance due).
+                    Invoice <strong className="accent-text">{inv.invoice_number}</strong> for {inv.client_name || 'Client'} is {days} {days === 1 ? 'day' : 'days'} overdue ({fmtDocMoney(inv, inv.balance_due_cents || 0)} balance due).
                   </span>
                   <div className="flex items-center gap-2 shrink-0">
                     {onSendReminder && (
                       <button
                         onClick={() => onSendReminder(inv)}
-                        className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[11px] cursor-pointer inline-flex items-center gap-1 transition"
+                        className="px-2.5 py-1 accent-btn rounded-lg font-bold text-[11px] cursor-pointer inline-flex items-center gap-1 transition"
                       >
                         <Send className="w-3 h-3" />
                         <span>Send Reminder</span>
@@ -199,7 +199,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     )}
                     <button
                       onClick={onNavigateToSales}
-                      className="px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-[11px] text-indigo-600 cursor-pointer hover:bg-slate-50 shrink-0"
+                      className="px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg font-bold text-[11px] accent-text cursor-pointer hover:bg-slate-50 shrink-0"
                     >
                       View in Sales
                     </button>
@@ -217,7 +217,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         <div className={`p-5 rounded-xl border space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-sm">Recent Invoices</h3>
-            <button onClick={onNavigateToSales} className="text-xs font-bold text-indigo-500 hover:underline cursor-pointer">
+            <button onClick={onNavigateToSales} className="text-xs font-bold accent-text hover:underline cursor-pointer">
               View All ({invoices.length})
             </button>
           </div>
@@ -228,12 +228,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               {recentInvoices.map((inv) => (
                 <div key={inv.id} className={`p-3 rounded-xl border flex items-center justify-between gap-3 text-xs ${isDarkMode ? 'border-slate-800 bg-slate-900/50' : 'border-slate-100 bg-slate-50'}`}>
                   <div className="min-w-0">
-                    <div className="font-bold font-mono text-indigo-500 truncate">{inv.invoice_number}</div>
+                    <div className="font-bold font-mono accent-text truncate">{inv.invoice_number}</div>
                     <div className="text-slate-500 text-[11px] mt-0.5 truncate">{inv.client_name || 'Client'}</div>
                   </div>
                   <div className="text-right shrink-0">
                     <div className="font-bold font-mono tabular-nums">{fmtDocMoney(inv, inv.total_cents || 0)}</div>
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md accent-badge border">
                       {inv.computed_status || inv.status}
                     </span>
                   </div>
@@ -247,7 +247,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         <div className={`p-5 rounded-xl border space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}>
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-sm">Recent Expenses</h3>
-            <button onClick={onNavigateToExpenses} className="text-xs font-bold text-indigo-500 hover:underline cursor-pointer">
+            <button onClick={onNavigateToExpenses} className="text-xs font-bold accent-text hover:underline cursor-pointer">
               View All ({expenses.length})
             </button>
           </div>

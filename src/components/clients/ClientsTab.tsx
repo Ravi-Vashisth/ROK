@@ -11,6 +11,7 @@ import {
   Search,
   Edit2,
   MessageSquare,
+  Printer,
 } from 'lucide-react';
 import {
   buildMailtoUrl,
@@ -36,6 +37,7 @@ interface ClientsTabProps {
   onAddClient: (clientData: any) => void;
   onUpdateClient?: (id: string, clientData: any) => void;
   onDeleteClient: (client: any) => void;
+  onPrintStatement?: (client: any) => void;
   onNotify?: (msg: string) => void;
 }
 
@@ -51,6 +53,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
   onAddClient,
   onUpdateClient,
   onDeleteClient,
+  onPrintStatement,
   onNotify,
 }) => {
   const resolvedDefaultDecimals =
@@ -261,7 +264,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
         </div>
         <button
           onClick={handleOpenAddModal}
-          className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition shadow-xs"
+          className="px-3.5 py-1.5 accent-btn font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition shadow-xs"
         >
           <Plus className="w-4 h-4" />
           <span>+ Add Client</span>
@@ -298,9 +301,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                     onClick={() => setSelectedClientId(c.id)}
                     className={`w-full text-left p-3 rounded-xl transition cursor-pointer flex items-center justify-between gap-2 ${
                       isSelected
-                        ? isDarkMode
-                          ? 'bg-indigo-950/40 text-indigo-200 border border-indigo-900/60'
-                          : 'bg-indigo-50/70 text-indigo-950 border border-indigo-200'
+                        ? 'accent-soft-card border'
                         : isDarkMode
                         ? 'hover:bg-slate-800/50 text-slate-200'
                         : 'hover:bg-slate-50 text-slate-800'
@@ -406,7 +407,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                             className="px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold rounded-xl flex items-center gap-1 transition"
                             title={`SMS ${selectedClient.phone}`}
                           >
-                            <MessageSquare className="w-3.5 h-3.5 text-indigo-600" />
+                            <MessageSquare className="w-3.5 h-3.5 accent-text" />
                             <span>SMS</span>
                           </a>
                         )}
@@ -424,6 +425,16 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                       </>
                     );
                   })()}
+                  {onPrintStatement && (
+                    <button
+                      onClick={() => onPrintStatement(selectedClient)}
+                      className="px-3 py-1.5 border accent-soft-btn text-xs font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                      title="Print / Save Client Statement PDF"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>Statement</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => handleOpenEditModal(selectedClient)}
                     className="px-3 py-1.5 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
@@ -478,7 +489,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                   onClick={() => setActiveDossierSubTab('invoices')}
                   className={`pb-2 border-b-2 cursor-pointer transition whitespace-nowrap shrink-0 ${
                     activeDossierSubTab === 'invoices'
-                      ? 'border-indigo-600 text-indigo-600'
+                      ? 'accent-border-tab-active'
                       : 'border-transparent text-slate-400 hover:text-slate-600'
                   }`}
                 >
@@ -488,7 +499,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                   onClick={() => setActiveDossierSubTab('statement')}
                   className={`pb-2 border-b-2 cursor-pointer transition whitespace-nowrap shrink-0 ${
                     activeDossierSubTab === 'statement'
-                      ? 'border-indigo-600 text-indigo-600'
+                      ? 'accent-border-tab-active'
                       : 'border-transparent text-slate-400 hover:text-slate-600'
                   }`}
                 >
@@ -498,7 +509,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                   onClick={() => setActiveDossierSubTab('notes')}
                   className={`pb-2 border-b-2 cursor-pointer transition whitespace-nowrap shrink-0 ${
                     activeDossierSubTab === 'notes'
-                      ? 'border-indigo-600 text-indigo-600'
+                      ? 'accent-border-tab-active'
                       : 'border-transparent text-slate-400 hover:text-slate-600'
                   }`}
                 >
@@ -531,7 +542,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
 
                             return (
                               <tr key={inv.id} className={isVoid ? 'opacity-50' : ''}>
-                                <td className="p-3 font-mono font-bold text-indigo-500 whitespace-nowrap">{inv.invoice_number}</td>
+                                <td className="p-3 font-mono font-bold accent-text whitespace-nowrap">{inv.invoice_number}</td>
                                 <td className="p-3 text-slate-500 whitespace-nowrap">{inv.issue_date}</td>
                                 <td className="p-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">
                                   {formatMoneyUnits(inv.total_cents || 0, cur.symbol, cur.decimals)}
@@ -548,7 +559,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                                         ? 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
                                         : isPaid
                                         ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                        : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                                        : 'accent-badge border'
                                     }`}
                                   >
                                     {isVoid ? 'VOID' : status}
@@ -572,6 +583,17 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
 
               {activeDossierSubTab === 'statement' && (
                 <div className="space-y-3">
+                  {onPrintStatement && (
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => onPrintStatement(selectedClient)}
+                        className="px-3 py-1.5 accent-soft-btn border text-xs font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Print Statement / Save PDF</span>
+                      </button>
+                    </div>
+                  )}
                   <div className={`rounded-xl border overflow-hidden ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs">
@@ -596,7 +618,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                             statementRows.map((row, idx) => (
                               <tr key={idx}>
                                 <td className="p-3 text-slate-500 whitespace-nowrap">{row.date}</td>
-                                <td className="p-3 font-mono font-bold text-indigo-500 whitespace-nowrap">{row.reference}</td>
+                                <td className="p-3 font-mono font-bold accent-text whitespace-nowrap">{row.reference}</td>
                                 <td className="p-3 text-slate-600 dark:text-slate-300">{row.description}</td>
                                 <td className="p-3 text-right font-mono tabular-nums font-bold whitespace-nowrap">
                                   {row.debitCents > 0 ? formatMoneyUnits(row.debitCents, row.currencySymbol, row.currencyDecimals) : '—'}
@@ -720,7 +742,7 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold cursor-pointer"
+                  className="px-4 py-1.5 accent-btn rounded-xl text-xs font-bold cursor-pointer"
                 >
                   {editingClient ? 'Save Changes' : 'Save Client'}
                 </button>
