@@ -1,0 +1,426 @@
+﻿2026-11-19T09:08:57.0129847Z Current runner version: '2.338.2'
+2026-11-19T09:08:57.0150928Z ##[group]Runner Image Provisioner
+2026-11-19T09:08:57.0151671Z Hosted Compute Agent
+2026-11-19T09:08:57.0152361Z Version: 20261103.629
+2026-11-19T09:08:57.0152948Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-19T09:08:57.0153580Z Build Date: 2026-11-03T17:26:59Z
+2026-11-19T09:08:57.0154182Z Worker ID: {4c1f4e29-d273-481c-af45-8695c3fac931}
+2026-11-19T09:08:57.0154759Z Region: westus2
+2026-11-19T09:08:57.0155216Z Cloud: Azure
+2026-11-19T09:08:57.0155699Z ##[endgroup]
+2026-11-19T09:08:57.0156821Z ##[group]Operating System
+2026-11-19T09:08:57.0157432Z Ubuntu
+2026-11-19T09:08:57.0157875Z 26.04.1
+2026-11-19T09:08:57.0158307Z LTS
+2026-11-19T09:08:57.0158784Z ##[endgroup]
+2026-11-19T09:08:57.0159269Z ##[group]Runner Image
+2026-11-19T09:08:57.0159743Z Image: ubuntu-26.04
+2026-11-19T09:08:57.0160263Z Version: 20261111.196.1
+2026-11-19T09:08:57.0161286Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261111.196/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-19T09:08:57.0162947Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261111.196
+2026-11-19T09:08:57.0164037Z ##[endgroup]
+2026-11-19T09:08:57.0165112Z ##[group]GITHUB_TOKEN Permissions
+2026-11-19T09:08:57.0166831Z Contents: write
+2026-11-19T09:08:57.0167437Z Metadata: read
+2026-11-19T09:08:57.0167902Z ##[endgroup]
+2026-11-19T09:08:57.0169664Z Secret source: Actions
+2026-11-19T09:08:57.0170449Z Cache mode: write
+2026-11-19T09:08:57.0171039Z Prepare workflow directory
+2026-11-19T09:08:57.0432641Z Prepare all required actions
+2026-11-19T09:08:57.0472485Z Getting action download info
+2026-11-19T09:08:57.4458331Z Download action repository 'actions/checkout@v4.2.2' (SHA:11bd71901bbe5b1630ceea73d27597364c9af683)
+2026-11-19T09:08:57.5758386Z Download action repository 'actions/setup-java@v5' (SHA:b6effb05e454b25005698d916606bdc6ffcbf961)
+2026-11-19T09:08:57.9053687Z Download action repository 'subosito/flutter-action@v2.18.0' (SHA:f2c4f6686ca8e8d6e6d0f28410eeef506ed66aff)
+2026-11-19T09:08:58.0908039Z Download action repository 'actions/upload-artifact@v4.4.3' (SHA:b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882)
+2026-11-19T09:08:58.4114240Z Getting action download info
+2026-11-19T09:08:58.5751098Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-11-19T09:08:58.7464619Z Complete job name: Build Android Release (.apk)
+2026-11-19T09:08:58.8282938Z ##[group]Run actions/checkout@v4.2.2
+2026-11-19T09:08:58.8284108Z with:
+2026-11-19T09:08:58.8284830Z   repository: Ravi-Vashisth/ROK
+2026-11-19T09:08:58.8292527Z   token: ***
+2026-11-19T09:08:58.8293273Z   ssh-strict: true
+2026-11-19T09:08:58.8294011Z   ssh-user: git
+2026-11-19T09:08:58.8294759Z   persist-credentials: true
+2026-11-19T09:08:58.8295566Z   clean: true
+2026-11-19T09:08:58.8296337Z   sparse-checkout-cone-mode: true
+2026-11-19T09:08:58.8297210Z   fetch-depth: 1
+2026-11-19T09:08:58.8297936Z   fetch-tags: false
+2026-11-19T09:08:58.8298685Z   show-progress: true
+2026-11-19T09:08:58.8299473Z   lfs: false
+2026-11-19T09:08:58.8300165Z   submodules: false
+2026-11-19T09:08:58.8300916Z   set-safe-directory: true
+2026-11-19T09:08:58.8301961Z ##[endgroup]
+2026-11-19T09:08:59.1691832Z Syncing repository: Ravi-Vashisth/ROK
+2026-11-19T09:08:59.1695282Z ##[group]Getting Git version info
+2026-11-19T09:08:59.1696826Z Working directory is '/home/runner/work/ROK/ROK'
+2026-11-19T09:08:59.1699167Z [command]/usr/bin/git version
+2026-11-19T09:08:59.1700421Z git version 2.56.1
+2026-11-19T09:08:59.1704916Z ##[endgroup]
+2026-11-19T09:08:59.1716515Z Temporarily overriding HOME='/home/runner/work/_temp/4b5e5266-c07e-4427-ac5e-c914a5b82e20' before making global git config changes
+2026-11-19T09:08:59.1718705Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-19T09:08:59.1722501Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/ROK/ROK
+2026-11-19T09:08:59.1783580Z Deleting the contents of '/home/runner/work/ROK/ROK'
+2026-11-19T09:08:59.1794299Z ##[group]Initializing the repository
+2026-11-19T09:08:59.1796382Z [command]/usr/bin/git init /home/runner/work/ROK/ROK
+2026-11-19T09:08:59.1930744Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-19T09:08:59.1933529Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-19T09:08:59.1936001Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-19T09:08:59.1937888Z hint: call:
+2026-11-19T09:08:59.1938885Z hint:
+2026-11-19T09:08:59.1940076Z hint: 	git config --global init.defaultBranch <name>
+2026-11-19T09:08:59.1941830Z hint:
+2026-11-19T09:08:59.1943317Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-19T09:08:59.1945032Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-19T09:08:59.1946488Z hint:
+2026-11-19T09:08:59.1947626Z hint: 	git branch -m <name>
+2026-11-19T09:08:59.1948855Z hint:
+2026-11-19T09:08:59.1950116Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-19T09:08:59.1951930Z Initialized empty Git repository in /home/runner/work/ROK/ROK/.git/
+2026-11-19T09:08:59.1955309Z [command]/usr/bin/git remote add origin https://github.com/Ravi-Vashisth/ROK
+2026-11-19T09:08:59.1997802Z ##[endgroup]
+2026-11-19T09:08:59.1999077Z ##[group]Disabling automatic garbage collection
+2026-11-19T09:08:59.2000964Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-19T09:08:59.2034626Z ##[endgroup]
+2026-11-19T09:08:59.2036057Z ##[group]Setting up auth
+2026-11-19T09:08:59.2040456Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-19T09:08:59.2075085Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-19T09:08:59.2505027Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-19T09:08:59.2535840Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-19T09:08:59.2776012Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-19T09:08:59.2811451Z ##[endgroup]
+2026-11-19T09:08:59.2818161Z ##[group]Fetching the repository
+2026-11-19T09:08:59.2820712Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +70c05f15cd5564bc4af720ec8a8fab00160522ee:refs/remotes/origin/main
+2026-11-19T09:09:00.0266454Z From https://github.com/Ravi-Vashisth/ROK
+2026-11-19T09:09:00.0269168Z  * [new ref]         70c05f15cd5564bc4af720ec8a8fab00160522ee -> origin/main
+2026-11-19T09:09:00.0273712Z ##[endgroup]
+2026-11-19T09:09:00.0275523Z ##[group]Determining the checkout info
+2026-11-19T09:09:00.0277556Z ##[endgroup]
+2026-11-19T09:09:00.0278846Z [command]/usr/bin/git sparse-checkout disable
+2026-11-19T09:09:00.0325668Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-19T09:09:00.0354815Z ##[group]Checking out the ref
+2026-11-19T09:09:00.0357083Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-19T09:09:00.0847092Z Switched to a new branch 'main'
+2026-11-19T09:09:00.0850219Z branch 'main' set up to track 'origin/main'.
+2026-11-19T09:09:00.0901184Z ##[endgroup]
+2026-11-19T09:09:00.0904241Z [command]/usr/bin/git log -1 --format=%H
+2026-11-19T09:09:00.0928795Z 70c05f15cd5564bc4af720ec8a8fab00160522ee
+2026-11-19T09:09:00.1281860Z ##[group]Run actions/setup-java@v5
+2026-11-19T09:09:00.1282915Z with:
+2026-11-19T09:09:00.1283590Z   distribution: temurin
+2026-11-19T09:09:00.1284338Z   java-version: 17
+2026-11-19T09:09:00.1285057Z   java-package: jdk
+2026-11-19T09:09:00.1285779Z   check-latest: false
+2026-11-19T09:09:00.1286509Z   set-default: true
+2026-11-19T09:09:00.1287443Z   verify-signature: false
+2026-11-19T09:09:00.1288220Z   server-id: github
+2026-11-19T09:09:00.1288962Z   server-username: GITHUB_ACTOR
+2026-11-19T09:09:00.1289805Z   server-password: GITHUB_TOKEN
+2026-11-19T09:09:00.1290637Z   overwrite-settings: true
+2026-11-19T09:09:00.1291412Z   job-status: success
+2026-11-19T09:09:00.1298866Z   token: ***
+2026-11-19T09:09:00.1299595Z   show-download-progress: false
+2026-11-19T09:09:00.1300413Z ##[endgroup]
+2026-11-19T09:09:00.2548889Z ##[group]Installed distributions
+2026-11-19T09:09:00.3140943Z Resolved Java 17.0.21+9 from tool-cache
+2026-11-19T09:09:00.3142071Z Setting Java 17.0.21+9 as the default
+2026-11-19T09:09:00.3151123Z Creating toolchains.xml for JDK version 17 from temurin
+2026-11-19T09:09:00.3210308Z Writing to /home/runner/.m2/toolchains.xml
+2026-11-19T09:09:00.3211349Z 
+2026-11-19T09:09:00.3212004Z Java configuration:
+2026-11-19T09:09:00.3213504Z   Distribution: temurin
+2026-11-19T09:09:00.3214841Z   Version: 17.0.21+9
+2026-11-19T09:09:00.3216452Z   Path: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:00.3217673Z 
+2026-11-19T09:09:00.3218882Z ##[endgroup]
+2026-11-19T09:09:00.3250243Z Creating settings.xml with server-id: github
+2026-11-19T09:09:00.3252073Z Writing to /home/runner/.m2/settings.xml
+2026-11-19T09:09:00.3255571Z Configured MAVEN_ARGS to include -ntp to suppress Maven transfer progress logs. Set 'show-download-progress: true' to keep the download progress output.
+2026-11-19T09:09:00.3676928Z ##[group]Run subosito/flutter-action@v2.18.0
+2026-11-19T09:09:00.3677865Z with:
+2026-11-19T09:09:00.3678510Z   channel: stable
+2026-11-19T09:09:00.3679196Z   cache: true
+2026-11-19T09:09:00.3679866Z   architecture: X64
+2026-11-19T09:09:00.3680594Z   pub-cache-path: default
+2026-11-19T09:09:00.3681351Z   dry-run: false
+2026-11-19T09:09:00.3682166Z   git-source: https://github.com/flutter/flutter.git
+2026-11-19T09:09:00.3683249Z env:
+2026-11-19T09:09:00.3684176Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:00.3685650Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:00.3686854Z   MAVEN_ARGS: -ntp
+2026-11-19T09:09:00.3687546Z ##[endgroup]
+2026-11-19T09:09:00.3746669Z ##[start-action display=Make yq tool available on Windows runners;id=__subosito_flutter-action.__run]
+2026-11-19T09:09:00.3759137Z ##[end-action id=__subosito_flutter-action.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-19T09:09:00.3764469Z ##[start-action display=Make setup script executable;id=__subosito_flutter-action.__run_2]
+2026-11-19T09:09:00.3813471Z ##[group]Run chmod +x "$GITHUB_ACTION_PATH/setup.sh"
+2026-11-19T09:09:00.3814580Z [36;1mchmod +x "$GITHUB_ACTION_PATH/setup.sh"[0m
+2026-11-19T09:09:00.3868443Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-19T09:09:00.3869468Z env:
+2026-11-19T09:09:00.3870391Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:00.3871830Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:00.3873163Z   MAVEN_ARGS: -ntp
+2026-11-19T09:09:00.3873847Z ##[endgroup]
+2026-11-19T09:09:00.4016598Z ##[end-action id=__subosito_flutter-action.__run_2;outcome=success;conclusion=success;duration_ms=24]
+2026-11-19T09:09:00.4021961Z ##[start-action display=Set action inputs;id=__subosito_flutter-action.flutter-action]
+2026-11-19T09:09:00.4073052Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh -p \
+2026-11-19T09:09:00.4074095Z [36;1m$GITHUB_ACTION_PATH/setup.sh -p \[0m
+2026-11-19T09:09:00.4074988Z [36;1m  -n '' \[0m
+2026-11-19T09:09:00.4075683Z [36;1m  -f '' \[0m
+2026-11-19T09:09:00.4076373Z [36;1m  -a 'X64' \[0m
+2026-11-19T09:09:00.4077078Z [36;1m  -k '' \[0m
+2026-11-19T09:09:00.4077754Z [36;1m  -c '' \[0m
+2026-11-19T09:09:00.4078441Z [36;1m  -l '' \[0m
+2026-11-19T09:09:00.4079139Z [36;1m  -d 'default' \[0m
+2026-11-19T09:09:00.4080040Z [36;1m  -g 'https://github.com/flutter/flutter.git' \[0m
+2026-11-19T09:09:00.4081210Z [36;1m  stable[0m
+2026-11-19T09:09:00.4128864Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-19T09:09:00.4129858Z env:
+2026-11-19T09:09:00.4130769Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:00.4132201Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:00.4133641Z   MAVEN_ARGS: -ntp
+2026-11-19T09:09:00.4134327Z ##[endgroup]
+2026-11-19T09:09:00.5661652Z ##[end-action id=__subosito_flutter-action.flutter-action;outcome=success;conclusion=success;duration_ms=163]
+2026-11-19T09:09:00.5669969Z ##[start-action display=Cache Flutter;id=__subosito_flutter-action.__actions_cache]
+2026-11-19T09:09:00.5760195Z ##[group]Run actions/cache@v4
+2026-11-19T09:09:00.5760991Z with:
+2026-11-19T09:09:00.5761763Z   path: /opt/hostedtoolcache/flutter/stable-3.50.0-x64
+2026-11-19T09:09:00.5763197Z   key: flutter-linux-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+2026-11-19T09:09:00.5764893Z   restore-keys: flutter-linux-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+
+2026-11-19T09:09:00.5766318Z   enableCrossOsArchive: false
+2026-11-19T09:09:00.5767132Z   fail-on-cache-miss: false
+2026-11-19T09:09:00.5767907Z   lookup-only: false
+2026-11-19T09:09:00.5768606Z   save-always: false
+2026-11-19T09:09:00.5769293Z env:
+2026-11-19T09:09:00.5770208Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:00.5771844Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:00.5773106Z   MAVEN_ARGS: -ntp
+2026-11-19T09:09:00.5773789Z ##[endgroup]
+2026-11-19T09:09:00.6682486Z (node:2292) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-19T09:09:00.6684702Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-19T09:09:00.9186584Z Cache hit for: flutter-linux-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+2026-11-19T09:09:00.9309918Z (node:2292) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-19T09:09:02.2512532Z Received 4194304 of 1675610819 (0.3%), 3.9 MBs/sec
+2026-11-19T09:09:03.2515715Z Received 134217728 of 1675610819 (8.0%), 63.0 MBs/sec
+2026-11-19T09:09:04.2522452Z Received 268435456 of 1675610819 (16.0%), 84.4 MBs/sec
+2026-11-19T09:09:05.2612181Z Received 381681664 of 1675610819 (22.8%), 90.2 MBs/sec
+2026-11-19T09:09:06.2550603Z Received 499122176 of 1675610819 (29.8%), 94.5 MBs/sec
+2026-11-19T09:09:07.2552803Z Received 620756992 of 1675610819 (37.0%), 98.1 MBs/sec
+2026-11-19T09:09:08.2552427Z Received 729808896 of 1675610819 (43.6%), 98.9 MBs/sec
+2026-11-19T09:09:09.2554207Z Received 830472192 of 1675610819 (49.6%), 98.6 MBs/sec
+2026-11-19T09:09:10.2574314Z Received 926941184 of 1675610819 (55.3%), 97.8 MBs/sec
+2026-11-19T09:09:11.2565087Z Received 1019215872 of 1675610819 (60.8%), 96.8 MBs/sec
+2026-11-19T09:09:12.2573961Z Received 1094713344 of 1675610819 (65.3%), 94.6 MBs/sec
+2026-11-19T09:09:13.2747999Z Received 1207959552 of 1675610819 (72.1%), 95.6 MBs/sec
+2026-11-19T09:09:14.2736270Z Received 1321205760 of 1675610819 (78.8%), 96.5 MBs/sec
+2026-11-19T09:09:15.2739303Z Received 1375731712 of 1675610819 (82.1%), 93.4 MBs/sec
+2026-11-19T09:09:16.2739918Z Received 1463812096 of 1675610819 (87.4%), 92.7 MBs/sec
+2026-11-19T09:09:17.2749118Z Received 1560281088 of 1675610819 (93.1%), 92.7 MBs/sec
+2026-11-19T09:09:18.2759911Z Received 1623195648 of 1675610819 (96.9%), 90.8 MBs/sec
+2026-11-19T09:09:18.9774609Z Received 1675610819 of 1675610819 (100.0%), 90.0 MBs/sec
+2026-11-19T09:09:18.9782828Z Cache Size: ~1598 MB (1675610819 B)
+2026-11-19T09:09:18.9969684Z [command]/usr/bin/tar -xf /home/runner/work/_temp/2d63b785-8349-4e7e-8599-9cbacd3f7e5b/cache.tzst -P -C /home/runner/work/ROK/ROK --use-compress-program unzstd
+2026-11-19T09:09:28.1874370Z Cache restored successfully
+2026-11-19T09:09:28.2642603Z Cache restored from key: flutter-linux-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+2026-11-19T09:09:28.2805968Z ##[end-action id=__subosito_flutter-action.__actions_cache;outcome=success;conclusion=success;duration_ms=27713]
+2026-11-19T09:09:28.2809070Z ##[start-action display=Cache pub dependencies;id=__subosito_flutter-action.__actions_cache_2]
+2026-11-19T09:09:28.4476617Z ##[group]Run actions/cache@v4
+2026-11-19T09:09:28.4476877Z with:
+2026-11-19T09:09:28.4477083Z   path: /home/runner/.pub-cache
+2026-11-19T09:09:28.4477439Z   key: flutter-pub-linux-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb-
+2026-11-19T09:09:28.4478189Z   restore-keys: flutter-pub-linux-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb-
+flutter-pub-linux-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+
+2026-11-19T09:09:28.4478808Z   enableCrossOsArchive: false
+2026-11-19T09:09:28.4479108Z   fail-on-cache-miss: false
+2026-11-19T09:09:28.4479362Z   lookup-only: false
+2026-11-19T09:09:28.4479552Z   save-always: false
+2026-11-19T09:09:28.4479729Z env:
+2026-11-19T09:09:28.4479986Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:28.4480374Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:28.4480688Z   MAVEN_ARGS: -ntp
+2026-11-19T09:09:28.4480875Z ##[endgroup]
+2026-11-19T09:09:28.5376963Z (node:2414) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-19T09:09:28.5377608Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-19T09:09:28.7788674Z Cache hit for: flutter-pub-linux-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb-
+2026-11-19T09:09:28.7879079Z (node:2414) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-19T09:09:30.0806070Z Received 16777216 of 47377635 (35.4%), 16.0 MBs/sec
+2026-11-19T09:09:30.3563756Z Received 47377635 of 47377635 (100.0%), 35.4 MBs/sec
+2026-11-19T09:09:30.3564878Z Cache Size: ~45 MB (47377635 B)
+2026-11-19T09:09:30.3595109Z [command]/usr/bin/tar -xf /home/runner/work/_temp/a74df0bd-fa6a-4c78-9497-9879339d4623/cache.tzst -P -C /home/runner/work/ROK/ROK --use-compress-program unzstd
+2026-11-19T09:09:31.0238808Z Cache restored successfully
+2026-11-19T09:09:31.0322883Z Cache restored from key: flutter-pub-linux-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb-
+2026-11-19T09:09:31.0422764Z ##[end-action id=__subosito_flutter-action.__actions_cache_2;outcome=success;conclusion=success;duration_ms=2761]
+2026-11-19T09:09:31.0425645Z ##[start-action display=Run setup script;id=__subosito_flutter-action.__run_3]
+2026-11-19T09:09:31.0501370Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh \
+2026-11-19T09:09:31.0501691Z [36;1m$GITHUB_ACTION_PATH/setup.sh \[0m
+2026-11-19T09:09:31.0502106Z [36;1m  -n '3.50.0' \[0m
+2026-11-19T09:09:31.0502550Z [36;1m  -a 'x64' \[0m
+2026-11-19T09:09:31.0502857Z [36;1m  -c '/opt/hostedtoolcache/flutter/stable-3.50.0-x64' \[0m
+2026-11-19T09:09:31.0503146Z [36;1m  stable[0m
+2026-11-19T09:09:31.0547202Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-19T09:09:31.0547495Z env:
+2026-11-19T09:09:31.0547783Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:31.0548209Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:31.0548541Z   MAVEN_ARGS: -ntp
+2026-11-19T09:09:31.0548741Z ##[endgroup]
+2026-11-19T09:09:31.1790089Z ##[end-action id=__subosito_flutter-action.__run_3;outcome=success;conclusion=success;duration_ms=136]
+2026-11-19T09:09:31.1842190Z ##[group]Run flutter create --platforms=android .
+2026-11-19T09:09:31.1842730Z [36;1mflutter create --platforms=android .[0m
+2026-11-19T09:09:31.1842997Z [36;1mbash scripts/patch_android.sh[0m
+2026-11-19T09:09:31.1888315Z shell: /usr/bin/bash -e {0}
+2026-11-19T09:09:31.1888554Z env:
+2026-11-19T09:09:31.1888826Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:31.1889229Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:31.1889552Z   MAVEN_ARGS: -ntp
+2026-11-19T09:09:31.1889801Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.50.0-x64
+2026-11-19T09:09:31.1890098Z   PUB_CACHE: /home/runner/.pub-cache
+2026-11-19T09:09:31.1890325Z ##[endgroup]
+2026-11-19T09:09:31.3333967Z Recreating project ....
+2026-11-19T09:09:31.3609103Z   analysis_options.yaml (created)
+2026-11-19T09:09:31.3695239Z   .idea/runConfigurations/main_dart.xml (created)
+2026-11-19T09:09:31.3702021Z   .idea/workspace.xml (created)
+2026-11-19T09:09:31.3712896Z   .idea/modules.xml (created)
+2026-11-19T09:09:31.3723426Z   .idea/libraries/Dart_SDK.xml (created)
+2026-11-19T09:09:31.3733550Z   .idea/libraries/KotlinJavaRuntime.xml (created)
+2026-11-19T09:09:31.3740928Z   android/settings.gradle.kts (created)
+2026-11-19T09:09:31.3748848Z   android/gradle/wrapper/gradle-wrapper.properties (created)
+2026-11-19T09:09:31.3754796Z   android/gradle.properties (created)
+2026-11-19T09:09:31.3759396Z   android/.gitignore (created)
+2026-11-19T09:09:31.3767322Z   android/app/src/debug/AndroidManifest.xml (created)
+2026-11-19T09:09:31.3773963Z   android/app/src/main/AndroidManifest.xml (created)
+2026-11-19T09:09:31.3795985Z   android/app/src/main/res/mipmap-mdpi/ic_launcher.png (created)
+2026-11-19T09:09:31.3800798Z   android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png (created)
+2026-11-19T09:09:31.3805128Z   android/app/src/main/res/drawable/launch_background.xml (created)
+2026-11-19T09:09:31.3809423Z   android/app/src/main/res/mipmap-xhdpi/ic_launcher.png (created)
+2026-11-19T09:09:31.3813777Z   android/app/src/main/res/mipmap-hdpi/ic_launcher.png (created)
+2026-11-19T09:09:31.3818505Z   android/app/src/main/res/drawable-v21/launch_background.xml (created)
+2026-11-19T09:09:31.3822537Z   android/app/src/main/res/values/styles.xml (created)
+2026-11-19T09:09:31.3827131Z   android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png (created)
+2026-11-19T09:09:31.3830946Z   android/app/src/main/res/values-night/styles.xml (created)
+2026-11-19T09:09:31.3835578Z   android/app/src/profile/AndroidManifest.xml (created)
+2026-11-19T09:09:31.3841782Z   android/billing_app_android.iml (created)
+2026-11-19T09:09:31.3851823Z   android/app/src/main/kotlin/com/example/billing_app/MainActivity.kt (created)
+2026-11-19T09:09:31.3859737Z   android/app/build.gradle.kts (created)
+2026-11-19T09:09:31.3870316Z   android/build.gradle.kts (created)
+2026-11-19T09:09:31.3877227Z   billing_app.iml (created)
+2026-11-19T09:09:31.3885558Z   README.md (created)
+2026-11-19T09:09:32.1711959Z Got dependencies.
+2026-11-19T09:09:32.3421729Z Wrote 31 files.
+2026-11-19T09:09:32.3421979Z 
+2026-11-19T09:09:32.3422100Z All done!
+2026-11-19T09:09:32.3425449Z You can find general documentation for Flutter at: https://docs.flutter.dev/
+2026-11-19T09:09:32.3425946Z Detailed API documentation is available at: https://api.flutter.dev/
+2026-11-19T09:09:32.3426413Z If you prefer video documentation, consider: https://www.youtube.com/c/flutterdev
+2026-11-19T09:09:32.3426690Z 
+2026-11-19T09:09:32.3426808Z In order to run your application, type:
+2026-11-19T09:09:32.3426984Z 
+2026-11-19T09:09:32.3427066Z   $ flutter run
+2026-11-19T09:09:32.3427184Z 
+2026-11-19T09:09:32.3427302Z Your application code is in ./lib/main.dart.
+2026-11-19T09:09:32.3427477Z 
+2026-11-19T09:09:33.7382044Z Applying Android build patches: compileSdk 36, idempotent Gradle rules, and OEM <queries> intents...
+2026-11-19T09:09:33.7587328Z Ensuring Android 11-15 <queries> OS intents and package visibility in android/app/src/main/AndroidManifest.xml...
+2026-11-19T09:09:33.7788512Z Android patches applied successfully.
+2026-11-19T09:09:33.7828943Z ##[group]Run flutter pub get
+2026-11-19T09:09:33.7829245Z [36;1mflutter pub get[0m
+2026-11-19T09:09:33.7873500Z shell: /usr/bin/bash -e {0}
+2026-11-19T09:09:33.7873877Z env:
+2026-11-19T09:09:33.7874146Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:33.7874558Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:33.7874898Z   MAVEN_ARGS: -ntp
+2026-11-19T09:09:33.7875168Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.50.0-x64
+2026-11-19T09:09:33.7875459Z   PUB_CACHE: /home/runner/.pub-cache
+2026-11-19T09:09:33.7875689Z ##[endgroup]
+2026-11-19T09:09:33.9389137Z Resolving dependencies...
+2026-11-19T09:09:34.4229720Z Downloading packages...
+2026-11-19T09:09:34.4265353Z   cross_file 0.3.5+5 (0.4.0 available)
+2026-11-19T09:09:34.4265779Z   file_picker 8.3.7 (13.4.0 available)
+2026-11-19T09:09:34.4266145Z   flutter_lints 4.0.0 (6.0.0 available)
+2026-11-19T09:09:34.4266602Z   flutter_riverpod 2.6.1 (3.5.0 available)
+2026-11-19T09:09:34.4266971Z   intl 0.19.0 (0.20.3 available)
+2026-11-19T09:09:34.4267294Z   jni_flutter 1.0.4+1 (1.1.0 available)
+2026-11-19T09:09:34.4267653Z   lints 4.0.0 (6.1.0 available)
+2026-11-19T09:09:34.4268009Z   material_color_utilities 0.13.0 (0.13.1 available)
+2026-11-19T09:09:34.4268395Z   qr 3.0.3 (4.0.1 available)
+2026-11-19T09:09:34.4268651Z   riverpod 2.6.1 (3.5.0 available)
+2026-11-19T09:09:34.4268878Z   sqlite3 2.9.4 (3.9.1 available)
+2026-11-19T09:09:34.4269130Z   sqlite3_flutter_libs 0.5.42 (0.6.0+eol available)
+2026-11-19T09:09:34.4269398Z   test_api 0.7.14 (0.7.15 available)
+2026-11-19T09:09:34.4269631Z   vector_math 2.4.3 (2.4.4 available)
+2026-11-19T09:09:34.4269863Z   win32 5.15.0 (6.4.0 available)
+2026-11-19T09:09:34.4270107Z Got dependencies!
+2026-11-19T09:09:34.4271955Z 15 packages have newer versions incompatible with dependency constraints.
+2026-11-19T09:09:34.4272644Z Try `flutter pub outdated` for more information.
+2026-11-19T09:09:34.8850614Z ##[group]Run flutter analyze
+2026-11-19T09:09:34.8850932Z [36;1mflutter analyze[0m
+2026-11-19T09:09:34.8896069Z shell: /usr/bin/bash -e {0}
+2026-11-19T09:09:34.8896325Z env:
+2026-11-19T09:09:34.8896608Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:34.8897023Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-9/x64
+2026-11-19T09:09:34.8897342Z   MAVEN_ARGS: -ntp
+2026-11-19T09:09:34.8897602Z   FLUTTER_ROOT: /opt/hostedtoolcache/flutter/stable-3.50.0-x64
+2026-11-19T09:09:34.8897901Z   PUB_CACHE: /home/runner/.pub-cache
+2026-11-19T09:09:34.8898128Z ##[endgroup]
+2026-11-19T09:09:43.0246196Z Analyzing ROK...                                                
+2026-11-19T09:09:43.0251928Z 
+2026-11-19T09:09:43.0269230Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/app.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0272162Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/core/theme/app_theme.dart:2:1 • deprecated_member_use
+2026-11-19T09:09:43.0275272Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/core/theme/theme_provider.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0278252Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/core/utils/csv_export_service.dart:2:1 • deprecated_member_use
+2026-11-19T09:09:43.0281423Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/billing/presentation/billing_dashboard_screen.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0285179Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/billing/presentation/sales_tab.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0288216Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/billing/presentation/widgets/cash_flow_metrics_bar.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0291623Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/billing/presentation/widgets/client_autocomplete_picker.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0295153Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/billing/presentation/widgets/offline_invoices_list.dart:2:1 • deprecated_member_use
+2026-11-19T09:09:43.0305243Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/billing/presentation/widgets/payment_reminder_modal.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0311868Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/billing/presentation/widgets/pdf_preview_dialog.dart:2:1 • deprecated_member_use
+2026-11-19T09:09:43.0314512Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/business_profile/presentation/business_profile_dialog.dart:4:1 • deprecated_member_use
+2026-11-19T09:09:43.0317619Z    info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/business_profile/presentation/business_profile_dialog.dart:307:19 • deprecated_member_use
+2026-11-19T09:09:43.0320786Z    info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/business_profile/presentation/business_profile_dialog.dart:426:23 • deprecated_member_use
+2026-11-19T09:09:43.0324173Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/clients/presentation/client_statement_dialog.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0327263Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/clients/presentation/clients_tab.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0330496Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/dashboard/presentation/dashboard_tab.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0334271Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/estimates/presentation/offline_estimates_list.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0337225Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/expenses/presentation/expense_drawer.dart:4:1 • deprecated_member_use
+2026-11-19T09:09:43.0340013Z    info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/expenses/presentation/expense_drawer.dart:182:19 • deprecated_member_use
+2026-11-19T09:09:43.0343122Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/expenses/presentation/expenses_tab.dart:4:1 • deprecated_member_use
+2026-11-19T09:09:43.0346167Z    info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/expenses/presentation/expenses_tab.dart:320:7 • deprecated_member_use
+2026-11-19T09:09:43.0349147Z    info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/expenses/presentation/expenses_tab.dart:786:19 • deprecated_member_use
+2026-11-19T09:09:43.0352451Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/invoices/presentation/invoice_editor_screen.dart:2:1 • deprecated_member_use
+2026-11-19T09:09:43.0355582Z    info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/invoices/presentation/invoice_editor_screen.dart:532:7 • deprecated_member_use
+2026-11-19T09:09:43.0358600Z    info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/invoices/presentation/invoice_editor_screen.dart:565:7 • deprecated_member_use
+2026-11-19T09:09:43.0361564Z    info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/invoices/presentation/invoice_editor_screen.dart:610:7 • deprecated_member_use
+2026-11-19T09:09:43.0365191Z    info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/invoices/presentation/invoice_editor_screen.dart:808:15 • deprecated_member_use
+2026-11-19T09:09:43.0368254Z    info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/invoices/presentation/invoice_editor_screen.dart:919:15 • deprecated_member_use
+2026-11-19T09:09:43.0371297Z    info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/invoices/presentation/invoice_editor_screen.dart:947:21 • deprecated_member_use
+2026-11-19T09:09:43.0374403Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/items/presentation/items_catalog_tab.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0377405Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/payments/presentation/record_payment_dialog.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0380323Z    info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/payments/presentation/record_payment_dialog.dart:167:7 • deprecated_member_use
+2026-11-19T09:09:43.0382946Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/settings/presentation/directory_settings_tab.dart:4:1 • deprecated_member_use
+2026-11-19T09:09:43.0384705Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/main.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0386272Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • test/financial_math_test.dart:2:1 • deprecated_member_use
+2026-11-19T09:09:43.0387824Z    info • 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • test/widget_test.dart:1:1 • deprecated_member_use
+2026-11-19T09:09:43.0388705Z 37 issues found. (ran in 7.3s)
+2026-11-19T09:09:43.0388865Z 
+2026-11-19T09:09:43.0465052Z ##[error]Process completed with exit code 1.
+2026-11-19T09:09:43.0611435Z Post job cleanup.
+2026-11-19T09:09:43.0615139Z ##[start-action display=Cache pub dependencies;id=__7b2a2691-fad3-46bf-8d62-5ab2558a03d1.__actions_cache_2]
+2026-11-19T09:09:43.0617142Z ##[end-action id=__7b2a2691-fad3-46bf-8d62-5ab2558a03d1.__actions_cache_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-19T09:09:43.0618699Z ##[start-action display=Cache Flutter;id=__7b2a2691-fad3-46bf-8d62-5ab2558a03d1.__actions_cache]
+2026-11-19T09:09:43.0620192Z ##[end-action id=__7b2a2691-fad3-46bf-8d62-5ab2558a03d1.__actions_cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-19T09:09:43.0680377Z Post job cleanup.
+2026-11-19T09:09:43.1889355Z Post job cleanup.
+2026-11-19T09:09:43.2626603Z [command]/usr/bin/git version
+2026-11-19T09:09:43.2666065Z git version 2.56.1
+2026-11-19T09:09:43.2699801Z Temporarily overriding HOME='/home/runner/work/_temp/cb1a209b-fe98-4dda-a531-fce9ac3283f8' before making global git config changes
+2026-11-19T09:09:43.2700936Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-19T09:09:43.2704721Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/ROK/ROK
+2026-11-19T09:09:43.2742878Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-19T09:09:43.2776938Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-19T09:09:43.3056717Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-19T09:09:43.3082776Z http.https://github.com/.extraheader
+2026-11-19T09:09:43.3093701Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-19T09:09:43.3129735Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-19T09:09:43.3575308Z Cleaning up orphan processes
+2026-11-19T09:09:43.3888281Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, actions/checkout@v4.2.2. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

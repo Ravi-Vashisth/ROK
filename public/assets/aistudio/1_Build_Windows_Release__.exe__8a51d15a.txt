@@ -1,0 +1,465 @@
+﻿2026-11-19T09:08:57.5318635Z Current runner version: '2.338.2'
+2026-11-19T09:08:57.5356126Z ##[group]Runner Image Provisioner
+2026-11-19T09:08:57.5357384Z Hosted Compute Agent
+2026-11-19T09:08:57.5358328Z Version: 20261111.635
+2026-11-19T09:08:57.5359468Z Commit: b8a594ea514ff44cadb5342986c68b1eac6e22ed
+2026-11-19T09:08:57.5360641Z Build Date: 2026-11-11T01:49:01Z
+2026-11-19T09:08:57.5361716Z Worker ID: {ece41958-3105-4d3d-b8ce-1d35c054a0ea}
+2026-11-19T09:08:57.5362806Z Region: eastus
+2026-11-19T09:08:57.5363593Z Cloud: Azure
+2026-11-19T09:08:57.5364400Z ##[endgroup]
+2026-11-19T09:08:57.5366884Z ##[group]Operating System
+2026-11-19T09:08:57.5367973Z Microsoft Windows Server 2025
+2026-11-19T09:08:57.5369002Z 10.0.26100
+2026-11-19T09:08:57.5369738Z Datacenter
+2026-11-19T09:08:57.5370531Z ##[endgroup]
+2026-11-19T09:08:57.5371365Z ##[group]Runner Image
+2026-11-19T09:08:57.5372256Z Image: windows-2025-vs2026
+2026-11-19T09:08:57.5373229Z Version: 20261116.315.1
+2026-11-19T09:08:57.5375689Z Included Software: https://github.com/actions/runner-images/blob/win25-vs2026/20261116.315/images/windows/Windows2025-VS2026-Readme.md
+2026-11-19T09:08:57.5378538Z Image Release: https://github.com/actions/runner-images/releases/tag/win25-vs2026%2F20261116.315
+2026-11-19T09:08:57.5380179Z ##[endgroup]
+2026-11-19T09:08:57.5381814Z ##[group]GITHUB_TOKEN Permissions
+2026-11-19T09:08:57.5384882Z Contents: write
+2026-11-19T09:08:57.5385766Z Metadata: read
+2026-11-19T09:08:57.5386988Z ##[endgroup]
+2026-11-19T09:08:57.5389924Z Secret source: Actions
+2026-11-19T09:08:57.5392098Z Cache mode: write
+2026-11-19T09:08:57.5393259Z Prepare workflow directory
+2026-11-19T09:08:57.5775340Z Prepare all required actions
+2026-11-19T09:08:57.5823428Z Getting action download info
+2026-11-19T09:08:57.8066310Z Download action repository 'actions/checkout@v4.2.2' (SHA:11bd71901bbe5b1630ceea73d27597364c9af683)
+2026-11-19T09:08:57.9437452Z Download action repository 'subosito/flutter-action@v2.18.0' (SHA:f2c4f6686ca8e8d6e6d0f28410eeef506ed66aff)
+2026-11-19T09:08:58.0585320Z Download action repository 'actions/upload-artifact@v4.4.3' (SHA:b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882)
+2026-11-19T09:08:58.2877379Z Getting action download info
+2026-11-19T09:08:58.4176169Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-11-19T09:08:58.6139020Z Complete job name: Build Windows Release (.exe)
+2026-11-19T09:08:58.7862531Z ##[group]Run actions/checkout@v4.2.2
+2026-11-19T09:08:58.7863681Z with:
+2026-11-19T09:08:58.7864136Z   repository: Ravi-Vashisth/ROK
+2026-11-19T09:08:58.7868122Z   token: ***
+2026-11-19T09:08:58.7868547Z   ssh-strict: true
+2026-11-19T09:08:58.7868982Z   ssh-user: git
+2026-11-19T09:08:58.7869413Z   persist-credentials: true
+2026-11-19T09:08:58.7869883Z   clean: true
+2026-11-19T09:08:58.7870309Z   sparse-checkout-cone-mode: true
+2026-11-19T09:08:58.7870818Z   fetch-depth: 1
+2026-11-19T09:08:58.7871668Z   fetch-tags: false
+2026-11-19T09:08:58.7872120Z   show-progress: true
+2026-11-19T09:08:58.7872587Z   lfs: false
+2026-11-19T09:08:58.7872989Z   submodules: false
+2026-11-19T09:08:58.7873440Z   set-safe-directory: true
+2026-11-19T09:08:58.7874203Z ##[endgroup]
+2026-11-19T09:08:58.9458630Z Syncing repository: Ravi-Vashisth/ROK
+2026-11-19T09:08:58.9461033Z ##[group]Getting Git version info
+2026-11-19T09:08:58.9462080Z Working directory is 'D:\a\ROK\ROK'
+2026-11-19T09:08:59.0452603Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-11-19T09:08:59.4008856Z git version 2.56.1.windows.1
+2026-11-19T09:08:59.4066227Z ##[endgroup]
+2026-11-19T09:08:59.4085919Z Temporarily overriding HOME='D:\a\_temp\0f89e9f8-ba0b-400f-b71d-7f8f7e62f886' before making global git config changes
+2026-11-19T09:08:59.4088079Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-19T09:08:59.4095949Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\ROK\ROK
+2026-11-19T09:08:59.4786632Z Deleting the contents of 'D:\a\ROK\ROK'
+2026-11-19T09:08:59.4794191Z ##[group]Initializing the repository
+2026-11-19T09:08:59.4802272Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\ROK\ROK
+2026-11-19T09:08:59.5869932Z Initialized empty Git repository in D:/a/ROK/ROK/.git/
+2026-11-19T09:08:59.5962227Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/Ravi-Vashisth/ROK
+2026-11-19T09:08:59.6799909Z ##[endgroup]
+2026-11-19T09:08:59.6801804Z ##[group]Disabling automatic garbage collection
+2026-11-19T09:08:59.6808228Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+2026-11-19T09:08:59.7301269Z ##[endgroup]
+2026-11-19T09:08:59.7303791Z ##[group]Setting up auth
+2026-11-19T09:08:59.7315010Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-11-19T09:08:59.7771209Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-11-19T09:09:02.2301103Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-19T09:09:02.2715522Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-11-19T09:09:02.8695894Z [command]"C:\Program Files\Git\bin\git.exe" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+2026-11-19T09:09:02.9146885Z ##[endgroup]
+2026-11-19T09:09:02.9147394Z ##[group]Fetching the repository
+2026-11-19T09:09:02.9166359Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +70c05f15cd5564bc4af720ec8a8fab00160522ee:refs/remotes/origin/main
+2026-11-19T09:09:05.5462142Z From https://github.com/Ravi-Vashisth/ROK
+2026-11-19T09:09:05.5463042Z  * [new ref]         70c05f15cd5564bc4af720ec8a8fab00160522ee -> origin/main
+2026-11-19T09:09:05.5508552Z ##[endgroup]
+2026-11-19T09:09:05.5580671Z ##[group]Determining the checkout info
+2026-11-19T09:09:05.5582891Z ##[endgroup]
+2026-11-19T09:09:05.5583737Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+2026-11-19T09:09:05.6071588Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-11-19T09:09:05.6473541Z ##[group]Checking out the ref
+2026-11-19T09:09:05.6482748Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force -B main refs/remotes/origin/main
+2026-11-19T09:09:05.8621568Z Switched to a new branch 'main'
+2026-11-19T09:09:05.8653528Z branch 'main' set up to track 'origin/main'.
+2026-11-19T09:09:05.8721789Z ##[endgroup]
+2026-11-19T09:09:05.9267201Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+2026-11-19T09:09:05.9632195Z 70c05f15cd5564bc4af720ec8a8fab00160522ee
+2026-11-19T09:09:06.0218851Z ##[group]Run subosito/flutter-action@v2.18.0
+2026-11-19T09:09:06.0219236Z with:
+2026-11-19T09:09:06.0219429Z   channel: stable
+2026-11-19T09:09:06.0219617Z   cache: true
+2026-11-19T09:09:06.0219794Z   architecture: X64
+2026-11-19T09:09:06.0220005Z   pub-cache-path: default
+2026-11-19T09:09:06.0220212Z   dry-run: false
+2026-11-19T09:09:06.0220527Z   git-source: https://github.com/flutter/flutter.git
+2026-11-19T09:09:06.0220827Z ##[endgroup]
+2026-11-19T09:09:06.0283510Z ##[start-action display=Make yq tool available on Windows runners;id=__subosito_flutter-action.__run]
+2026-11-19T09:09:06.0466302Z ##[group]Run choco install yq
+2026-11-19T09:09:06.0466614Z [36;1mchoco install yq[0m
+2026-11-19T09:09:06.0488250Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-19T09:09:06.0488882Z ##[endgroup]
+2026-11-19T09:09:09.4922965Z Chocolatey v2.7.5
+2026-11-19T09:09:09.8156761Z Installing the following packages:
+2026-11-19T09:09:09.8170863Z yq
+2026-11-19T09:09:09.8175596Z By installing, you accept licenses for the packages.
+2026-11-19T09:09:13.1046506Z Downloading package from source 'https://community.chocolatey.org/api/v2/'
+2026-11-19T09:09:13.3128880Z 
+2026-11-19T09:09:13.3135405Z Progress: Downloading yq 4.54.3... 29%
+2026-11-19T09:09:13.3135964Z Progress: Downloading yq 4.54.3... 84%
+2026-11-19T09:09:13.3139571Z Progress: Downloading yq 4.54.3... 100%
+2026-11-19T09:09:13.5815284Z 
+2026-11-19T09:09:13.5815782Z yq v4.54.3 [Approved]
+2026-11-19T09:09:13.6052054Z yq package files install completed. Performing other installation steps.
+2026-11-19T09:09:16.9085741Z Downloading yq 64 bit
+2026-11-19T09:09:16.9086859Z   from 'https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_windows_amd64.exe'
+2026-11-19T09:09:17.0357783Z 
+2026-11-19T09:09:17.0386003Z Progress: 1% - Saving 160 KB of 15.25 MB
+2026-11-19T09:09:17.0408897Z Progress: 2% - Saving 320 KB of 15.25 MB
+2026-11-19T09:09:17.0441009Z Progress: 3% - Saving 480 KB of 15.25 MB
+2026-11-19T09:09:17.0493267Z Progress: 4% - Saving 640 KB of 15.25 MB
+2026-11-19T09:09:17.0527527Z Progress: 5% - Saving 800 KB of 15.25 MB
+2026-11-19T09:09:17.0573130Z Progress: 6% - Saving 948.81 KB of 15.25 MB
+2026-11-19T09:09:17.0603600Z Progress: 7% - Saving 1.08 MB of 15.25 MB
+2026-11-19T09:09:17.0639647Z Progress: 8% - Saving 1.24 MB of 15.25 MB
+2026-11-19T09:09:17.0660912Z Progress: 9% - Saving 1.39 MB of 15.25 MB
+2026-11-19T09:09:17.0685034Z Progress: 10% - Saving 1.55 MB of 15.25 MB
+2026-11-19T09:09:17.0705629Z Progress: 11% - Saving 1.7 MB of 15.25 MB
+2026-11-19T09:09:17.0731882Z Progress: 12% - Saving 1.86 MB of 15.25 MB
+2026-11-19T09:09:17.0753279Z Progress: 13% - Saving 2.01 MB of 15.25 MB
+2026-11-19T09:09:17.0783598Z Progress: 14% - Saving 2.17 MB of 15.25 MB
+2026-11-19T09:09:17.0810828Z Progress: 15% - Saving 2.32 MB of 15.25 MB
+2026-11-19T09:09:17.0841155Z Progress: 16% - Saving 2.47 MB of 15.25 MB
+2026-11-19T09:09:17.0873517Z Progress: 17% - Saving 2.63 MB of 15.25 MB
+2026-11-19T09:09:17.0894729Z Progress: 18% - Saving 2.79 MB of 15.25 MB
+2026-11-19T09:09:17.0914053Z Progress: 19% - Saving 2.94 MB of 15.25 MB
+2026-11-19T09:09:17.0935047Z Progress: 20% - Saving 3.09 MB of 15.25 MB
+2026-11-19T09:09:17.0975265Z Progress: 21% - Saving 3.25 MB of 15.25 MB
+2026-11-19T09:09:17.0999399Z Progress: 22% - Saving 3.41 MB of 15.25 MB
+2026-11-19T09:09:17.1021564Z Progress: 23% - Saving 3.56 MB of 15.25 MB
+2026-11-19T09:09:17.1152262Z Progress: 24% - Saving 3.71 MB of 15.25 MB
+2026-11-19T09:09:17.1174738Z Progress: 25% - Saving 3.86 MB of 15.25 MB
+2026-11-19T09:09:17.1194989Z Progress: 26% - Saving 4.02 MB of 15.25 MB
+2026-11-19T09:09:17.1215836Z Progress: 27% - Saving 4.17 MB of 15.25 MB
+2026-11-19T09:09:17.1245770Z Progress: 28% - Saving 4.32 MB of 15.25 MB
+2026-11-19T09:09:17.1268446Z Progress: 29% - Saving 4.48 MB of 15.25 MB
+2026-11-19T09:09:17.1307621Z Progress: 30% - Saving 4.63 MB of 15.25 MB
+2026-11-19T09:09:17.1333554Z Progress: 31% - Saving 4.78 MB of 15.25 MB
+2026-11-19T09:09:17.1359577Z Progress: 32% - Saving 4.93 MB of 15.25 MB
+2026-11-19T09:09:17.1380294Z Progress: 33% - Saving 5.08 MB of 15.25 MB
+2026-11-19T09:09:17.1408277Z Progress: 34% - Saving 5.24 MB of 15.25 MB
+2026-11-19T09:09:17.1431772Z Progress: 35% - Saving 5.4 MB of 15.25 MB
+2026-11-19T09:09:17.1457387Z Progress: 36% - Saving 5.55 MB of 15.25 MB
+2026-11-19T09:09:17.1480897Z Progress: 37% - Saving 5.7 MB of 15.25 MB
+2026-11-19T09:09:17.1501807Z Progress: 38% - Saving 5.86 MB of 15.25 MB
+2026-11-19T09:09:17.1579056Z Progress: 39% - Saving 6.02 MB of 15.25 MB
+2026-11-19T09:09:17.1608054Z Progress: 40% - Saving 6.17 MB of 15.25 MB
+2026-11-19T09:09:17.1638979Z Progress: 41% - Saving 6.32 MB of 15.25 MB
+2026-11-19T09:09:17.1659845Z Progress: 42% - Saving 6.48 MB of 15.25 MB
+2026-11-19T09:09:17.1681259Z Progress: 43% - Saving 6.64 MB of 15.25 MB
+2026-11-19T09:09:17.1703286Z Progress: 44% - Saving 6.79 MB of 15.25 MB
+2026-11-19T09:09:17.1724086Z Progress: 45% - Saving 6.95 MB of 15.25 MB
+2026-11-19T09:09:17.1743478Z Progress: 46% - Saving 7.1 MB of 15.25 MB
+2026-11-19T09:09:17.1764193Z Progress: 47% - Saving 7.25 MB of 15.25 MB
+2026-11-19T09:09:17.1782511Z Progress: 48% - Saving 7.41 MB of 15.25 MB
+2026-11-19T09:09:17.1801829Z Progress: 49% - Saving 7.56 MB of 15.25 MB
+2026-11-19T09:09:17.1819919Z Progress: 50% - Saving 7.72 MB of 15.25 MB
+2026-11-19T09:09:17.1839372Z Progress: 51% - Saving 7.87 MB of 15.25 MB
+2026-11-19T09:09:17.1857718Z Progress: 52% - Saving 8.03 MB of 15.25 MB
+2026-11-19T09:09:17.1877234Z Progress: 53% - Saving 8.18 MB of 15.25 MB
+2026-11-19T09:09:17.1897361Z Progress: 54% - Saving 8.34 MB of 15.25 MB
+2026-11-19T09:09:17.1916023Z Progress: 55% - Saving 8.49 MB of 15.25 MB
+2026-11-19T09:09:17.1950403Z Progress: 56% - Saving 8.64 MB of 15.25 MB
+2026-11-19T09:09:17.1969753Z Progress: 57% - Saving 8.8 MB of 15.25 MB
+2026-11-19T09:09:17.1989354Z Progress: 58% - Saving 8.96 MB of 15.25 MB
+2026-11-19T09:09:17.2009944Z Progress: 59% - Saving 9.11 MB of 15.25 MB
+2026-11-19T09:09:17.2030533Z Progress: 60% - Saving 9.26 MB of 15.25 MB
+2026-11-19T09:09:17.2049380Z Progress: 61% - Saving 9.42 MB of 15.25 MB
+2026-11-19T09:09:17.2068019Z Progress: 62% - Saving 9.58 MB of 15.25 MB
+2026-11-19T09:09:17.2087724Z Progress: 63% - Saving 9.73 MB of 15.25 MB
+2026-11-19T09:09:17.2106733Z Progress: 64% - Saving 9.88 MB of 15.25 MB
+2026-11-19T09:09:17.2125147Z Progress: 65% - Saving 10.03 MB of 15.25 MB
+2026-11-19T09:09:17.2144682Z Progress: 66% - Saving 10.18 MB of 15.25 MB
+2026-11-19T09:09:17.2163957Z Progress: 67% - Saving 10.34 MB of 15.25 MB
+2026-11-19T09:09:17.2183229Z Progress: 68% - Saving 10.5 MB of 15.25 MB
+2026-11-19T09:09:17.2201363Z Progress: 69% - Saving 10.65 MB of 15.25 MB
+2026-11-19T09:09:17.2221024Z Progress: 70% - Saving 10.81 MB of 15.25 MB
+2026-11-19T09:09:17.2239777Z Progress: 71% - Saving 10.97 MB of 15.25 MB
+2026-11-19T09:09:17.2260921Z Progress: 72% - Saving 11.12 MB of 15.25 MB
+2026-11-19T09:09:17.2281051Z Progress: 73% - Saving 11.28 MB of 15.25 MB
+2026-11-19T09:09:17.2306957Z Progress: 74% - Saving 11.43 MB of 15.25 MB
+2026-11-19T09:09:17.2324769Z Progress: 76% - Saving 11.59 MB of 15.25 MB
+2026-11-19T09:09:17.2345613Z Progress: 77% - Saving 11.75 MB of 15.25 MB
+2026-11-19T09:09:17.2364103Z Progress: 78% - Saving 11.9 MB of 15.25 MB
+2026-11-19T09:09:17.2384248Z Progress: 79% - Saving 12.06 MB of 15.25 MB
+2026-11-19T09:09:17.2405541Z Progress: 80% - Saving 12.22 MB of 15.25 MB
+2026-11-19T09:09:17.2430964Z Progress: 81% - Saving 12.37 MB of 15.25 MB
+2026-11-19T09:09:17.2448950Z Progress: 82% - Saving 12.53 MB of 15.25 MB
+2026-11-19T09:09:17.2468107Z Progress: 83% - Saving 12.68 MB of 15.25 MB
+2026-11-19T09:09:17.2486150Z Progress: 84% - Saving 12.84 MB of 15.25 MB
+2026-11-19T09:09:17.2506053Z Progress: 85% - Saving 13 MB of 15.25 MB
+2026-11-19T09:09:17.2525762Z Progress: 86% - Saving 13.15 MB of 15.25 MB
+2026-11-19T09:09:17.2552937Z Progress: 87% - Saving 13.31 MB of 15.25 MB
+2026-11-19T09:09:17.2572967Z Progress: 88% - Saving 13.47 MB of 15.25 MB
+2026-11-19T09:09:17.2592772Z Progress: 89% - Saving 13.62 MB of 15.25 MB
+2026-11-19T09:09:17.2610939Z Progress: 90% - Saving 13.78 MB of 15.25 MB
+2026-11-19T09:09:17.2632388Z Progress: 91% - Saving 13.93 MB of 15.25 MB
+2026-11-19T09:09:17.2656416Z Progress: 92% - Saving 14.09 MB of 15.25 MB
+2026-11-19T09:09:17.2678459Z Progress: 93% - Saving 14.25 MB of 15.25 MB
+2026-11-19T09:09:17.2696658Z Progress: 94% - Saving 14.4 MB of 15.25 MB
+2026-11-19T09:09:17.2717747Z Progress: 95% - Saving 14.56 MB of 15.25 MB
+2026-11-19T09:09:17.2737641Z Progress: 96% - Saving 14.72 MB of 15.25 MB
+2026-11-19T09:09:17.2756531Z Progress: 97% - Saving 14.87 MB of 15.25 MB
+2026-11-19T09:09:17.2776807Z Progress: 98% - Saving 15.03 MB of 15.25 MB
+2026-11-19T09:09:17.2796023Z Progress: 99% - Saving 15.18 MB of 15.25 MB
+2026-11-19T09:09:17.2801477Z Progress: 100% - Completed download of C:\ProgramData\chocolatey\lib\yq\tools\yq.exe (15.25 MB).
+2026-11-19T09:09:17.2821355Z Download of yq.exe (15.25 MB) completed.
+2026-11-19T09:09:22.4408163Z Hashes match.
+2026-11-19T09:09:22.4749251Z C:\ProgramData\chocolatey\lib\yq\tools\yq.exe
+2026-11-19T09:09:23.5173745Z  ShimGen has successfully created a shim for yq.exe
+2026-11-19T09:09:23.6058623Z  The install of yq was successful.
+2026-11-19T09:09:23.6062637Z   Software install location not explicitly set, it could be in package or
+2026-11-19T09:09:23.6063236Z   default install location of installer.
+2026-11-19T09:09:23.6212398Z 
+2026-11-19T09:09:23.6212850Z Chocolatey installed 1/1 packages. 
+2026-11-19T09:09:23.6213524Z  See the log for details (C:\ProgramData\chocolatey\logs\chocolatey.log).
+2026-11-19T09:09:23.6718722Z ##[end-action id=__subosito_flutter-action.__run;outcome=success;conclusion=success;duration_ms=17643]
+2026-11-19T09:09:23.6731659Z ##[start-action display=Make setup script executable;id=__subosito_flutter-action.__run_2]
+2026-11-19T09:09:23.6870564Z ##[group]Run chmod +x "$GITHUB_ACTION_PATH/setup.sh"
+2026-11-19T09:09:23.6870934Z [36;1mchmod +x "$GITHUB_ACTION_PATH/setup.sh"[0m
+2026-11-19T09:09:23.6887156Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-19T09:09:23.6887553Z ##[endgroup]
+2026-11-19T09:09:23.7563294Z ##[end-action id=__subosito_flutter-action.__run_2;outcome=success;conclusion=success;duration_ms=83]
+2026-11-19T09:09:23.7566069Z ##[start-action display=Set action inputs;id=__subosito_flutter-action.flutter-action]
+2026-11-19T09:09:23.7752858Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh -p \
+2026-11-19T09:09:23.7753203Z [36;1m$GITHUB_ACTION_PATH/setup.sh -p \[0m
+2026-11-19T09:09:23.7753461Z [36;1m  -n '' \[0m
+2026-11-19T09:09:23.7753644Z [36;1m  -f '' \[0m
+2026-11-19T09:09:23.7753816Z [36;1m  -a 'X64' \[0m
+2026-11-19T09:09:23.7753997Z [36;1m  -k '' \[0m
+2026-11-19T09:09:23.7754160Z [36;1m  -c '' \[0m
+2026-11-19T09:09:23.7754319Z [36;1m  -l '' \[0m
+2026-11-19T09:09:23.7754492Z [36;1m  -d 'default' \[0m
+2026-11-19T09:09:23.7754783Z [36;1m  -g 'https://github.com/flutter/flutter.git' \[0m
+2026-11-19T09:09:23.7755091Z [36;1m  stable[0m
+2026-11-19T09:09:23.7771534Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-19T09:09:23.7771939Z ##[endgroup]
+2026-11-19T09:09:26.7344337Z ##[end-action id=__subosito_flutter-action.flutter-action;outcome=success;conclusion=success;duration_ms=2977]
+2026-11-19T09:09:26.7349111Z ##[start-action display=Cache Flutter;id=__subosito_flutter-action.__actions_cache]
+2026-11-19T09:09:26.7531396Z ##[group]Run actions/cache@v4
+2026-11-19T09:09:26.7531628Z with:
+2026-11-19T09:09:26.7531870Z   path: C:\hostedtoolcache\windows\flutter\stable-3.50.0-x64
+2026-11-19T09:09:26.7532341Z   key: flutter-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+2026-11-19T09:09:26.7532954Z   restore-keys: flutter-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+
+2026-11-19T09:09:26.7533412Z   enableCrossOsArchive: false
+2026-11-19T09:09:26.7533637Z   fail-on-cache-miss: false
+2026-11-19T09:09:26.7534009Z   lookup-only: false
+2026-11-19T09:09:26.7534209Z   save-always: false
+2026-11-19T09:09:26.7534389Z ##[endgroup]
+2026-11-19T09:09:26.8977950Z (node:9208) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-19T09:09:26.8978673Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-19T09:09:27.1204973Z Cache hit for: flutter-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+2026-11-19T09:09:27.1351406Z (node:9208) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-19T09:09:28.1861993Z Received 138412032 of 1864606219 (7.4%), 131.0 MBs/sec
+2026-11-19T09:09:29.1911231Z Received 348127232 of 1864606219 (18.7%), 164.9 MBs/sec
+2026-11-19T09:09:30.1955695Z Received 524288000 of 1864606219 (28.1%), 165.7 MBs/sec
+2026-11-19T09:09:31.1975722Z Received 666894336 of 1864606219 (35.8%), 158.2 MBs/sec
+2026-11-19T09:09:32.3723126Z Received 805306368 of 1864606219 (43.2%), 147.9 MBs/sec
+2026-11-19T09:09:33.3833841Z Received 973078528 of 1864606219 (52.2%), 149.6 MBs/sec
+2026-11-19T09:09:34.3879972Z Received 1145044992 of 1864606219 (61.4%), 151.5 MBs/sec
+2026-11-19T09:09:35.3995657Z Received 1337982976 of 1864606219 (71.8%), 155.2 MBs/sec
+2026-11-19T09:09:36.4762353Z Received 1476395008 of 1864606219 (79.2%), 151.4 MBs/sec
+2026-11-19T09:09:37.4791434Z Received 1673527296 of 1864606219 (89.8%), 154.9 MBs/sec
+2026-11-19T09:09:38.6271951Z Received 1864606219 of 1864606219 (100.0%), 155.3 MBs/sec
+2026-11-19T09:09:38.6277438Z Cache Size: ~1778 MB (1864606219 B)
+2026-11-19T09:09:38.6372641Z [command]"C:\Program Files\Git\usr\bin\tar.exe" -xf D:/a/_temp/b8f6414e-ad17-4aa9-a286-51866c237d99/cache.tzst -P -C D:/a/ROK/ROK --force-local --use-compress-program "zstd -d"
+2026-11-19T09:10:29.0485406Z Cache restored successfully
+2026-11-19T09:10:29.1657587Z Cache restored from key: flutter-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+2026-11-19T09:10:29.1790264Z ##[end-action id=__subosito_flutter-action.__actions_cache;outcome=success;conclusion=success;duration_ms=62444]
+2026-11-19T09:10:29.1793350Z ##[start-action display=Cache pub dependencies;id=__subosito_flutter-action.__actions_cache_2]
+2026-11-19T09:10:29.5098252Z ##[group]Run actions/cache@v4
+2026-11-19T09:10:29.5098504Z with:
+2026-11-19T09:10:29.5098746Z   path: C:\Users\runneradmin\AppData\Local\Pub\Cache
+2026-11-19T09:10:29.5099268Z   key: flutter-pub-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb-
+2026-11-19T09:10:29.5100279Z   restore-keys: flutter-pub-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb-
+flutter-pub-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb
+
+2026-11-19T09:10:29.5101110Z   enableCrossOsArchive: false
+2026-11-19T09:10:29.5101349Z   fail-on-cache-miss: false
+2026-11-19T09:10:29.5101592Z   lookup-only: false
+2026-11-19T09:10:29.5101787Z   save-always: false
+2026-11-19T09:10:29.5101979Z ##[endgroup]
+2026-11-19T09:10:29.6480088Z (node:3840) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-19T09:10:29.6481047Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-19T09:10:29.8390632Z Cache hit for: flutter-pub-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb-
+2026-11-19T09:10:29.8512573Z (node:3840) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-19T09:10:30.1905617Z Received 45900679 of 45900679 (100.0%), 140.3 MBs/sec
+2026-11-19T09:10:30.1908640Z Cache Size: ~44 MB (45900679 B)
+2026-11-19T09:10:30.2038667Z [command]"C:\Program Files\Git\usr\bin\tar.exe" -xf D:/a/_temp/5c6e1636-00bb-46b8-90db-6ee8463ea9f7/cache.tzst -P -C D:/a/ROK/ROK --force-local --use-compress-program "zstd -d"
+2026-11-19T09:10:54.2271039Z Cache restored successfully
+2026-11-19T09:10:54.2420479Z Cache restored from key: flutter-pub-windows-stable-3.50.0-x64-ab2912035e160d9cad6306df307576da6128ebdb-
+2026-11-19T09:10:54.2542423Z ##[end-action id=__subosito_flutter-action.__actions_cache_2;outcome=success;conclusion=success;duration_ms=25075]
+2026-11-19T09:10:54.2544860Z ##[start-action display=Run setup script;id=__subosito_flutter-action.__run_3]
+2026-11-19T09:10:54.2708367Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh \
+2026-11-19T09:10:54.2708718Z [36;1m$GITHUB_ACTION_PATH/setup.sh \[0m
+2026-11-19T09:10:54.2708984Z [36;1m  -n '3.50.0' \[0m
+2026-11-19T09:10:54.2709205Z [36;1m  -a 'x64' \[0m
+2026-11-19T09:10:54.2709518Z [36;1m  -c 'C:\hostedtoolcache\windows\flutter\stable-3.50.0-x64' \[0m
+2026-11-19T09:10:54.2709859Z [36;1m  stable[0m
+2026-11-19T09:10:54.2726101Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-19T09:10:54.2726699Z ##[endgroup]
+2026-11-19T09:10:56.3530853Z ##[end-action id=__subosito_flutter-action.__run_3;outcome=success;conclusion=success;duration_ms=2098]
+2026-11-19T09:10:56.3714758Z ##[group]Run flutter config --enable-windows-desktop
+2026-11-19T09:10:56.3715237Z [36;1mflutter config --enable-windows-desktop[0m
+2026-11-19T09:10:56.3715591Z [36;1mflutter create --platforms=windows .[0m
+2026-11-19T09:10:56.3715988Z [36;1mpwsh -ExecutionPolicy Bypass -File scripts/patch_windows.ps1[0m
+2026-11-19T09:10:56.7624104Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-11-19T09:10:56.7624581Z env:
+2026-11-19T09:10:56.7624962Z   FLUTTER_ROOT: C:\hostedtoolcache\windows\flutter\stable-3.50.0-x64
+2026-11-19T09:10:56.7625517Z   PUB_CACHE: C:\Users\runneradmin\AppData\Local\Pub\Cache
+2026-11-19T09:10:56.7625936Z ##[endgroup]
+2026-11-19T09:10:59.7293062Z Setting "enable-windows-desktop" value to "true".
+2026-11-19T09:10:59.7295016Z 
+2026-11-19T09:10:59.7295381Z You may need to restart any open editors for them to read new settings.
+2026-11-19T09:11:00.7628296Z Recreating project ....
+2026-11-19T09:11:00.8271500Z   .idea\libraries\Dart_SDK.xml (created)
+2026-11-19T09:11:00.8404242Z   .idea\libraries\KotlinJavaRuntime.xml (created)
+2026-11-19T09:11:00.8415038Z   .idea\modules.xml (created)
+2026-11-19T09:11:00.8428558Z   .idea\runConfigurations\main_dart.xml (created)
+2026-11-19T09:11:00.8440468Z   .idea\workspace.xml (created)
+2026-11-19T09:11:00.8457621Z   analysis_options.yaml (created)
+2026-11-19T09:11:00.8496081Z   billing_app.iml (created)
+2026-11-19T09:11:00.8507286Z   README.md (created)
+2026-11-19T09:11:00.8519299Z   windows\.gitignore (created)
+2026-11-19T09:11:00.8541622Z   windows\CMakeLists.txt (created)
+2026-11-19T09:11:00.8566616Z   windows\flutter\CMakeLists.txt (created)
+2026-11-19T09:11:00.8582742Z   windows\runner\CMakeLists.txt (created)
+2026-11-19T09:11:00.8597903Z   windows\runner\flutter_window.cpp (created)
+2026-11-19T09:11:00.8611548Z   windows\runner\flutter_window.h (created)
+2026-11-19T09:11:00.8625274Z   windows\runner\main.cpp (created)
+2026-11-19T09:11:00.8638160Z   windows\runner\resource.h (created)
+2026-11-19T09:11:00.8655774Z   windows\runner\resources\app_icon.ico (created)
+2026-11-19T09:11:00.8678775Z   windows\runner\runner.exe.manifest (created)
+2026-11-19T09:11:00.8695410Z   windows\runner\Runner.rc (created)
+2026-11-19T09:11:00.8710230Z   windows\runner\utils.cpp (created)
+2026-11-19T09:11:00.8726939Z   windows\runner\utils.h (created)
+2026-11-19T09:11:00.8741127Z   windows\runner\win32_window.cpp (created)
+2026-11-19T09:11:00.8755067Z   windows\runner\win32_window.h (created)
+2026-11-19T09:11:02.2549402Z Got dependencies.
+2026-11-19T09:11:02.5520120Z Wrote 23 files.
+2026-11-19T09:11:02.5520516Z 
+2026-11-19T09:11:02.5520687Z All done!
+2026-11-19T09:11:02.5527747Z You can find general documentation for Flutter at: https://docs.flutter.dev/
+2026-11-19T09:11:02.5528347Z Detailed API documentation is available at: https://api.flutter.dev/
+2026-11-19T09:11:02.5528902Z If you prefer video documentation, consider: https://www.youtube.com/c/flutterdev
+2026-11-19T09:11:02.5529244Z 
+2026-11-19T09:11:02.5529371Z In order to run your application, type:
+2026-11-19T09:11:02.5529569Z 
+2026-11-19T09:11:02.5529641Z   $ flutter run
+2026-11-19T09:11:02.5529765Z 
+2026-11-19T09:11:02.5529883Z Your application code is in .\lib\main.dart.
+2026-11-19T09:11:02.5530086Z 
+2026-11-19T09:11:02.9610502Z Patching windows\runner\win32_window.cpp with DPI-aware minimum window size (420x560)...
+2026-11-19T09:11:02.9677332Z Successfully added WM_GETMINMAXINFO guard to windows\runner\win32_window.cpp.
+2026-11-19T09:11:03.1664136Z ##[group]Run flutter pub get
+2026-11-19T09:11:03.1664639Z [36;1mflutter pub get[0m
+2026-11-19T09:11:03.1769456Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-11-19T09:11:03.1769830Z env:
+2026-11-19T09:11:03.1770147Z   FLUTTER_ROOT: C:\hostedtoolcache\windows\flutter\stable-3.50.0-x64
+2026-11-19T09:11:03.1770860Z   PUB_CACHE: C:\Users\runneradmin\AppData\Local\Pub\Cache
+2026-11-19T09:11:03.1771184Z ##[endgroup]
+2026-11-19T09:11:04.5284660Z Resolving dependencies...
+2026-11-19T09:11:05.0147072Z Downloading packages...
+2026-11-19T09:11:05.0265018Z   cross_file 0.3.5+5 (0.4.0 available)
+2026-11-19T09:11:05.0266486Z   file_picker 8.3.7 (13.4.0 available)
+2026-11-19T09:11:05.0266943Z   flutter_lints 4.0.0 (6.0.0 available)
+2026-11-19T09:11:05.0267408Z   flutter_riverpod 2.6.1 (3.5.0 available)
+2026-11-19T09:11:05.0267847Z   intl 0.19.0 (0.20.3 available)
+2026-11-19T09:11:05.0268247Z   jni_flutter 1.0.4+1 (1.1.0 available)
+2026-11-19T09:11:05.0268765Z   lints 4.0.0 (6.1.0 available)
+2026-11-19T09:11:05.0269216Z   material_color_utilities 0.13.0 (0.13.1 available)
+2026-11-19T09:11:05.0269715Z   qr 3.0.3 (4.0.1 available)
+2026-11-19T09:11:05.0270101Z   riverpod 2.6.1 (3.5.0 available)
+2026-11-19T09:11:05.0271556Z   sqlite3 2.9.4 (3.9.1 available)
+2026-11-19T09:11:05.0272604Z   sqlite3_flutter_libs 0.5.42 (0.6.0+eol available)
+2026-11-19T09:11:05.0273709Z   test_api 0.7.14 (0.7.15 available)
+2026-11-19T09:11:05.0274984Z   vector_math 2.4.3 (2.4.4 available)
+2026-11-19T09:11:05.0275825Z   win32 5.15.0 (6.4.0 available)
+2026-11-19T09:11:05.0276261Z Got dependencies!
+2026-11-19T09:11:05.0276832Z 15 packages have newer versions incompatible with dependency constraints.
+2026-11-19T09:11:05.0277560Z Try `flutter pub outdated` for more information.
+2026-11-19T09:11:05.4058387Z ##[group]Run flutter analyze
+2026-11-19T09:11:05.4058712Z [36;1mflutter analyze[0m
+2026-11-19T09:11:05.4131425Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-11-19T09:11:05.4131808Z env:
+2026-11-19T09:11:05.4132098Z   FLUTTER_ROOT: C:\hostedtoolcache\windows\flutter\stable-3.50.0-x64
+2026-11-19T09:11:05.4132519Z   PUB_CACHE: C:\Users\runneradmin\AppData\Local\Pub\Cache
+2026-11-19T09:11:05.4132836Z ##[endgroup]
+2026-11-19T09:11:21.3679394Z Analyzing ROK...                                                
+2026-11-19T09:11:21.3690578Z 
+2026-11-19T09:11:21.3709450Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\app.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3712290Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\core\theme\app_theme.dart:2:1 - deprecated_member_use
+2026-11-19T09:11:21.3716163Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\core\theme\theme_provider.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3720083Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\core\utils\csv_export_service.dart:2:1 - deprecated_member_use
+2026-11-19T09:11:21.3724197Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\billing\presentation\billing_dashboard_screen.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3729592Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\billing\presentation\sales_tab.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3734907Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\billing\presentation\widgets\cash_flow_metrics_bar.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3739057Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\billing\presentation\widgets\client_autocomplete_picker.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3749045Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\billing\presentation\widgets\offline_invoices_list.dart:2:1 - deprecated_member_use
+2026-11-19T09:11:21.3779869Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\billing\presentation\widgets\payment_reminder_modal.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3783959Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\billing\presentation\widgets\pdf_preview_dialog.dart:2:1 - deprecated_member_use
+2026-11-19T09:11:21.3786429Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\business_profile\presentation\business_profile_dialog.dart:4:1 - deprecated_member_use
+2026-11-19T09:11:21.3790035Z    info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\business_profile\presentation\business_profile_dialog.dart:307:19 - deprecated_member_use
+2026-11-19T09:11:21.3794652Z    info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\business_profile\presentation\business_profile_dialog.dart:426:23 - deprecated_member_use
+2026-11-19T09:11:21.3798832Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\clients\presentation\client_statement_dialog.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3801077Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\clients\presentation\clients_tab.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3803698Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\dashboard\presentation\dashboard_tab.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3808370Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\estimates\presentation\offline_estimates_list.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3810630Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\expenses\presentation\expense_drawer.dart:4:1 - deprecated_member_use
+2026-11-19T09:11:21.3812825Z    info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\expenses\presentation\expense_drawer.dart:182:19 - deprecated_member_use
+2026-11-19T09:11:21.3815502Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\expenses\presentation\expenses_tab.dart:4:1 - deprecated_member_use
+2026-11-19T09:11:21.3817735Z    info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\expenses\presentation\expenses_tab.dart:320:7 - deprecated_member_use
+2026-11-19T09:11:21.3819903Z    info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\expenses\presentation\expenses_tab.dart:786:19 - deprecated_member_use
+2026-11-19T09:11:21.3822167Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\invoices\presentation\invoice_editor_screen.dart:2:1 - deprecated_member_use
+2026-11-19T09:11:21.3824404Z    info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\invoices\presentation\invoice_editor_screen.dart:532:7 - deprecated_member_use
+2026-11-19T09:11:21.3827067Z    info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\invoices\presentation\invoice_editor_screen.dart:565:7 - deprecated_member_use
+2026-11-19T09:11:21.3829301Z    info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\invoices\presentation\invoice_editor_screen.dart:610:7 - deprecated_member_use
+2026-11-19T09:11:21.3831519Z    info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\invoices\presentation\invoice_editor_screen.dart:808:15 - deprecated_member_use
+2026-11-19T09:11:21.3833922Z    info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\invoices\presentation\invoice_editor_screen.dart:919:15 - deprecated_member_use
+2026-11-19T09:11:21.3836145Z    info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\invoices\presentation\invoice_editor_screen.dart:947:21 - deprecated_member_use
+2026-11-19T09:11:21.3838338Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\items\presentation\items_catalog_tab.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3840839Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\payments\presentation\record_payment_dialog.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3843093Z    info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\payments\presentation\record_payment_dialog.dart:167:7 - deprecated_member_use
+2026-11-19T09:11:21.3845696Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\features\settings\presentation\directory_settings_tab.dart:4:1 - deprecated_member_use
+2026-11-19T09:11:21.3851394Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - lib\main.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3855108Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - test\financial_math_test.dart:2:1 - deprecated_member_use
+2026-11-19T09:11:21.3859818Z    info - 'package:flutter/material.dart' is deprecated and shouldn't be used. Use package:material_ui/material_ui.dart instead. This feature was deprecated after v3.47.0-0.0.pre. Try replacing the use of the deprecated member with the replacement - test\widget_test.dart:1:1 - deprecated_member_use
+2026-11-19T09:11:21.3860959Z 
+2026-11-19T09:11:21.3868573Z 37 issues found. (ran in 11.6s)
+2026-11-19T09:11:21.5066542Z ##[error]Process completed with exit code 1.
+2026-11-19T09:11:21.5399862Z Post job cleanup.
+2026-11-19T09:11:21.5404136Z ##[start-action display=Cache pub dependencies;id=__c69a2a03-e532-4c16-aa92-8033730bcaeb.__actions_cache_2]
+2026-11-19T09:11:21.5408026Z ##[end-action id=__c69a2a03-e532-4c16-aa92-8033730bcaeb.__actions_cache_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-19T09:11:21.5410704Z ##[start-action display=Cache Flutter;id=__c69a2a03-e532-4c16-aa92-8033730bcaeb.__actions_cache]
+2026-11-19T09:11:21.5413342Z ##[end-action id=__c69a2a03-e532-4c16-aa92-8033730bcaeb.__actions_cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-19T09:11:21.5615928Z Post job cleanup.
+2026-11-19T09:11:21.7735225Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-11-19T09:11:21.8156651Z git version 2.56.1.windows.1
+2026-11-19T09:11:21.8237650Z Temporarily overriding HOME='D:\a\_temp\a502f80c-1457-48b3-8a3b-8c965b1752ba' before making global git config changes
+2026-11-19T09:11:21.8239334Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-19T09:11:21.8249597Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\ROK\ROK
+2026-11-19T09:11:21.8668142Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-11-19T09:11:21.9102802Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-11-19T09:11:22.5573204Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-19T09:11:22.5923266Z http.https://github.com/.extraheader
+2026-11-19T09:11:22.5976617Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+2026-11-19T09:11:22.6397919Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-11-19T09:11:23.2924463Z Cleaning up orphan processes
+2026-11-19T09:11:23.3400705Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, actions/checkout@v4.2.2. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
