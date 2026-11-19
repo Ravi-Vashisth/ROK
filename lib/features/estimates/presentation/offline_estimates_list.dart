@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,7 +10,6 @@ import 'package:billing_app/features/clients/models/client.dart';
 import 'package:billing_app/features/clients/providers/clients_provider.dart';
 import 'package:billing_app/features/invoices/presentation/invoice_editor_screen.dart';
 import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
-import 'package:billing_app/features/estimates/models/estimate_record.dart';
 import 'package:billing_app/features/estimates/providers/estimates_provider.dart';
 
 class OfflineEstimatesList extends ConsumerWidget {
@@ -148,7 +146,7 @@ class OfflineEstimatesList extends ConsumerWidget {
                   final isConverted = est.isConverted;
                   final isLast = index == filtered.length - 1;
                   final convertedInvoice = isConverted && est.convertedInvoiceId.isNotEmpty
-                      ? invoices.cast<dynamic?>().firstWhere(
+                      ? invoices.cast<dynamic>().firstWhere(
                           (i) => i?.id == est.convertedInvoiceId,
                           orElse: () => null,
                         )

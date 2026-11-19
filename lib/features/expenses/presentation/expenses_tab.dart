@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -271,8 +270,8 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                     child: Column(
                       children: [
                         Icon(Icons.picture_as_pdf, size: 48, color: colorScheme.error),
-                        SizedBox(height: 8),
-                        Text(
+                        const SizedBox(height: 8),
+                        const Text(
                           'PDF Receipt Document Attached',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),

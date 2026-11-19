@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -425,7 +424,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
     final clients = ref.watch(clientsProvider);
     final client = clients.firstWhere(
       (c) => c.id == id,
-      orElse: () => Client(id: '', name: 'Client Not Found', createdAt: ''),
+      orElse: () => const Client(id: '', name: 'Client Not Found', createdAt: ''),
     );
 
     if (client.id.isEmpty) {

@@ -76,7 +76,7 @@ void main() {
     test('Indian Intra-state CGST + SGST 50/50 split math', () {
       const totalTax = 1800;
       const cgst = totalTax ~/ 2;
-      final sgst = totalTax - cgst;
+      const sgst = totalTax - cgst;
 
       expect(cgst, equals(900));
       expect(sgst, equals(900));
@@ -85,7 +85,7 @@ void main() {
       // Odd cent tax handling
       const oddTax = 313;
       const oddCgst = oddTax ~/ 2; // 156
-      final oddSgst = oddTax - oddCgst; // 157
+      const oddSgst = oddTax - oddCgst; // 157
       expect(oddCgst + oddSgst, equals(oddTax));
     });
 
@@ -95,34 +95,32 @@ void main() {
     });
 
     test('Export under LUT zero-rating and mandatory statutory notice text', () {
-      const isExportUnderLut = true;
-      const noticeText = isExportUnderLut
-          ? 'SUPPLY MEANT FOR EXPORT UNDER BOND OR LETTER OF UNDERTAKING WITHOUT PAYMENT OF INTEGRATED TAX'
-          : '';
+      final noticeText = getLutNotice(true);
+      final inactiveNotice = getLutNotice(false);
 
       expect(
         noticeText,
         equals('SUPPLY MEANT FOR EXPORT UNDER BOND OR LETTER OF UNDERTAKING WITHOUT PAYMENT OF INTEGRATED TAX'),
       );
+      expect(inactiveNotice, isEmpty);
     });
 
     test('EU B2B Reverse Charge zero-rating with VAT note', () {
-      const isEuCrossBorderB2B = true;
-      const vatNotice = isEuCrossBorderB2B
-          ? 'Reverse charge: Customer to account for VAT under Article 196 of Council Directive 2006/112/EC.'
-          : '';
+      final vatNotice = getEuReverseChargeNotice(true);
+      final inactiveNotice = getEuReverseChargeNotice(false);
 
       expect(
         vatNotice,
         equals('Reverse charge: Customer to account for VAT under Article 196 of Council Directive 2006/112/EC.'),
       );
+      expect(inactiveNotice, isEmpty);
     });
   });
 
   group('Group 3: Database Sequence, Foreign Keys & Disaster Recovery', () {
     test('Dynamic sequence offset extraction using prefix.length + 1', () {
       const prefix = 'BILLING-2026-';
-      final offset = prefix.length + 1; // 14
+      const offset = prefix.length + 1; // 14
 
       expect(offset, equals(14));
 
@@ -150,7 +148,7 @@ void main() {
       const linkedEstimateCount = 1;
       const totalLinkedRecords = linkedInvoiceCount + linkedEstimateCount;
 
-      final canDelete = totalLinkedRecords == 0;
+      const canDelete = totalLinkedRecords == 0;
       expect(canDelete, isFalse);
     });
 
@@ -204,7 +202,7 @@ void main() {
     });
 
     test('Draft invoice record returns isDraft true and isOverdue false', () {
-      final draftInvoice = InvoiceRecord(
+      const draftInvoice = InvoiceRecord(
         id: 'draft-1',
         clientId: 'c1',
         clientName: 'Acme',
@@ -1336,6 +1334,10 @@ void main() {
         id: 'default',
         businessName: 'Northstar Studio',
         email: 'billing@northstar.example',
+        phone: '+1 555 010 9988',
+        address: '100 Market St, San Francisco, CA',
+        taxId: 'US-EIN-99-1234567',
+        paymentDetails: 'ACH Routing 121000358',
         currencySymbol: '\$',
         currencyCode: 'USD',
         currencyDecimals: 2,

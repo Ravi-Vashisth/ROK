@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -1000,7 +999,7 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
     final client = _selectedClientId != null
         ? clients.firstWhere(
             (c) => c.id == _selectedClientId,
-            orElse: () => Client(id: '', name: 'Selected Client', createdAt: ''),
+            orElse: () => const Client(id: '', name: 'Selected Client', createdAt: ''),
           )
         : null;
 

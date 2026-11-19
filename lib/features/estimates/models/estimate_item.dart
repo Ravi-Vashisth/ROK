@@ -1,4 +1,3 @@
-import 'package:sqlite3/sqlite3.dart' hide Row;
 import 'package:sqlite3/sqlite3.dart' as sql show Row;
 
 class EstimateItem {
