@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, CheckCircle2, Trash2, DollarSign, Send, Copy, Ban, Printer } from 'lucide-react';
 import { formatMoney as formatMoneyUnits, getCurrencyDecimals, matchesDateFilter } from '../../../billingRules';
 
@@ -61,6 +61,20 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
     return true;
   });
 
+  const LEDGER_THRESHOLD = 60;
+  const LEDGER_PAGE_SIZE = 50;
+  const [visibleCount, setVisibleCount] = useState(LEDGER_PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(LEDGER_PAGE_SIZE);
+  }, [searchQuery, statusFilter, dateFilter]);
+
+  const shouldPaginate = filteredInvoices.length > LEDGER_THRESHOLD;
+  const displayedInvoices = shouldPaginate
+    ? filteredInvoices.slice(0, visibleCount)
+    : filteredInvoices;
+  const remainingCount = filteredInvoices.length - displayedInvoices.length;
+
   if (filteredInvoices.length === 0) {
     return (
       <div className={`p-12 text-center rounded-xl border ${isDarkMode ? 'bg-[#0F172A] border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'}`}>
@@ -88,7 +102,7 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
             </tr>
           </thead>
           <tbody className={`divide-y ${isDarkMode ? 'divide-slate-800' : 'divide-slate-100'}`}>
-            {filteredInvoices.map((inv) => {
+            {displayedInvoices.map((inv) => {
               const status = (inv.computed_status || inv.status || '').toUpperCase();
               const isDraft = status === 'DRAFT';
               const isPaid = status === 'PAID';
@@ -99,7 +113,7 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
               const invSym = inv.currency_symbol;
               const invDec = inv.currency_decimals ?? getCurrencyDecimals(inv.currency_code || invSym || '');
               const fmtInv = (amt: number) =>
-                invSym ? formatMoneyUnits(amt, invSym, invDec) : formatMoney(amt);
+                invSym ? formatMoneyUnits(amt, invSym, invDec, inv.currency_code || '') : formatMoney(amt);
 
               return (
                 <tr key={inv.id} className={`accent-hover-row transition ${isVoid ? 'opacity-60' : ''}`}>
@@ -208,6 +222,24 @@ export const OfflineInvoicesList: React.FC<OfflineInvoicesListProps> = ({
           </tbody>
         </table>
       </div>
+      {shouldPaginate && remainingCount > 0 && (
+        <div className={`px-4 py-3 border-t flex flex-wrap items-center justify-between gap-2 text-xs ${isDarkMode ? 'border-slate-800 bg-slate-900/40 text-slate-400' : 'border-slate-100 bg-slate-50 text-slate-600'}`}>
+          <span>
+            Showing {displayedInvoices.length} of {filteredInvoices.length} invoices
+          </span>
+          <button
+            type="button"
+            onClick={() => setVisibleCount((prev) => prev + LEDGER_PAGE_SIZE)}
+            className={`px-3 py-1.5 rounded-xl border font-bold text-xs transition cursor-pointer ${
+              isDarkMode
+                ? 'border-slate-700 hover:bg-slate-800 text-slate-200'
+                : 'border-slate-300 hover:bg-white text-slate-700'
+            }`}
+          >
+            Show {Math.min(LEDGER_PAGE_SIZE, remainingCount)} more ({remainingCount} remaining)
+          </button>
+        </div>
+      )}
     </div>
   );
 };

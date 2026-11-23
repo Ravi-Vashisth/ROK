@@ -5,13 +5,16 @@ import {
   formatDecimalUnits,
   formatLocalCalendarDate,
   formatMoney,
+  getCurrencyDecimals,
   parsePriceToUnits,
+  resolveEffectiveCurrency,
   validateUploadedFileBytes,
 } from '../../billingRules';
 
 interface ExpenseDrawerModalProps {
   isOpen: boolean;
   isDarkMode: boolean;
+  currencyCode?: string;
   currencySymbol: string;
   currencyDecimals: number;
   initialExpense?: any | null;
@@ -27,6 +30,8 @@ interface ExpenseDrawerModalProps {
     notes: string;
     receipt_base64: string;
     receipt_name: string;
+    currency_code: string;
+    currency_decimals: number;
   }) => void;
 }
 
@@ -44,16 +49,32 @@ const EXPENSE_CATEGORIES = [
 export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
   isOpen,
   isDarkMode,
+  currencyCode = 'USD',
   currencySymbol,
   currencyDecimals,
   initialExpense,
   onClose,
   onSave,
 }) => {
+  const defaultDecimals =
+    currencyDecimals ?? getCurrencyDecimals(currencyCode || currencySymbol);
+  const resolvedCur = resolveEffectiveCurrency({
+    recordCode: initialExpense?.currency_code ?? initialExpense?.currencyCode ?? '',
+    recordDecimals: String(initialExpense?.currency_code ?? initialExpense?.currencyCode ?? '').trim()
+      ? (initialExpense?.currency_decimals ?? initialExpense?.currencyDecimals)
+      : undefined,
+    defaultCode: currencyCode,
+    defaultSymbol: currencySymbol,
+    defaultDecimals,
+  });
+  const activeCode = resolvedCur.code;
+  const activeSymbol = resolvedCur.symbol;
+  const activeDecimals = resolvedCur.decimals;
+
   const [vendor, setVendor] = useState<string>('');
   const [category, setCategory] = useState<string>('Software & SaaS');
   const [amountStr, setAmountStr] = useState<string>('');
-  const [taxStr, setTaxStr] = useState<string>(formatDecimalUnits(0, currencyDecimals));
+  const [taxStr, setTaxStr] = useState<string>(formatDecimalUnits(0, activeDecimals));
   const [expenseDate, setExpenseDate] = useState<string>(formatLocalCalendarDate());
   const [notes, setNotes] = useState<string>('');
   const [receiptBase64, setReceiptBase64] = useState<string>('');
@@ -66,8 +87,8 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
     if (initialExpense) {
       setVendor(initialExpense.vendor || '');
       setCategory(initialExpense.category || 'Software & SaaS');
-      setAmountStr(formatDecimalUnits(initialExpense.amount_cents || 0, currencyDecimals));
-      setTaxStr(formatDecimalUnits(initialExpense.tax_cents || 0, currencyDecimals));
+      setAmountStr(formatDecimalUnits(initialExpense.amount_cents || 0, activeDecimals));
+      setTaxStr(formatDecimalUnits(initialExpense.tax_cents || 0, activeDecimals));
       setExpenseDate(initialExpense.expense_date || formatLocalCalendarDate());
       setNotes(initialExpense.notes || '');
       setReceiptBase64(initialExpense.receipt_base64 || '');
@@ -76,14 +97,14 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
       setVendor('');
       setCategory('Software & SaaS');
       setAmountStr('');
-      setTaxStr(formatDecimalUnits(0, currencyDecimals));
+      setTaxStr(formatDecimalUnits(0, activeDecimals));
       setExpenseDate(formatLocalCalendarDate());
       setNotes('');
       setReceiptBase64('');
       setReceiptName('');
     }
     setErrorMsg('');
-  }, [isOpen, initialExpense, currencyDecimals]);
+  }, [isOpen, initialExpense, activeDecimals]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -97,8 +118,8 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
   if (!isOpen) return null;
 
   const isEditing = !!initialExpense?.id;
-  const baseUnits = parsePriceToUnits(amountStr, currencyDecimals);
-  const taxUnits = parsePriceToUnits(taxStr, currencyDecimals);
+  const baseUnits = parsePriceToUnits(amountStr, activeDecimals);
+  const taxUnits = parsePriceToUnits(taxStr, activeDecimals);
   const totalUnits = baseUnits + taxUnits;
   const categoryOptions = EXPENSE_CATEGORIES.includes(category)
     ? EXPENSE_CATEGORIES
@@ -111,7 +132,7 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
     }
     setErrorMsg('');
     const computed = calculateTaxCents(baseUnits, 10);
-    setTaxStr(formatDecimalUnits(computed, currencyDecimals));
+    setTaxStr(formatDecimalUnits(computed, activeDecimals));
   };
 
   const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -170,6 +191,8 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
       notes: notes.trim(),
       receipt_base64: receiptBase64,
       receipt_name: receiptName,
+      currency_code: activeCode,
+      currency_decimals: activeDecimals,
     });
     onClose();
   };
@@ -194,7 +217,7 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
           <div className="flex items-center gap-2">
             <Wallet className="w-5 h-5 accent-text" />
             <h3 id="expense-drawer-title" className="font-bold text-sm">
-              {isEditing ? 'Edit Business Expense' : 'Record Business Expense'}
+              {isEditing ? `Edit Business Expense (${activeCode})` : `Record Business Expense (${activeCode})`}
             </h3>
           </div>
           <button
@@ -273,17 +296,17 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-bold text-slate-500 mb-1">
-                Base Amount ({currencySymbol}) *
+                Base Amount ({activeSymbol}) *
               </label>
               <input
                 type="text"
-                inputMode={currencyDecimals > 0 ? 'decimal' : 'numeric'}
+                inputMode={activeDecimals > 0 ? 'decimal' : 'numeric'}
                 value={amountStr}
                 onChange={(e) => {
                   setAmountStr(e.target.value);
                   if (errorMsg) setErrorMsg('');
                 }}
-                placeholder={currencyDecimals === 0 ? '5000' : currencyDecimals === 3 ? '50.000' : '50.00'}
+                placeholder={activeDecimals === 0 ? '5000' : activeDecimals === 3 ? '50.000' : '50.00'}
                 className={`w-full p-2.5 rounded-xl border font-mono tabular-nums accent-focus ${
                   isDarkMode
                     ? 'bg-slate-900 border-slate-800 text-slate-100'
@@ -295,7 +318,7 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block font-bold text-slate-500">
-                  Input Tax ({currencySymbol})
+                  Input Tax ({activeSymbol})
                 </label>
                 <button
                   type="button"
@@ -308,10 +331,10 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
               </div>
               <input
                 type="text"
-                inputMode={currencyDecimals > 0 ? 'decimal' : 'numeric'}
+                inputMode={activeDecimals > 0 ? 'decimal' : 'numeric'}
                 value={taxStr}
                 onChange={(e) => setTaxStr(e.target.value)}
-                placeholder={formatDecimalUnits(0, currencyDecimals)}
+                placeholder={formatDecimalUnits(0, activeDecimals)}
                 className={`w-full p-2.5 rounded-xl border font-mono tabular-nums focus:outline-none ${
                   isDarkMode
                     ? 'bg-slate-900 border-slate-800 text-slate-100'
@@ -416,7 +439,7 @@ export const ExpenseDrawerModal: React.FC<ExpenseDrawerModalProps> = ({
           >
             <span className="font-sans font-bold text-slate-500">Total Deductible:</span>
             <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
-              {formatMoney(totalUnits, currencySymbol, currencyDecimals)}
+              {formatMoney(totalUnits, activeSymbol, activeDecimals, activeCode)}
             </span>
           </div>
 

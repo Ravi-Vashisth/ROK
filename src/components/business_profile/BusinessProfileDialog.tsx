@@ -53,11 +53,18 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
     String(businessProfile.default_pst_rate_percentage ?? 7)
   );
   const [paymentDetails, setPaymentDetails] = useState<string>(businessProfile.payment_details || '');
+  const [paymentQrPayload, setPaymentQrPayload] = useState<string>(businessProfile.payment_qr_payload || '');
+  const [invoicePrefix, setInvoicePrefix] = useState<string>(businessProfile.invoice_prefix || 'INV-');
+  const [estimatePrefix, setEstimatePrefix] = useState<string>(businessProfile.estimate_prefix || 'EST-');
+  const [nextInvoiceNumber, setNextInvoiceNumber] = useState<string>(
+    String(Math.max(1, Number(businessProfile.next_invoice_number) || 1))
+  );
   const [defaultTerms, setDefaultTerms] = useState<string>(businessProfile.default_terms || '');
   const [defaultNotes, setDefaultNotes] = useState<string>(businessProfile.default_notes || '');
   const [logoBase64, setLogoBase64] = useState<string>(businessProfile.logo_base64 || '');
   const [signatureBase64, setSignatureBase64] = useState<string>(businessProfile.signature_base64 || '');
   const [uploadError, setUploadError] = useState<string>('');
+  const [formError, setFormError] = useState<string>('');
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const signatureInputRef = useRef<HTMLInputElement>(null);
@@ -112,12 +119,35 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedInvPrefix = invoicePrefix.trim();
+    const trimmedEstPrefix = estimatePrefix.trim();
+    const nextNumRaw = nextInvoiceNumber.trim();
+    const parsedNextNum = /^\d+$/.test(nextNumRaw) ? Number.parseInt(nextNumRaw, 10) : NaN;
+
+    if (!businessName.trim()) {
+      setFormError('Business Name is required.');
+      return;
+    }
+    if (!trimmedInvPrefix) {
+      setFormError('Invoice Prefix cannot be empty.');
+      return;
+    }
+    if (!trimmedEstPrefix) {
+      setFormError('Estimate Prefix cannot be empty.');
+      return;
+    }
+    if (!Number.isInteger(parsedNextNum) || parsedNextNum < 1) {
+      setFormError('Next Invoice Number must be a whole number >= 1.');
+      return;
+    }
+    setFormError('');
+
     const sym = CURRENCY_SYMBOL_MAP[currencyCode] || '$';
     const parsedPst = Math.min(100, Math.max(0, Math.round(Number(defaultPstRatePercentage) || 0)));
 
     onSaveProfile({
       ...businessProfile,
-      business_name: businessName,
+      business_name: businessName.trim(),
       email,
       phone,
       address,
@@ -127,7 +157,11 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
       currency_decimals: getCurrencyDecimals(currencyCode),
       default_tax_mode: defaultTaxMode,
       default_pst_rate_percentage: defaultTaxMode === 'ca_dual' ? parsedPst : 0,
+      invoice_prefix: trimmedInvPrefix,
+      estimate_prefix: trimmedEstPrefix,
+      next_invoice_number: parsedNextNum,
       payment_details: paymentDetails,
+      payment_qr_payload: paymentQrPayload.trim(),
       default_terms: defaultTerms,
       default_notes: defaultNotes,
       logo_base64: logoBase64,
@@ -271,10 +305,47 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
             />
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block font-bold text-slate-500 mb-1">Invoice Prefix *</label>
+              <input
+                type="text"
+                value={invoicePrefix}
+                onChange={(e) => setInvoicePrefix(e.target.value)}
+                placeholder="INV-"
+                className={`w-full p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
+                required
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-500 mb-1">Estimate Prefix *</label>
+              <input
+                type="text"
+                value={estimatePrefix}
+                onChange={(e) => setEstimatePrefix(e.target.value)}
+                placeholder="EST-"
+                className={`w-full p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
+                required
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-500 mb-1">Next Invoice # *</label>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={nextInvoiceNumber}
+                onChange={(e) => setNextInvoiceNumber(e.target.value)}
+                className={`w-full p-2.5 rounded-xl border font-mono tabular-nums ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
+                required
+              />
+            </div>
+          </div>
+
           {/* Logo & Signature Branding Controls (Never dumps raw base64) */}
-          {uploadError && (
+          {(formError || uploadError) && (
             <div className="p-2.5 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-xs font-semibold">
-              {uploadError}
+              {formError || uploadError}
             </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -294,11 +365,13 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
               {logoBase64 ? (
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <img
-                      src={logoBase64}
-                      alt="Logo Preview"
-                      className="w-10 h-10 object-contain rounded-lg border border-slate-200 dark:border-slate-700 bg-white"
-                    />
+                    {!logoBase64.startsWith('idb://') && (
+                      <img
+                        src={logoBase64}
+                        alt="Logo Preview"
+                        className="w-10 h-10 object-contain rounded-lg border border-slate-200 dark:border-slate-700 bg-white"
+                      />
+                    )}
                     <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       Logo Configured
@@ -340,11 +413,13 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
               {signatureBase64 ? (
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <img
-                      src={signatureBase64}
-                      alt="Signature Preview"
-                      className="w-10 h-10 object-contain rounded-lg border border-slate-200 dark:border-slate-700 bg-white"
-                    />
+                    {!signatureBase64.startsWith('idb://') && (
+                      <img
+                        src={signatureBase64}
+                        alt="Signature Preview"
+                        className="w-10 h-10 object-contain rounded-lg border border-slate-200 dark:border-slate-700 bg-white"
+                      />
+                    )}
                     <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       ✔ Digital Signature Configured
@@ -377,6 +452,17 @@ export const BusinessProfileDialog: React.FC<BusinessProfileDialogProps> = ({
               value={paymentDetails}
               onChange={(e) => setPaymentDetails(e.target.value)}
               rows={2}
+              className={`w-full p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
+            />
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-500 mb-1">Scan-to-Pay QR Payload (UPI ID or Payment URL)</label>
+            <input
+              type="text"
+              value={paymentQrPayload}
+              onChange={(e) => setPaymentQrPayload(e.target.value)}
+              placeholder="e.g. business@upi or https://pay.example.com/studio"
               className={`w-full p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}
             />
           </div>

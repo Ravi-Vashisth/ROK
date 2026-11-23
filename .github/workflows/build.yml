@@ -70,11 +70,11 @@ jobs:
       - name: Run Flutter Tests
         run: flutter test
       - name: Compile Android APK
-        run: flutter build apk --release
+        run: flutter build apk --release --split-per-abi
       - uses: actions/upload-artifact@v4.4.3
         with:
           name: billing-app-android
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/app-*-release.apk
           retention-days: 7
 
   # =========================================================================

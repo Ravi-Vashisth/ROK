@@ -87,7 +87,7 @@ export const OfflineEstimatesList: React.FC<OfflineEstimatesListProps> = ({
               const estSym = est.currency_symbol;
               const estDec = est.currency_decimals ?? getCurrencyDecimals(est.currency_code || estSym || '');
               const fmtEst = (amt: number) =>
-                estSym ? formatMoneyUnits(amt, estSym, estDec) : formatMoney(amt);
+                estSym ? formatMoneyUnits(amt, estSym, estDec, est.currency_code || '') : formatMoney(amt);
 
               return (
                 <tr key={est.id} className="accent-hover-row transition">

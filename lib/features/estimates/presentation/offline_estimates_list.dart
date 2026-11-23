@@ -160,41 +160,52 @@ class OfflineEstimatesList extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: colorScheme.primary.withValues(alpha: 0.35)),
+                      SizedBox(
+                        width: double.infinity,
+                        child: Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primaryContainer,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: colorScheme.primary.withValues(alpha: 0.35)),
+                                  ),
+                                  child: Text(
+                                    est.estimateNumber,
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: colorScheme.onPrimaryContainer),
+                                  ),
+                                ),
+                                Text(est.clientName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              ],
                             ),
-                            child: Text(
-                              est.estimateNumber,
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: colorScheme.onPrimaryContainer),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(est.clientName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isConverted ? successTone.background : warningTone.background,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: isConverted ? successTone.border : warningTone.border),
-                            ),
-                            child: Text(
-                              est.status,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: isConverted ? successTone.text : warningTone.text,
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isConverted ? successTone.background : warningTone.background,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: isConverted ? successTone.border : warningTone.border),
+                              ),
+                              child: Text(
+                                est.status,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: isConverted ? successTone.text : warningTone.text,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text('Issue: ${est.issueDate} • Valid Until: ${est.expiryDate}', style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant)),
@@ -311,10 +322,17 @@ class OfflineEstimatesList extends ConsumerWidget {
                                     orElse: () => Client(id: est.clientId, name: est.clientName, email: '', phone: '', address: '', taxId: '', createdAt: ''),
                                   );
                                   final items = ref.read(estimatesProvider.notifier).getEstimateItems(est.id);
+                                  final scriptWarning = InvoicePdfService.diagnoseEstimateScripts(
+                                    estimate: est,
+                                    items: items,
+                                    client: client,
+                                    businessProfile: businessProfile,
+                                  );
                                   showDialog(
                                     context: context,
                                     builder: (_) => PdfPreviewDialog(
                                       title: 'Estimate ${est.estimateNumber}',
+                                      scriptWarning: scriptWarning,
                                       buildPdf: () => InvoicePdfService.generateEstimatePdf(
                                         estimate: est,
                                         items: items,
@@ -326,7 +344,7 @@ class OfflineEstimatesList extends ConsumerWidget {
                                 },
                               ),
                               IconButton(
-                                icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                                icon: Icon(Icons.delete_outline, size: 18, color: colorScheme.error),
                                 tooltip: 'Delete Quote',
                                 onPressed: () {
                                   showDialog(
@@ -337,7 +355,10 @@ class OfflineEstimatesList extends ConsumerWidget {
                                       actions: [
                                         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
                                         FilledButton(
-                                          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                          style: FilledButton.styleFrom(
+                                            backgroundColor: colorScheme.error,
+                                            foregroundColor: colorScheme.onError,
+                                          ),
                                           onPressed: () {
                                             ref.read(estimatesProvider.notifier).deleteEstimate(est.id);
                                             Navigator.pop(ctx);

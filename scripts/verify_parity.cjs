@@ -138,11 +138,35 @@ function verifyOfflineAssets() {
   console.log('Offline assets verified successfully.');
 }
 
+function verifyOrphanFilesAndSecurityGuards() {
+  console.log('Verifying Orphan Cleanup & Upload Validation Guards...');
+  const libDartFiles = walkFiles(libDir, '.dart');
+  for (const filePath of libDartFiles) {
+    if (path.basename(filePath) === 'expense_drawer.dart') {
+      const rel = path.relative(rootDir, filePath).replace(/\\/g, '/');
+      throw new Error(`Unused orphan file detected (must remain deleted): ${rel}`);
+    }
+  }
+
+  const settingsTabPath = path.join(srcDir, 'components', 'settings', 'SettingsTab.tsx');
+  if (!fs.existsSync(settingsTabPath)) {
+    throw new Error('Missing React settings component: src/components/settings/SettingsTab.tsx');
+  }
+  const settingsContent = fs.readFileSync(settingsTabPath, 'utf8');
+  if (!settingsContent.includes('validateUploadedFileBytes')) {
+    throw new Error(
+      'Missing upload security guard: src/components/settings/SettingsTab.tsx must call validateUploadedFileBytes'
+    );
+  }
+  console.log('Orphan cleanup and upload security guards verified successfully.');
+}
+
 try {
   verifyTabsAndFeatures();
   verifyModels();
   verifyDartImports();
   verifyOfflineAssets();
+  verifyOrphanFilesAndSecurityGuards();
   console.log('Parity check passed.');
 } catch (err) {
   console.error('Parity check failed:', err.message);

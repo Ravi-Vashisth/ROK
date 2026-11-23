@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:billing_app/core/theme/app_theme.dart';
+import 'package:billing_app/core/utils/id_generator.dart';
 import 'package:billing_app/core/utils/money_utils.dart';
 import 'package:billing_app/core/utils/tax_compliance_utils.dart';
 import 'package:billing_app/features/billing/presentation/widgets/client_autocomplete_picker.dart';
@@ -16,6 +18,7 @@ import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
 import 'package:billing_app/features/items/providers/saved_items_provider.dart';
 
 class LineItemEntry {
+  final String id;
   String description;
   String sacHsn;
   int quantity;
@@ -23,14 +26,26 @@ class LineItemEntry {
   int taxSlab;
 
   LineItemEntry({
+    String? id,
     required this.description,
     this.sacHsn = '',
     this.quantity = 1,
     this.unitPriceCents = 0,
     this.taxSlab = 10,
-  });
+  }) : id = (id != null && id.trim().isNotEmpty) ? id : generateUniqueId();
 
   int get totalCents => quantity * unitPriceCents;
+}
+
+/// Pure helper that removes a line item by index while retaining >= 1 entry
+/// and preserving distinct item IDs for remaining rows.
+List<LineItemEntry> removeLineItemAt(List<LineItemEntry> items, int index) {
+  if (items.length <= 1 || index < 0 || index >= items.length) {
+    return List<LineItemEntry>.of(items);
+  }
+  final updated = List<LineItemEntry>.of(items);
+  updated.removeAt(index);
+  return updated;
 }
 
 class InvoiceEditorScreen extends ConsumerStatefulWidget {
@@ -101,6 +116,7 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
       if (dbItems.isNotEmpty) {
         _items = dbItems
             .map((it) => LineItemEntry(
+                  id: it.id,
                   description: it.description,
                   sacHsn: it.sacHsn,
                   quantity: it.quantity,
@@ -139,6 +155,7 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
       if (dbItems.isNotEmpty) {
         _items = dbItems
             .map((it) => LineItemEntry(
+                  id: it.id,
                   description: it.description,
                   sacHsn: it.sacHsn,
                   quantity: it.quantity,
@@ -201,7 +218,7 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
 
   void _removeItem(int index) {
     if (_items.length <= 1) return;
-    setState(() => _items.removeAt(index));
+    setState(() => _items = removeLineItemAt(_items, index));
   }
 
   List<LineItemEntry> get _validItems => _items
@@ -504,13 +521,21 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
   }
 
   Widget _buildEditor(BusinessProfile profile) {
-    final catalog = ref.watch(savedItemsProvider);
-    final curCode = _overrideCurrencyCode ?? profile.currencyCode;
-    final curSym = _overrideCurrencySymbol ?? profile.currencySymbol;
-    final curDec = _overrideCurrencyDecimals ?? getCurrencyDecimals(curCode);
-    String formatCurrency(int units) => formatMoney(units, symbol: curSym, decimals: curDec);
+    return LayoutBuilder(
+      builder: (context, editorConstraints) {
+        final catalog = ref.watch(savedItemsProvider);
+        final curCode = _overrideCurrencyCode ?? profile.currencyCode;
+        final curSym = _overrideCurrencySymbol ?? profile.currencySymbol;
+        final curDec = _overrideCurrencyDecimals ?? getCurrencyDecimals(curCode);
+        String formatCurrency(int units) => formatMoney(
+              units,
+              symbol: curSym,
+              decimals: curDec,
+              currencyCode: curCode,
+            );
 
-    final isCompactEditor = MediaQuery.sizeOf(context).width < 520;
+        final isNarrowRow = editorConstraints.maxWidth < 460;
+        final isCompactEditor = isNarrowRow || MediaQuery.sizeOf(context).width < 520;
     final issueDateField = TextField(
       controller: _issueDateController,
       keyboardType: TextInputType.datetime,
@@ -708,9 +733,9 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.indigo.withValues(alpha: 0.08),
+                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.45),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.indigo.withValues(alpha: 0.3)),
+                border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.35)),
               ),
               child: const Text(
                 'Zero-rated statutory mode active: Total tax is automatically locked to 0 and compliance notice is embedded on the document.',
@@ -727,21 +752,38 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
               spacing: 8,
               runSpacing: 6,
               children: [
-                const Row(
+                Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.flash_on, size: 16, color: Colors.amber),
-                    SizedBox(width: 6),
-                    Text('Quick-Insert from Catalog:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    Icon(
+                      Icons.flash_on,
+                      size: 16,
+                      color: AppSemanticColors.resolve(Theme.of(context).brightness, SemanticStatus.warning).icon,
+                    ),
+                    const SizedBox(width: 6),
+                    const Text('Quick-Insert from Catalog:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   ],
                 ),
                 DropdownButton<String>(
                   hint: const Text('Select preset item...', style: TextStyle(fontSize: 12)),
                   underline: const SizedBox(),
                   items: catalog.map((item) {
+                    final itemCur = resolveEffectiveCurrency(
+                      recordCode: item.currencyCode,
+                      recordDecimals: item.currencyCode.trim().isNotEmpty ? item.currencyDecimals : null,
+                      defaultCode: curCode,
+                      defaultSymbol: curSym,
+                      defaultDecimals: curDec,
+                    );
+                    final priceLabel = formatMoney(
+                      item.defaultPriceCents,
+                      symbol: itemCur.symbol,
+                      decimals: itemCur.decimals,
+                      currencyCode: itemCur.code,
+                    );
                     return DropdownMenuItem(
                       value: item.id,
-                      child: Text('${item.title} (${formatCurrency(item.defaultPriceCents)})', style: const TextStyle(fontSize: 12)),
+                      child: Text('${item.title} ($priceLabel)', style: const TextStyle(fontSize: 12)),
                     );
                   }).toList(),
                   onChanged: (itemId) {
@@ -780,7 +822,26 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
           ..._items.asMap().entries.map((entry) {
             final idx = entry.key;
             final item = entry.value;
+            final descField = TextFormField(
+              key: ValueKey('desc_${item.id}'),
+              initialValue: item.description,
+              decoration: const InputDecoration(
+                labelText: 'Description *',
+                isDense: true,
+              ),
+              onChanged: (v) => setState(() => item.description = v),
+            );
+            final sacHsnField = TextFormField(
+              key: ValueKey('sac_${item.id}'),
+              initialValue: item.sacHsn,
+              decoration: const InputDecoration(
+                labelText: 'SAC/HSN',
+                isDense: true,
+              ),
+              onChanged: (v) => setState(() => item.sacHsn = v),
+            );
             final qtyField = TextFormField(
+              key: ValueKey('qty_${item.id}'),
               initialValue: item.quantity.toString(),
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
@@ -790,7 +851,7 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
               onChanged: (v) => setState(() => item.quantity = int.tryParse(v) ?? 1),
             );
             final priceField = TextFormField(
-              key: ValueKey('price_${idx}_$curDec'),
+              key: ValueKey('price_${item.id}_$curDec'),
               initialValue: formatDecimalUnits(item.unitPriceCents, curDec),
               keyboardType: curDec == 0
                   ? TextInputType.number
@@ -805,6 +866,7 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
             );
             final slabOptions = <int>{0, 5, 10, 12, 15, 18, 20, item.taxSlab}.toList()..sort();
             final taxSlabField = DropdownButtonFormField<int>(
+              key: ValueKey('tax_${item.id}'),
               value: item.taxSlab,
               isExpanded: true,
               decoration: InputDecoration(
@@ -828,46 +890,39 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
             );
+            final deleteBtn = IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Remove Line Item',
+              icon: Icon(Icons.delete_outline, size: 20, color: Theme.of(context).colorScheme.error),
+              onPressed: () => _removeItem(idx),
+            );
 
             return Card(
+              key: ValueKey('line_card_${item.id}'),
               margin: const EdgeInsets.only(bottom: 8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: TextFormField(
-                            initialValue: item.description,
-                            decoration: const InputDecoration(
-                              labelText: 'Description *',
-                              isDense: true,
-                            ),
-                            onChanged: (v) => setState(() => item.description = v),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 2,
-                          child: TextFormField(
-                            initialValue: item.sacHsn,
-                            decoration: const InputDecoration(
-                              labelText: 'SAC/HSN',
-                              isDense: true,
-                            ),
-                            onChanged: (v) => setState(() => item.sacHsn = v),
-                          ),
-                        ),
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                          onPressed: () => _removeItem(idx),
-                        ),
-                      ],
-                    ),
+                    if (isCompactEditor) ...[
+                      Row(
+                        children: [
+                          Expanded(child: descField),
+                          deleteBtn,
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      sacHsnField,
+                    ] else
+                      Row(
+                        children: [
+                          Expanded(flex: 3, child: descField),
+                          const SizedBox(width: 8),
+                          Expanded(flex: 2, child: sacHsnField),
+                          deleteBtn,
+                        ],
+                      ),
                     const SizedBox(height: 8),
                     if (isCompactEditor) ...[
                       Row(
@@ -989,13 +1044,21 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
         ],
       ),
     );
+      },
+    );
   }
 
   Widget _buildPreview(BusinessProfile profile) {
     final clients = ref.watch(clientsProvider);
+    final curCode = _overrideCurrencyCode ?? profile.currencyCode;
     final curSym = _overrideCurrencySymbol ?? profile.currencySymbol;
     final curDec = _overrideCurrencyDecimals ?? profile.currencyDecimals;
-    String formatCurrency(int cents) => formatMoney(cents, symbol: curSym, decimals: curDec);
+    String formatCurrency(int cents) => formatMoney(
+          cents,
+          symbol: curSym,
+          decimals: curDec,
+          currencyCode: curCode,
+        );
     final client = _selectedClientId != null
         ? clients.firstWhere(
             (c) => c.id == _selectedClientId,
@@ -1020,19 +1083,24 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
     final supplierTaxLabel = getRegionalTaxIdLabel(breakdown.effectiveMode);
     final clientTaxLabel = getRegionalTaxIdLabel(breakdown.effectiveMode, isClient: true);
 
+    final accentPrimary = Theme.of(context).colorScheme.primary;
+    final previewBackdropColor = Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.55);
+
     return Container(
-      color: Colors.grey.shade100,
+      color: previewBackdropColor,
       padding: EdgeInsets.all(isCompactScreen ? 12 : 24),
       child: Center(
         child: SingleChildScrollView(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 580),
-            child: Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(isCompactScreen ? 18 : 32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
+            child: Theme(
+              data: AppTheme.lightTheme(seed: accentPrimary),
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(isCompactScreen ? 18 : 32),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.08),
@@ -1257,7 +1325,8 @@ class _InvoiceEditorScreenState extends ConsumerState<InvoiceEditorScreen> {
                       ),
                     ),
                   ],
-                ],
+                  ],
+                ),
               ),
             ),
           ),

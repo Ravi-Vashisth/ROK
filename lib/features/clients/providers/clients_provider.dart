@@ -13,7 +13,9 @@ class ClientsNotifier extends StateNotifier<List<Client>> {
   }
 
   void loadClients() {
-    final ResultSet results = _db.select('SELECT * FROM clients ORDER BY name COLLATE NOCASE ASC');
+    final ResultSet results = _db.select(
+      'SELECT * FROM clients WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE ASC',
+    );
     state = results.map((row) => Client.fromRow(row)).toList();
   }
 
@@ -67,7 +69,7 @@ class ClientsNotifier extends StateNotifier<List<Client>> {
     final stmt = _db.prepare('''
       UPDATE clients 
       SET name = ?, email = ?, phone = ?, address = ?, tax_id = ?, updated_at = ?
-      WHERE id = ?
+      WHERE id = ? AND deleted_at IS NULL
     ''');
     try {
       stmt.execute([
@@ -87,7 +89,7 @@ class ClientsNotifier extends StateNotifier<List<Client>> {
 
   bool deleteClient(String id) {
     final check = _db.select(
-      'SELECT (SELECT COUNT(*) FROM invoices WHERE client_id = ?) + (SELECT COUNT(*) FROM estimates WHERE client_id = ?) AS total_records',
+      'SELECT (SELECT COUNT(*) FROM invoices WHERE client_id = ? AND deleted_at IS NULL) + (SELECT COUNT(*) FROM estimates WHERE client_id = ? AND deleted_at IS NULL) AS total_records',
       [id, id],
     );
     final count = (check.first['total_records'] as int?) ?? 0;
@@ -95,9 +97,12 @@ class ClientsNotifier extends StateNotifier<List<Client>> {
       return false;
     }
 
-    final stmt = _db.prepare('DELETE FROM clients WHERE id = ?');
+    final deletedAt = DateTime.now().toUtc().toIso8601String();
+    final stmt = _db.prepare(
+      'UPDATE clients SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL',
+    );
     try {
-      stmt.execute([id]);
+      stmt.execute([deletedAt, deletedAt, id]);
     } finally {
       stmt.dispose();
     }

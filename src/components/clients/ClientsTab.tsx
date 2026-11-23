@@ -20,7 +20,7 @@ import {
   computeClientRollup,
   formatMoney as formatMoneyUnits,
   getCurrencyDecimals,
-  isIosDevice,
+  isAppleDevice,
   normalizePhoneForUri,
   resolveEffectiveCurrency,
 } from '../../billingRules';
@@ -62,6 +62,13 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
   const [selectedClientId, setSelectedClientId] = useState<string>(clients[0]?.id || '');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeDossierSubTab, setActiveDossierSubTab] = useState<'invoices' | 'statement' | 'notes'>('invoices');
+  const LEDGER_THRESHOLD = 60;
+  const LEDGER_PAGE_SIZE = 50;
+  const [visibleCount, setVisibleCount] = useState<number>(LEDGER_PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(LEDGER_PAGE_SIZE);
+  }, [searchQuery]);
 
   // Add / Edit Modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -104,6 +111,12 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
         (c.tax_id && c.tax_id.toLowerCase().includes(q))
     );
   }, [clients, searchQuery]);
+
+  const shouldPaginateClients = filteredClients.length > LEDGER_THRESHOLD;
+  const displayedClients = shouldPaginateClients
+    ? filteredClients.slice(0, visibleCount)
+    : filteredClients;
+  const remainingClients = filteredClients.length - displayedClients.length;
 
   // Ensure valid selection
   const selectedClient = clients.find((c) => c.id === selectedClientId) || clients[0] || null;
@@ -290,43 +303,60 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
             {filteredClients.length === 0 ? (
               <div className="py-8 text-center text-xs text-slate-400">No clients found.</div>
             ) : (
-              filteredClients.map((c) => {
-                const fin = getClientFinancials(c.id);
-                const isSelected = selectedClient?.id === c.id;
-                const hasBalance = fin.rollup.hasOutstandingBalance;
+              <>
+                {displayedClients.map((c) => {
+                  const fin = getClientFinancials(c.id);
+                  const isSelected = selectedClient?.id === c.id;
+                  const hasBalance = fin.rollup.hasOutstandingBalance;
 
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelectedClientId(c.id)}
-                    className={`w-full text-left p-3 rounded-xl transition cursor-pointer flex items-center justify-between gap-2 ${
-                      isSelected
-                        ? 'accent-soft-card border'
-                        : isDarkMode
-                        ? 'hover:bg-slate-800/50 text-slate-200'
-                        : 'hover:bg-slate-50 text-slate-800'
-                    }`}
-                  >
-                    <div className="min-w-0 pr-2">
-                      <div className="font-bold text-xs truncate">{c.name}</div>
-                      <div className="text-[11px] text-slate-400 truncate">
-                        {c.email || c.phone || 'No contact info'}
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedClientId(c.id)}
+                      className={`w-full text-left p-3 rounded-xl transition cursor-pointer flex items-center justify-between gap-2 ${
+                        isSelected
+                          ? 'accent-soft-card border'
+                          : isDarkMode
+                          ? 'hover:bg-slate-800/50 text-slate-200'
+                          : 'hover:bg-slate-50 text-slate-800'
+                      }`}
+                    >
+                      <div className="min-w-0 pr-2">
+                        <div className="font-bold text-xs truncate">{c.name}</div>
+                        <div className="text-[11px] text-slate-400 truncate">
+                          {c.email || c.phone || 'No contact info'}
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right shrink-0 max-w-[48%]">
-                      <span
-                        className={`font-mono tabular-nums font-bold text-xs break-words ${
-                          hasBalance
-                            ? 'text-amber-600 dark:text-amber-400'
-                            : 'text-emerald-600 dark:text-emerald-400'
-                        }`}
-                      >
-                        {hasBalance ? `${fin.rollup.formattedOutstandingBalance} Due` : '✓ Settled'}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })
+                      <div className="text-right shrink-0 max-w-[48%]">
+                        <span
+                          className={`font-mono tabular-nums font-bold text-xs break-words ${
+                            hasBalance
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-emerald-600 dark:text-emerald-400'
+                          }`}
+                        >
+                          {hasBalance ? `${fin.rollup.formattedOutstandingBalance} Due` : '✓ Settled'}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+                {shouldPaginateClients && remainingClients > 0 && (
+                  <div className="pt-3 pb-1 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCount((prev) => prev + LEDGER_PAGE_SIZE)}
+                      className={`w-full px-3 py-2 rounded-xl border font-bold text-xs transition cursor-pointer ${
+                        isDarkMode
+                          ? 'border-slate-700 hover:bg-slate-800 text-slate-200'
+                          : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      Show {Math.min(LEDGER_PAGE_SIZE, remainingClients)} more ({displayedClients.length} of {filteredClients.length})
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -373,12 +403,12 @@ export const ClientsTab: React.FC<ClientsTabProps> = ({
 
                 <div className="flex flex-wrap items-center gap-2">
                   {(() => {
-                    const isIos = isIosDevice();
+                    const isApple = isAppleDevice();
                     const normalizedPhone = normalizePhoneForUri(selectedClient.phone || '');
                     const cleanEmail = (selectedClient.email || '').trim();
                     const telUrl = selectedClient.phone ? buildTelUrl(selectedClient.phone) : null;
                     const smsUrl = selectedClient.phone
-                      ? buildSmsUrl(selectedClient.phone, `Hi ${selectedClient.name}, `, isIos)
+                      ? buildSmsUrl(selectedClient.phone, `Hi ${selectedClient.name}, `, isApple)
                       : null;
                     const mailUrl = cleanEmail
                       ? buildMailtoUrl(

@@ -1,5 +1,3 @@
-import 'package:intl/intl.dart';
-
 /// Determines decimal exponent (0, 2, or 3) for currency code or symbol.
 int getCurrencyDecimals(String codeOrSymbol) {
   final upper = codeOrSymbol.trim().toUpperCase();
@@ -20,6 +18,61 @@ int getCurrencyDecimals(String codeOrSymbol) {
     return 3;
   }
   return 2;
+}
+
+/// Maps ISO currency code to its canonical display symbol cleanly.
+String currencySymbolForCode(String currencyCode) {
+  final upper = currencyCode.trim().toUpperCase();
+  switch (upper) {
+    case 'USD':
+      return '\$';
+    case 'INR':
+      return '₹';
+    case 'EUR':
+      return '€';
+    case 'GBP':
+      return '£';
+    case 'JPY':
+      return '¥';
+    case 'KRW':
+      return '₩';
+    case 'VND':
+      return '₫';
+    case 'CAD':
+      return 'C\$';
+    case 'AUD':
+      return 'A\$';
+    case '':
+      return '\$';
+    default:
+      return upper;
+  }
+}
+
+/// Formats an unsigned integer part with deterministic digit grouping independent of OS locale.
+/// Uses Indian numbering (12,34,567) when [currencyCode] is 'INR', otherwise standard 3-digit grouping.
+String formatIntegerGrouped(int absWhole, [String currencyCode = '']) {
+  final digits = (absWhole < 0 ? -absWhole : absWhole).toString();
+  if (digits.length <= 3) return digits;
+
+  if (currencyCode.trim().toUpperCase() == 'INR') {
+    final tail = digits.substring(digits.length - 3);
+    final prefix = digits.substring(0, digits.length - 3);
+    final chunks = <String>[];
+    for (int i = prefix.length; i > 0; i -= 2) {
+      final start = (i - 2) < 0 ? 0 : (i - 2);
+      chunks.add(prefix.substring(start, i));
+    }
+    final groupedPrefix = chunks.reversed.join(',');
+    return '$groupedPrefix,$tail';
+  }
+
+  final chunks = <String>[];
+  for (int i = digits.length; i > 0; i -= 3) {
+    final start = (i - 3) < 0 ? 0 : (i - 3);
+    chunks.add(digits.substring(start, i));
+  }
+  return chunks.reversed.join(',');
 }
 
 int _clampDecimals(int decimals) {
@@ -85,21 +138,28 @@ int parsePriceToCents(String input, [int decimals = 2]) =>
 /// - decimals == 0: 50000 -> "¥50,000" (no trailing decimals).
 /// - decimals == 2: 1550 -> "$15.50".
 /// - decimals == 3: 15500 -> "KWD15.500".
-String formatMoney(int units, {String symbol = '\$', int decimals = 2}) {
+String formatMoney(
+  int units, {
+  String symbol = '\$',
+  int decimals = 2,
+  String currencyCode = '',
+}) {
   final safeDecimals = _clampDecimals(decimals);
   final isNegative = units < 0;
   final absUnits = isNegative ? -units : units;
-  final intFormatter = NumberFormat('#,##0', 'en_US');
+  final effectiveCode = currencyCode.trim().isNotEmpty
+      ? currencyCode.trim().toUpperCase()
+      : (symbol.trim() == '₹' ? 'INR' : '');
 
   if (safeDecimals == 0) {
-    final wholeFormatted = intFormatter.format(absUnits);
+    final wholeFormatted = formatIntegerGrouped(absUnits, effectiveCode);
     return '${isNegative ? '-' : ''}$symbol$wholeFormatted';
   }
 
   final scale = _pow10(safeDecimals);
   final whole = absUnits ~/ scale;
   final frac = absUnits % scale;
-  final wholeFormatted = intFormatter.format(whole);
+  final wholeFormatted = formatIntegerGrouped(whole, effectiveCode);
   final fracStr = frac.toString().padLeft(safeDecimals, '0');
   return '${isNegative ? '-' : ''}$symbol$wholeFormatted.$fracStr';
 }
@@ -120,8 +180,18 @@ String formatDecimalUnits(int units, [int decimals = 2]) {
 }
 
 /// Backward compatible alias for formatMoney.
-String formatCents(int cents, {String symbol = '\$', int decimals = 2}) =>
-    formatMoney(cents, symbol: symbol, decimals: decimals);
+String formatCents(
+  int cents, {
+  String symbol = '\$',
+  int decimals = 2,
+  String currencyCode = '',
+}) =>
+    formatMoney(
+      cents,
+      symbol: symbol,
+      decimals: decimals,
+      currencyCode: currencyCode,
+    );
 
 /// Calculates tax in integer minor units using integer round-half-up math:
 /// (net_subtotal * tax_percentage + 50) ~/ 100.
@@ -236,7 +306,7 @@ class ResolvedCurrency {
   });
 }
 
-/// Resolves effective currency (code, symbol, decimals) for an invoice/estimate
+/// Resolves effective currency (code, symbol, decimals) for an invoice/estimate/expense/item
 /// with fallback to the business profile's default currency.
 ResolvedCurrency resolveEffectiveCurrency({
   String recordCode = '',
@@ -254,7 +324,11 @@ ResolvedCurrency resolveEffectiveCurrency({
   final trimmedSym = recordSymbol.trim();
 
   final code = trimmedCode.isNotEmpty ? trimmedCode : fallbackCode;
-  final symbol = trimmedSym.isNotEmpty ? trimmedSym : fallbackSym;
+  final symbol = trimmedSym.isNotEmpty
+      ? trimmedSym
+      : (trimmedCode.isNotEmpty
+          ? (trimmedCode == fallbackCode ? fallbackSym : currencySymbolForCode(code))
+          : fallbackSym);
   final decimals = trimmedCode.isNotEmpty
       ? (recordDecimals ?? getCurrencyDecimals(code))
       : fallbackDec;
@@ -275,7 +349,12 @@ class CurrencyAmount {
     required this.amountUnits,
   });
 
-  String format() => formatMoney(amountUnits, symbol: symbol, decimals: decimals);
+  String format() => formatMoney(
+        amountUnits,
+        symbol: symbol,
+        decimals: decimals,
+        currencyCode: code,
+      );
 }
 
 /// Formats a list of per-currency amounts cleanly (e.g. "$1,500.00 + ¥50,000").
@@ -310,6 +389,20 @@ class CurrencyLedgerEntry {
     this.balanceDueUnits = 0,
     this.taxUnits = 0,
     this.isOverdue = false,
+  });
+}
+
+class CurrencyExpenseEntry {
+  final String currencyCode;
+  final int currencyDecimals;
+  final int totalUnits;
+  final int taxUnits;
+
+  const CurrencyExpenseEntry({
+    this.currencyCode = '',
+    this.currencyDecimals = 2,
+    required this.totalUnits,
+    this.taxUnits = 0,
   });
 }
 
@@ -476,6 +569,7 @@ class DashboardCashFlowSummary {
 /// (USD, JPY, INR, KWD, etc.) are aggregated strictly per currencyCode.
 DashboardCashFlowSummary computeDashboardCashFlow(
   Iterable<CurrencyLedgerEntry> activeEntries, {
+  Iterable<CurrencyExpenseEntry> expenseEntries = const [],
   int expenseGrossUnits = 0,
   int expenseTaxUnits = 0,
   String defaultCode = 'USD',
@@ -487,16 +581,21 @@ DashboardCashFlowSummary computeDashboardCashFlow(
     defaultSymbol: defaultSymbol,
     defaultDecimals: defaultDecimals,
   );
-  final zeroFallback = formatMoney(0, symbol: base.symbol, decimals: base.decimals);
+  final zeroFallback = formatMoney(
+    0,
+    symbol: base.symbol,
+    decimals: base.decimals,
+    currencyCode: base.code,
+  );
 
-  final Map<String, ResolvedCurrency> meta = {
-    if (expenseGrossUnits != 0 || expenseTaxUnits != 0) base.code: base,
-  };
+  final Map<String, ResolvedCurrency> meta = {};
   final Map<String, int> invoicedMap = {};
   final Map<String, int> collectedMap = {};
   final Map<String, int> pendingMap = {};
   final Map<String, int> overdueMap = {};
   final Map<String, int> taxCollectedMap = {};
+  final Map<String, int> expenseGrossMap = {};
+  final Map<String, int> expenseTaxMap = {};
 
   for (final entry in activeEntries) {
     final cur = resolveEffectiveCurrency(
@@ -520,6 +619,26 @@ DashboardCashFlowSummary computeDashboardCashFlow(
         calculateCollectedTaxPortion(entry.paidUnits, entry.taxUnits, entry.totalUnits);
   }
 
+  final expList = expenseEntries.toList();
+  if (expList.isNotEmpty) {
+    for (final exp in expList) {
+      final cur = resolveEffectiveCurrency(
+        recordCode: exp.currencyCode,
+        recordDecimals: exp.currencyCode.trim().isNotEmpty ? exp.currencyDecimals : null,
+        defaultCode: base.code,
+        defaultSymbol: base.symbol,
+        defaultDecimals: base.decimals,
+      );
+      meta[cur.code] = cur;
+      expenseGrossMap[cur.code] = (expenseGrossMap[cur.code] ?? 0) + exp.totalUnits;
+      expenseTaxMap[cur.code] = (expenseTaxMap[cur.code] ?? 0) + exp.taxUnits;
+    }
+  } else if (expenseGrossUnits != 0 || expenseTaxUnits != 0) {
+    meta[base.code] = base;
+    expenseGrossMap[base.code] = expenseGrossUnits;
+    expenseTaxMap[base.code] = expenseTaxUnits;
+  }
+
   final codes = meta.keys.toList()
     ..sort((a, b) => _compareCurrencyOrder(a, b, base.code));
 
@@ -531,8 +650,8 @@ DashboardCashFlowSummary computeDashboardCashFlow(
     final pend = pendingMap[code] ?? 0;
     final over = overdueMap[code] ?? 0;
     final taxCol = taxCollectedMap[code] ?? 0;
-    final expGross = code == base.code ? expenseGrossUnits : 0;
-    final expTax = code == base.code ? expenseTaxUnits : 0;
+    final expGross = expenseGrossMap[code] ?? 0;
+    final expTax = expenseTaxMap[code] ?? 0;
     final netExp = (expGross - expTax).clamp(0, expGross);
     final netRev = col - taxCol;
     final taxLiab = taxCol - expTax;
@@ -645,4 +764,19 @@ bool matchesDateFilter(
   return true;
 }
 
-
+/// Returns true if [text] contains Arabic or Hebrew RTL Unicode characters
+/// (Hebrew U+0590..U+05FF, Arabic U+0600..U+06FF, Arabic Supplement U+0750..U+077F,
+/// Arabic Extended-A U+08A0..U+08FF, or Arabic Presentation Forms U+FB50..U+FDFF / U+FE70..U+FEFF).
+bool containsRtlCharacters(String text) {
+  if (text.isEmpty) return false;
+  for (final rune in text.runes) {
+    if ((rune >= 0x0590 && rune <= 0x06FF) ||
+        (rune >= 0x0750 && rune <= 0x077F) ||
+        (rune >= 0x08A0 && rune <= 0x08FF) ||
+        (rune >= 0xFB50 && rune <= 0xFDFF) ||
+        (rune >= 0xFE70 && rune <= 0xFEFF)) {
+      return true;
+    }
+  }
+  return false;
+}

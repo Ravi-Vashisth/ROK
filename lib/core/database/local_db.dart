@@ -370,6 +370,8 @@ void initializeLocalSchema(Database db) {
       sac_hsn TEXT DEFAULT '',
       default_price_cents INTEGER NOT NULL,
       description TEXT DEFAULT '',
+      currency_code TEXT DEFAULT '',
+      currency_decimals INTEGER DEFAULT 2,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL DEFAULT '',
       deleted_at TEXT DEFAULT NULL
@@ -378,6 +380,8 @@ void initializeLocalSchema(Database db) {
 
   _ensureColumns(db, 'saved_items', [
     "sac_hsn TEXT DEFAULT ''",
+    "currency_code TEXT DEFAULT ''",
+    "currency_decimals INTEGER DEFAULT 2",
     "updated_at TEXT NOT NULL DEFAULT ''",
     "deleted_at TEXT DEFAULT NULL",
   ]);
@@ -394,6 +398,8 @@ void initializeLocalSchema(Database db) {
       notes TEXT DEFAULT '',
       receipt_base64 TEXT DEFAULT '',
       receipt_name TEXT DEFAULT '',
+      currency_code TEXT DEFAULT '',
+      currency_decimals INTEGER DEFAULT 2,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL DEFAULT '',
       deleted_at TEXT DEFAULT NULL
@@ -403,6 +409,8 @@ void initializeLocalSchema(Database db) {
   _ensureColumns(db, 'expenses', [
     "receipt_base64 TEXT DEFAULT ''",
     "receipt_name TEXT DEFAULT ''",
+    "currency_code TEXT DEFAULT ''",
+    "currency_decimals INTEGER DEFAULT 2",
     "updated_at TEXT NOT NULL DEFAULT ''",
     "deleted_at TEXT DEFAULT NULL",
   ]);

@@ -5,6 +5,7 @@ import 'package:billing_app/core/database/database_provider.dart';
 import 'package:billing_app/core/utils/id_generator.dart';
 import 'package:billing_app/core/utils/money_utils.dart';
 import 'package:billing_app/core/utils/tax_compliance_utils.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
 import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
 import 'package:billing_app/features/estimates/models/estimate_item.dart';
 import 'package:billing_app/features/estimates/models/estimate_record.dart';
@@ -46,6 +47,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
         e.created_at
       FROM estimates e
       LEFT JOIN clients c ON e.client_id = c.id
+      WHERE e.deleted_at IS NULL
       ORDER BY e.created_at DESC
     ''');
 
@@ -56,7 +58,8 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     final profileRes = _db.select("SELECT estimate_prefix FROM business_profile WHERE id = 'default'");
     String prefix = 'EST-';
     if (profileRes.isNotEmpty) {
-      prefix = (profileRes.first['estimate_prefix'] as String?) ?? 'EST-';
+      final rawPrefix = ((profileRes.first['estimate_prefix'] as String?) ?? 'EST-').trim();
+      prefix = rawPrefix.isNotEmpty ? rawPrefix : 'EST-';
     }
     final rows = _db.select('SELECT estimate_number FROM estimates');
     final existing = rows.map((r) => (r['estimate_number'] as String?) ?? '');
@@ -65,7 +68,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
 
   List<EstimateItem> getEstimateItems(String estimateId) {
     final ResultSet results = _db.select(
-      'SELECT * FROM estimate_items WHERE estimate_id = ? ORDER BY rowid ASC',
+      'SELECT * FROM estimate_items WHERE estimate_id = ? AND deleted_at IS NULL ORDER BY rowid ASC',
       [estimateId],
     );
     return results.map((row) => EstimateItem.fromRow(row)).toList();
@@ -138,7 +141,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
       _db.execute('BEGIN TRANSACTION;');
       try {
         final existingRes = _db.select(
-          'SELECT estimate_number, status FROM estimates WHERE id = ?',
+          'SELECT estimate_number, status FROM estimates WHERE id = ? AND deleted_at IS NULL',
           [existingEstimateId],
         );
         if (existingRes.isNotEmpty) {
@@ -156,7 +159,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
               discount_type = ?, discount_value = ?, discount_cents = ?, po_number = ?,
               currency_code = ?, currency_symbol = ?, currency_decimals = ?,
               tax_mode = ?, pst_rate_percentage = ?, tax_exemption_id = ?, updated_at = ?
-            WHERE id = ?
+            WHERE id = ? AND deleted_at IS NULL
           ''');
           try {
             updStmt.execute([
@@ -187,7 +190,10 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
             updStmt.dispose();
           }
 
-          _db.execute('DELETE FROM estimate_items WHERE estimate_id = ?', [existingEstimateId]);
+          _db.execute(
+            'UPDATE estimate_items SET deleted_at = ?, updated_at = ? WHERE estimate_id = ? AND deleted_at IS NULL',
+            [nowIso, nowIso, existingEstimateId],
+          );
           final itemStmt = _db.prepare('''
             INSERT INTO estimate_items (
               id, estimate_id, description, sac_hsn, quantity, unit_price_cents, tax_rate_percentage, tax_cents, total_cents, created_at, updated_at
@@ -312,7 +318,10 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
   }
 
   void convertEstimateToInvoice(String estimateId) {
-    final estRes = _db.select('SELECT * FROM estimates WHERE id = ?', [estimateId]);
+    final estRes = _db.select(
+      'SELECT * FROM estimates WHERE id = ? AND deleted_at IS NULL',
+      [estimateId],
+    );
     if (estRes.isEmpty) return;
 
     final estRow = estRes.first;
@@ -434,6 +443,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
       rethrow;
     }
 
+    _ref.read(businessProfileProvider.notifier).refresh();
     _ref.read(invoicesProvider.notifier).loadInvoices();
     loadEstimates();
   }
@@ -442,7 +452,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
     _db.execute('BEGIN TRANSACTION;');
     try {
       final res = _db.select(
-        "SELECT estimate_number FROM estimates WHERE id = ? AND status = 'DRAFT'",
+        "SELECT estimate_number FROM estimates WHERE id = ? AND status = 'DRAFT' AND deleted_at IS NULL",
         [estimateId],
       );
       if (res.isEmpty) {
@@ -455,12 +465,12 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
       if (currentNum.startsWith('DRAFT-')) {
         final officialNum = getNextEstimateNumber();
         _db.execute(
-          "UPDATE estimates SET status = 'PENDING', estimate_number = ?, updated_at = ? WHERE id = ? AND status = 'DRAFT'",
+          "UPDATE estimates SET status = 'PENDING', estimate_number = ?, updated_at = ? WHERE id = ? AND status = 'DRAFT' AND deleted_at IS NULL",
           [officialNum, updatedAt, estimateId],
         );
       } else {
         _db.execute(
-          "UPDATE estimates SET status = 'PENDING', updated_at = ? WHERE id = ? AND status = 'DRAFT'",
+          "UPDATE estimates SET status = 'PENDING', updated_at = ? WHERE id = ? AND status = 'DRAFT' AND deleted_at IS NULL",
           [updatedAt, estimateId],
         );
       }
@@ -473,10 +483,17 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
   }
 
   void deleteEstimate(String estimateId) {
+    final deletedAt = DateTime.now().toUtc().toIso8601String();
     _db.execute('BEGIN TRANSACTION;');
     try {
-      _db.execute('DELETE FROM estimate_items WHERE estimate_id = ?', [estimateId]);
-      _db.execute('DELETE FROM estimates WHERE id = ?', [estimateId]);
+      _db.execute(
+        'UPDATE estimate_items SET deleted_at = ?, updated_at = ? WHERE estimate_id = ? AND deleted_at IS NULL',
+        [deletedAt, deletedAt, estimateId],
+      );
+      _db.execute(
+        'UPDATE estimates SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL',
+        [deletedAt, deletedAt, estimateId],
+      );
       _db.execute('COMMIT;');
     } catch (e) {
       _db.execute('ROLLBACK;');
@@ -488,7 +505,7 @@ class EstimatesNotifier extends StateNotifier<List<EstimateRecord>> {
   void updateEstimateStatus(String estimateId, String newStatus) {
     final updatedAt = DateTime.now().toUtc().toIso8601String();
     _db.execute(
-      'UPDATE estimates SET status = ?, updated_at = ? WHERE id = ?',
+      'UPDATE estimates SET status = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL',
       [newStatus, updatedAt, estimateId],
     );
     loadEstimates();

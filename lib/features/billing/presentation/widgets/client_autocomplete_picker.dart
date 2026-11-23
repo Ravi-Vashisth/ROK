@@ -83,7 +83,7 @@ class _ClientAutocompletePickerState extends ConsumerState<ClientAutocompletePic
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.of(dialogCtx).pop(),
             child: const Text('Cancel'),
           ),
           FilledButton(
@@ -111,7 +111,7 @@ class _ClientAutocompletePickerState extends ConsumerState<ClientAutocompletePic
                 _searchController.text = created.name;
               }
 
-              Navigator.pop(context);
+              Navigator.of(dialogCtx).pop();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Client "$name" added and selected!')),
               );
@@ -232,7 +232,10 @@ class _ClientAutocompletePickerState extends ConsumerState<ClientAutocompletePic
                           title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text(
                             '${c.email.isNotEmpty ? c.email : 'No email'} ${c.taxId.isNotEmpty ? " • Tax ID: ${c.taxId}" : ""}',
-                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Theme.of(context).textTheme.bodySmall?.color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
                           ),
                           onTap: () {
                             widget.onClientSelected(c.id);
@@ -300,12 +303,18 @@ class _ClientAutocompletePickerState extends ConsumerState<ClientAutocompletePic
                           if (selectedClient.email.isNotEmpty || selectedClient.phone.isNotEmpty)
                             Text(
                               '${selectedClient.email} ${selectedClient.phone.isNotEmpty ? " • ${selectedClient.phone}" : ""}',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).textTheme.bodySmall?.color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           if (selectedClient.taxId.isNotEmpty || selectedClient.address.isNotEmpty)
                             Text(
                               '${selectedClient.taxId.isNotEmpty ? "Tax ID: ${selectedClient.taxId}" : ""} ${selectedClient.address.isNotEmpty ? " • Address: ${selectedClient.address}" : ""}',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).textTheme.bodySmall?.color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
                             ),
                         ],
                       ),

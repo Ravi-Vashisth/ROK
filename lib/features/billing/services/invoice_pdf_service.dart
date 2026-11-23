@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import 'package:billing_app/core/utils/file_validation_utils.dart';
 import 'package:billing_app/core/utils/money_utils.dart';
 import 'package:billing_app/core/utils/tax_compliance_utils.dart';
 import 'package:billing_app/features/business_profile/models/business_profile.dart';
@@ -49,17 +50,41 @@ class InvoicePdfService {
     }
   }
 
-  /// Downsamples encoded image bytes (PNG/JPEG/WEBP) via Flutter's native codec
-  /// when byte length exceeds [downsampleThresholdBytes] and dimensions exceed
-  /// [maxDimensionPx]. Falls back safely to [rawBytes] on codec error.
+  /// Wraps [pw.MemoryImage] in header and decoder guards so unsupported (e.g. raw WEBP)
+  /// or corrupted image bytes never crash PDF generation.
+  static pw.MemoryImage? _safeMemoryImage(Uint8List? bytes) {
+    if (bytes == null || bytes.isEmpty) return null;
+    final mime = detectMimeFromHeaderBytes(bytes);
+    if (mime != 'image/png' && mime != 'image/jpeg') {
+      return null;
+    }
+    try {
+      return pw.MemoryImage(bytes);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Exposes safe MemoryImage construction for unit tests.
+  static pw.MemoryImage? tryBuildMemoryImage(Uint8List? bytes) =>
+      _safeMemoryImage(bytes);
+
+  /// Downsamples oversized PNG/JPEG images and unconditionally transcodes WEBP
+  /// payloads to PNG via Flutter's native image codec so [pw.MemoryImage] always
+  /// receives a supported raster format. Returns empty bytes if WEBP decoding fails.
   static Future<Uint8List> downsampleImageBytes(
     Uint8List rawBytes, {
     int maxDimensionPx = 480,
     int downsampleThresholdBytes = 96 * 1024,
   }) async {
-    if (rawBytes.length <= downsampleThresholdBytes) {
+    final mime = detectMimeFromHeaderBytes(rawBytes);
+    final bool isWebp = mime == 'image/webp';
+    final bool isRasterPngOrJpg = mime == 'image/png' || mime == 'image/jpeg';
+
+    if (!isWebp && rawBytes.length <= downsampleThresholdBytes) {
       return rawBytes;
     }
+
     ui.Codec? probeCodec;
     ui.Codec? scaledCodec;
     ui.Image? probeImage;
@@ -70,8 +95,18 @@ class InvoicePdfService {
       probeImage = probeFrame.image;
       final srcW = probeImage.width;
       final srcH = probeImage.height;
+
       if (srcW <= maxDimensionPx && srcH <= maxDimensionPx) {
-        return rawBytes;
+        if (!isWebp && isRasterPngOrJpg) {
+          return rawBytes;
+        }
+        final directPng = await probeImage.toByteData(
+          format: ui.ImageByteFormat.png,
+        );
+        if (directPng == null) {
+          return isWebp ? Uint8List(0) : rawBytes;
+        }
+        return directPng.buffer.asUint8List();
       }
 
       final int? targetWidth = srcW >= srcH ? maxDimensionPx : null;
@@ -87,11 +122,16 @@ class InvoicePdfService {
       final byteData = await scaledImage.toByteData(
         format: ui.ImageByteFormat.png,
       );
-      if (byteData == null) return rawBytes;
+      if (byteData == null) {
+        return isWebp ? Uint8List(0) : rawBytes;
+      }
       final resized = byteData.buffer.asUint8List();
+      if (isWebp || !isRasterPngOrJpg) {
+        return resized;
+      }
       return resized.length < rawBytes.length ? resized : rawBytes;
     } catch (_) {
-      return rawBytes;
+      return isWebp ? Uint8List(0) : rawBytes;
     } finally {
       probeImage?.dispose();
       scaledImage?.dispose();
@@ -108,16 +148,136 @@ class InvoicePdfService {
   }) async {
     final decoded = _safeDecodeBase64(input);
     if (decoded == null || decoded.isEmpty) return null;
-    return downsampleImageBytes(
+    final processed = await downsampleImageBytes(
       decoded,
       maxDimensionPx: maxDimensionPx,
       downsampleThresholdBytes: downsampleThresholdBytes,
     );
+    if (processed.isEmpty) return null;
+    return processed;
   }
 
   /// Safely unescape literal \n into real newlines.
   static String _cleanText(String input) {
     return input.replaceAll(r'\n', '\n').trim();
+  }
+
+  /// Renders PDF text wrapped in RTL [pw.Directionality] when Arabic/Hebrew characters are detected.
+  static pw.Widget _pdfText(
+    String text, {
+    pw.TextStyle? style,
+    pw.TextAlign? textAlign,
+    bool forceRtl = false,
+  }) {
+    final isRtl = forceRtl || containsRtlCharacters(text);
+    final effectiveAlign = textAlign ?? (isRtl ? pw.TextAlign.right : null);
+    final widget = pw.Text(
+      text,
+      style: style,
+      textAlign: effectiveAlign,
+    );
+    if (!isRtl) return widget;
+    return pw.Directionality(
+      textDirection: pw.TextDirection.rtl,
+      child: widget,
+    );
+  }
+
+  /// Inspects dynamic document text for scripts outside the bundled offline DejaVuSans coverage
+  /// (CJK, Indic, Southeast Asian, or Arabic shaping/extended blocks) so preview UI can warn honestly.
+  static String? diagnoseUnsupportedPdfScripts(Iterable<String> texts) {
+    bool hasCjk = false;
+    bool hasIndic = false;
+    bool hasSea = false;
+    bool hasArabic = false;
+
+    for (final raw in texts) {
+      if (raw.isEmpty) continue;
+      for (final cp in raw.runes) {
+        if ((cp >= 0x3040 && cp <= 0x30FF) ||
+            (cp >= 0x3400 && cp <= 0x4DBF) ||
+            (cp >= 0x4E00 && cp <= 0x9FFF) ||
+            (cp >= 0xAC00 && cp <= 0xD7AF) ||
+            (cp >= 0xF900 && cp <= 0xFAFF)) {
+          hasCjk = true;
+        } else if (cp >= 0x0900 && cp <= 0x0DFF) {
+          hasIndic = true;
+        } else if (cp >= 0x0E00 && cp <= 0x109F) {
+          hasSea = true;
+        } else if ((cp >= 0x0600 && cp <= 0x06FF) ||
+            (cp >= 0x0750 && cp <= 0x077F) ||
+            (cp >= 0x08A0 && cp <= 0x08FF) ||
+            (cp >= 0xFB50 && cp <= 0xFDFF) ||
+            (cp >= 0xFE70 && cp <= 0xFEFF)) {
+          hasArabic = true;
+        }
+      }
+    }
+
+    final detected = <String>[
+      if (hasCjk) 'CJK (Chinese / Japanese / Korean)',
+      if (hasIndic) 'Indic',
+      if (hasSea) 'Thai / Lao / Myanmar',
+      if (hasArabic) 'Arabic',
+    ];
+    if (detected.isEmpty) return null;
+
+    return 'Detected ${detected.join(', ')} script characters. The bundled offline DejaVuSans font may not support or shape all glyphs for these scripts — if blank boxes appear, use system Print / Share or Latin transliteration.';
+  }
+
+  static String? diagnoseInvoiceScripts({
+    required InvoiceRecord invoice,
+    required List<InvoiceItem> items,
+    required Client client,
+    required BusinessProfile businessProfile,
+    List<PaymentRecord> payments = const [],
+  }) {
+    return diagnoseUnsupportedPdfScripts([
+      businessProfile.businessName,
+      businessProfile.address,
+      businessProfile.paymentDetails,
+      businessProfile.signatureLabel,
+      client.name,
+      client.address,
+      invoice.clientName,
+      invoice.terms,
+      invoice.notes,
+      ...items.map((i) => i.description),
+      ...payments.map((p) => p.notes),
+    ]);
+  }
+
+  static String? diagnoseEstimateScripts({
+    required EstimateRecord estimate,
+    required List<EstimateItem> items,
+    required Client client,
+    required BusinessProfile businessProfile,
+  }) {
+    return diagnoseUnsupportedPdfScripts([
+      businessProfile.businessName,
+      businessProfile.address,
+      businessProfile.signatureLabel,
+      client.name,
+      client.address,
+      estimate.clientName,
+      estimate.terms,
+      estimate.notes,
+      ...items.map((i) => i.description),
+    ]);
+  }
+
+  static String? diagnoseStatementScripts({
+    required Client client,
+    required List<InvoiceRecord> invoices,
+    required BusinessProfile businessProfile,
+  }) {
+    return diagnoseUnsupportedPdfScripts([
+      businessProfile.businessName,
+      businessProfile.address,
+      client.name,
+      client.address,
+      ...invoices.map((i) => i.clientName),
+    ]);
   }
 
   /// Generates a print-ready A4 MultiPage PDF invoice document using bundled offline DejaVuSans fonts.
@@ -193,8 +353,12 @@ class InvoicePdfService {
     );
     final paymentInstructions = _cleanText(businessProfile.paymentDetails);
 
-    final logoBytes = await _decodeAndDownsampleImageBytes(businessProfile.logoBase64);
-    final signatureBytes = await _decodeAndDownsampleImageBytes(businessProfile.signatureBase64);
+    final logoImage = _safeMemoryImage(
+      await _decodeAndDownsampleImageBytes(businessProfile.logoBase64),
+    );
+    final signatureImage = _safeMemoryImage(
+      await _decodeAndDownsampleImageBytes(businessProfile.signatureBase64),
+    );
     final taxBreakdown = resolveRegionalTaxBreakdown(
       taxMode: invoice.taxMode,
       netSubtotalCents: invoice.netSubtotalCents,
@@ -233,12 +397,12 @@ class InvoicePdfService {
                   pw.Row(
                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
-                      if (logoBytes != null) ...[
+                      if (logoImage != null) ...[
                         pw.Container(
                           width: 48,
                           height: 48,
                           margin: const pw.EdgeInsets.only(right: 12),
-                          child: pw.Image(pw.MemoryImage(logoBytes), fit: pw.BoxFit.contain),
+                          child: pw.Image(logoImage, fit: pw.BoxFit.contain),
                         ),
                       ],
                       pw.Column(
@@ -336,7 +500,7 @@ class InvoicePdfService {
                           ),
                         ),
                         pw.SizedBox(height: 4),
-                        pw.Text(
+                        _pdfText(
                           businessProfile.businessName,
                           style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A')),
                         ),
@@ -350,7 +514,7 @@ class InvoicePdfService {
                         ],
                         if (businessProfile.address.isNotEmpty) ...[
                           pw.SizedBox(height: 2),
-                          pw.Text(businessProfile.address, style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#64748B'))),
+                          _pdfText(businessProfile.address, style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#64748B'))),
                         ],
                         if (businessProfile.taxId.isNotEmpty) ...[
                           pw.SizedBox(height: 3),
@@ -377,7 +541,7 @@ class InvoicePdfService {
                           ),
                         ),
                         pw.SizedBox(height: 4),
-                        pw.Text(
+                        _pdfText(
                           client.name,
                           style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A')),
                         ),
@@ -391,7 +555,7 @@ class InvoicePdfService {
                         ],
                         if (client.address.isNotEmpty) ...[
                           pw.SizedBox(height: 2),
-                          pw.Text(client.address, style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#64748B'))),
+                          _pdfText(client.address, style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#64748B'))),
                         ],
                         if (client.taxId.isNotEmpty) ...[
                           pw.SizedBox(height: 3),
@@ -516,7 +680,7 @@ class InvoicePdfService {
                         ),
                       ),
                       children: [
-                        _buildCell(_cleanText(item.description), align: pw.TextAlign.left),
+                        _buildCell(_cleanText(item.description)),
                         _buildCell(item.sacHsn.isNotEmpty ? item.sacHsn : '-', align: pw.TextAlign.left),
                         _buildCell('${item.quantity}', align: pw.TextAlign.center),
                         _buildCell(formatCents(item.unitPriceCents, symbol: sym, decimals: dec), align: pw.TextAlign.right),
@@ -579,7 +743,7 @@ class InvoicePdfService {
                         children: [
                           _buildCell(p.paymentDate, align: pw.TextAlign.left),
                           _buildCell(p.paymentMethod, align: pw.TextAlign.left),
-                          _buildCell(details.isNotEmpty ? details : '-', align: pw.TextAlign.left),
+                          _buildCell(details.isNotEmpty ? details : '-'),
                           _buildCell(formatCents(p.totalCreditCents, symbol: sym, decimals: dec), align: pw.TextAlign.right, isBold: true),
                         ],
                       );
@@ -674,13 +838,13 @@ class InvoicePdfService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       if (effectiveTerms.isNotEmpty)
-                        pw.Text(
+                        _pdfText(
                           'Terms & Conditions:\n$effectiveTerms',
                           style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#475569')),
                         ),
                       if (effectiveNotes.isNotEmpty) ...[
                         pw.SizedBox(height: 3),
-                        pw.Text(
+                        _pdfText(
                           'Notes:\n$effectiveNotes',
                           style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#334155')),
                         ),
@@ -691,23 +855,23 @@ class InvoicePdfService {
                 pw.SizedBox(height: 6),
               ],
 
-              if (signatureBytes != null || businessProfile.signatureLabel.isNotEmpty) ...[
+              if (signatureImage != null || businessProfile.signatureLabel.isNotEmpty) ...[
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.end,
                   children: [
                     pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.center,
                       children: [
-                        if (signatureBytes != null)
+                        if (signatureImage != null)
                           pw.Container(
                             height: 36,
-                            child: pw.Image(pw.MemoryImage(signatureBytes), fit: pw.BoxFit.contain),
+                            child: pw.Image(signatureImage, fit: pw.BoxFit.contain),
                           )
                         else
                           pw.SizedBox(height: 24),
                         pw.Container(width: 140, height: 1, color: PdfColor.fromHex('#94A3B8')),
                         pw.SizedBox(height: 3),
-                        pw.Text(
+                        _pdfText(
                           businessProfile.signatureLabel.isNotEmpty
                               ? businessProfile.signatureLabel
                               : 'Authorized Signatory',
@@ -771,7 +935,7 @@ class InvoicePdfService {
                             ),
                             pw.SizedBox(height: 4),
                             if (paymentInstructions.isNotEmpty)
-                              pw.Text(
+                              _pdfText(
                                 paymentInstructions,
                                 style: pw.TextStyle(
                                   fontSize: 9,
@@ -858,8 +1022,12 @@ class InvoicePdfService {
       estimate.notes.trim().isNotEmpty ? estimate.notes : businessProfile.defaultNotes,
     );
 
-    final logoBytes = await _decodeAndDownsampleImageBytes(businessProfile.logoBase64);
-    final signatureBytes = await _decodeAndDownsampleImageBytes(businessProfile.signatureBase64);
+    final logoImage = _safeMemoryImage(
+      await _decodeAndDownsampleImageBytes(businessProfile.logoBase64),
+    );
+    final signatureImage = _safeMemoryImage(
+      await _decodeAndDownsampleImageBytes(businessProfile.signatureBase64),
+    );
     final estBreakdown = resolveRegionalTaxBreakdown(
       taxMode: estimate.taxMode,
       netSubtotalCents: estimate.netSubtotalCents,
@@ -898,12 +1066,12 @@ class InvoicePdfService {
                   pw.Row(
                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
-                      if (logoBytes != null) ...[
+                      if (logoImage != null) ...[
                         pw.Container(
                           width: 48,
                           height: 48,
                           margin: const pw.EdgeInsets.only(right: 12),
-                          child: pw.Image(pw.MemoryImage(logoBytes), fit: pw.BoxFit.contain),
+                          child: pw.Image(logoImage, fit: pw.BoxFit.contain),
                         ),
                       ],
                       pw.Column(
@@ -1001,7 +1169,7 @@ class InvoicePdfService {
                           style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#94A3B8')),
                         ),
                         pw.SizedBox(height: 4),
-                        pw.Text(
+                        _pdfText(
                           businessProfile.businessName,
                           style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A')),
                         ),
@@ -1022,7 +1190,7 @@ class InvoicePdfService {
                           style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#94A3B8')),
                         ),
                         pw.SizedBox(height: 4),
-                        pw.Text(
+                        _pdfText(
                           client.name,
                           style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A')),
                         ),
@@ -1114,7 +1282,7 @@ class InvoicePdfService {
                         border: pw.Border(bottom: pw.BorderSide(color: PdfColor.fromHex('#F1F5F9'), width: 0.8)),
                       ),
                       children: [
-                        _buildCell(_cleanText(item.description), align: pw.TextAlign.left),
+                        _buildCell(_cleanText(item.description)),
                         _buildCell('${item.quantity}', align: pw.TextAlign.center),
                         _buildCell(formatCents(item.unitPriceCents, symbol: sym, decimals: dec), align: pw.TextAlign.right),
                         _buildCell(formatCents(item.totalCents, symbol: sym, decimals: dec), align: pw.TextAlign.right, isBold: true),
@@ -1178,11 +1346,11 @@ class InvoicePdfService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       if (effectiveTerms.isNotEmpty)
-                        pw.Text('Proposal Terms:\n$effectiveTerms',
+                        _pdfText('Proposal Terms:\n$effectiveTerms',
                             style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#475569'))),
                       if (effectiveNotes.isNotEmpty) ...[
                         pw.SizedBox(height: 3),
-                        pw.Text('Proposal Notes:\n$effectiveNotes',
+                        _pdfText('Proposal Notes:\n$effectiveNotes',
                             style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#334155'))),
                       ],
                     ],
@@ -1222,20 +1390,20 @@ class InvoicePdfService {
                       pw.Text('Date: ____________________', style: pw.TextStyle(fontSize: 7.5, color: PdfColor.fromHex('#94A3B8'))),
                     ],
                   ),
-                  if (signatureBytes != null || businessProfile.signatureLabel.isNotEmpty) ...[
+                  if (signatureImage != null || businessProfile.signatureLabel.isNotEmpty) ...[
                     pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.center,
                       children: [
-                        if (signatureBytes != null)
+                        if (signatureImage != null)
                           pw.Container(
                             height: 32,
-                            child: pw.Image(pw.MemoryImage(signatureBytes), fit: pw.BoxFit.contain),
+                            child: pw.Image(signatureImage, fit: pw.BoxFit.contain),
                           )
                         else
                           pw.SizedBox(height: 20),
                         pw.Container(width: 140, height: 1, color: PdfColor.fromHex('#94A3B8')),
                         pw.SizedBox(height: 3),
-                        pw.Text(
+                        _pdfText(
                           businessProfile.signatureLabel.isNotEmpty
                               ? businessProfile.signatureLabel
                               : 'Authorized Signatory',
@@ -1291,7 +1459,9 @@ class InvoicePdfService {
     );
     final hasDue = rollup.hasOutstandingBalance;
 
-    final logoBytes = await _decodeAndDownsampleImageBytes(businessProfile.logoBase64);
+    final logoImage = _safeMemoryImage(
+      await _decodeAndDownsampleImageBytes(businessProfile.logoBase64),
+    );
     final now = DateTime.now();
     final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
@@ -1318,18 +1488,18 @@ class InvoicePdfService {
                 pw.Row(
                   crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
-                    if (logoBytes != null) ...[
+                    if (logoImage != null) ...[
                       pw.Container(
                         width: 44,
                         height: 44,
                         margin: const pw.EdgeInsets.only(right: 12),
-                        child: pw.Image(pw.MemoryImage(logoBytes), fit: pw.BoxFit.contain),
+                        child: pw.Image(logoImage, fit: pw.BoxFit.contain),
                       ),
                     ],
                     pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text(
+                        _pdfText(
                           businessProfile.businessName.isNotEmpty ? businessProfile.businessName : 'My Studio',
                           style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A')),
                         ),
@@ -1365,7 +1535,7 @@ class InvoicePdfService {
                   children: [
                     pw.Text('ACCOUNT FOR:', style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#64748B'))),
                     pw.SizedBox(height: 2),
-                    pw.Text(client.name, style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A'))),
+                    _pdfText(client.name, style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A'))),
                     if (client.email.isNotEmpty) pw.Text(client.email, style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#475569'))),
                     if (client.phone.isNotEmpty) pw.Text(client.phone, style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#475569'))),
                     if (client.taxId.isNotEmpty) pw.Text('Tax ID: ${client.taxId}', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#475569'))),
@@ -1466,14 +1636,16 @@ class InvoicePdfService {
 
   static pw.Widget _buildCell(
     String text, {
-    pw.TextAlign align = pw.TextAlign.left,
+    pw.TextAlign? align,
     bool isBold = false,
   }) {
+    final effectiveAlign = align ??
+        (containsRtlCharacters(text) ? pw.TextAlign.right : pw.TextAlign.left);
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: pw.Text(
+      child: _pdfText(
         text,
-        textAlign: align,
+        textAlign: effectiveAlign,
         style: pw.TextStyle(
           fontSize: 9.5,
           fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,

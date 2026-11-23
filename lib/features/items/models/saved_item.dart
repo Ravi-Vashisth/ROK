@@ -6,6 +6,8 @@ class SavedItem {
   final String sacHsn;
   final int defaultPriceCents;
   final String description;
+  final String currencyCode;
+  final int currencyDecimals;
   final String createdAt;
 
   const SavedItem({
@@ -14,6 +16,8 @@ class SavedItem {
     this.sacHsn = '',
     required this.defaultPriceCents,
     this.description = '',
+    this.currencyCode = '',
+    this.currencyDecimals = 2,
     required this.createdAt,
   });
 
@@ -24,6 +28,8 @@ class SavedItem {
       sacHsn: (row['sac_hsn'] as String?) ?? '',
       defaultPriceCents: row['default_price_cents'] as int,
       description: row['description'] as String? ?? '',
+      currencyCode: (row['currency_code'] as String?) ?? '',
+      currencyDecimals: (row['currency_decimals'] as int?) ?? 2,
       createdAt: row['created_at'] as String,
     );
   }
@@ -35,6 +41,8 @@ class SavedItem {
       'sac_hsn': sacHsn,
       'default_price_cents': defaultPriceCents,
       'description': description,
+      'currency_code': currencyCode,
+      'currency_decimals': currencyDecimals,
       'created_at': createdAt,
     };
   }

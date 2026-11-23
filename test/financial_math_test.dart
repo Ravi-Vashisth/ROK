@@ -1,11 +1,17 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqlite3/sqlite3.dart' hide Row;
 
+import 'package:billing_app/core/database/database_provider.dart';
+import 'package:billing_app/core/database/local_db.dart';
 import 'package:billing_app/core/theme/app_theme.dart';
 import 'package:billing_app/core/theme/theme_provider.dart';
 import 'package:billing_app/core/utils/backup_service.dart';
 import 'package:billing_app/core/utils/csv_export_service.dart';
+import 'package:billing_app/core/utils/export_file_helper.dart';
 import 'package:billing_app/core/utils/file_validation_utils.dart';
 import 'package:billing_app/core/utils/id_generator.dart';
 import 'package:billing_app/core/utils/money_utils.dart';
@@ -13,12 +19,19 @@ import 'package:billing_app/core/utils/tax_compliance_utils.dart';
 import 'package:billing_app/core/utils/telephony_utils.dart';
 import 'package:billing_app/features/billing/services/invoice_pdf_service.dart';
 import 'package:billing_app/features/business_profile/models/business_profile.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
 import 'package:billing_app/features/clients/models/client.dart';
+import 'package:billing_app/features/clients/providers/clients_provider.dart';
 import 'package:billing_app/features/estimates/models/estimate_item.dart';
 import 'package:billing_app/features/estimates/models/estimate_record.dart';
+import 'package:billing_app/features/estimates/providers/estimates_provider.dart';
 import 'package:billing_app/features/expenses/models/expense_record.dart';
+import 'package:billing_app/features/expenses/providers/expenses_provider.dart';
 import 'package:billing_app/features/invoices/models/invoice_item.dart';
 import 'package:billing_app/features/invoices/models/invoice_record.dart';
+import 'package:billing_app/features/invoices/presentation/invoice_editor_screen.dart';
+import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
+import 'package:billing_app/features/items/providers/saved_items_provider.dart';
 
 void main() {
   group('Group 1: MoneyUtils & Integer Cents Math', () {
@@ -1445,6 +1458,927 @@ void main() {
       );
       expect(voidPdf.length, greaterThan(1000));
       expect(voidPdf.sublist(0, 5), equals([0x25, 0x50, 0x44, 0x46, 0x2D]));
+    });
+  });
+
+  group('Group 16: Task 11 WEBP PDF Image Guard & Line-Item Row Key Integrity', () {
+    test('downsampleImageBytes never returns raw WEBP bytes and tryBuildMemoryImage guards malformed images', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+
+      // RIFF....WEBP magic header under threshold (should never be returned raw)
+      final malformedWebp = Uint8List.fromList([
+        0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00,
+        0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x4C,
+        0x00, 0x00, 0x00, 0x00,
+      ]);
+
+      final processedWebp = await InvoicePdfService.downsampleImageBytes(
+        malformedWebp,
+        downsampleThresholdBytes: 96 * 1024,
+      );
+      expect(detectMimeFromHeaderBytes(processedWebp), isNot(equals('image/webp')));
+      expect(InvoicePdfService.tryBuildMemoryImage(malformedWebp), isNull);
+
+      final corruptPng = Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0xFF]);
+      expect(InvoicePdfService.tryBuildMemoryImage(corruptPng), isNull);
+
+      // End-to-end Invoice, Estimate & Statement PDFs must not throw when WEBP/malformed images are stored
+      final badLogoUri = 'data:image/webp;base64,${base64Encode(malformedWebp)}';
+      final badSigUri = 'data:image/png;base64,${base64Encode(corruptPng)}';
+      final profile = BusinessProfile(
+        id: 'default',
+        businessName: 'Northstar Studio',
+        email: 'billing@northstar.example',
+        phone: '+1 555 010 9988',
+        address: '100 Market St, San Francisco, CA',
+        taxId: 'US-EIN-99-1234567',
+        paymentDetails: 'ACH Routing 121000358',
+        logoBase64: badLogoUri,
+        signatureBase64: badSigUri,
+      );
+      const client = Client(id: 'c-1', name: 'Horizon Labs', createdAt: '2026-10-01T00:00:00Z');
+      const invoice = InvoiceRecord(
+        id: 'inv-webp-safe',
+        clientId: 'c-1',
+        clientName: 'Horizon Labs',
+        invoiceNumber: 'INV-0099',
+        subtotalCents: 10000,
+        taxCents: 1000,
+        totalCents: 11000,
+        paidCents: 0,
+        balanceDueCents: 11000,
+        status: 'PENDING',
+        issueDate: '2026-10-01',
+        dueDate: '2026-10-15',
+        paymentTerms: 'Net 15 Days',
+        createdAt: '2026-10-01T00:00:00Z',
+      );
+      const estimate = EstimateRecord(
+        id: 'est-webp-safe',
+        clientId: 'c-1',
+        clientName: 'Horizon Labs',
+        estimateNumber: 'EST-0099',
+        subtotalCents: 10000,
+        taxCents: 1000,
+        totalCents: 11000,
+        status: 'PENDING',
+        issueDate: '2026-10-01',
+        expiryDate: '2026-10-31',
+        createdAt: '2026-10-01T00:00:00Z',
+      );
+
+      final invPdf = await InvoicePdfService.generateInvoicePdf(
+        invoice: invoice,
+        items: const [],
+        client: client,
+        businessProfile: profile,
+      );
+      final estPdf = await InvoicePdfService.generateEstimatePdf(
+        estimate: estimate,
+        items: const [],
+        client: client,
+        businessProfile: profile,
+      );
+      final stmtPdf = await InvoicePdfService.generateStatementPdf(
+        client: client,
+        invoices: const [invoice],
+        businessProfile: profile,
+      );
+
+      expect(invPdf.sublist(0, 5), equals([0x25, 0x50, 0x44, 0x46, 0x2D]));
+      expect(estPdf.sublist(0, 5), equals([0x25, 0x50, 0x44, 0x46, 0x2D]));
+      expect(stmtPdf.sublist(0, 5), equals([0x25, 0x50, 0x44, 0x46, 0x2D]));
+    });
+
+    test('LineItemEntry assigns unique IDs and removeLineItemAt preserves sibling identities on middle-row deletion', () {
+      final first = LineItemEntry(description: 'Discovery', sacHsn: '998311', unitPriceCents: 50000);
+      final middle = LineItemEntry(description: 'Obsolete Row', sacHsn: '998312', unitPriceCents: 10000);
+      final third = LineItemEntry(description: 'Architecture', sacHsn: '998313', unitPriceCents: 90000);
+
+      expect(first.id, isNotEmpty);
+      expect({first.id, middle.id, third.id}.length, equals(3));
+
+      final afterDelete = removeLineItemAt([first, middle, third], 1);
+      expect(afterDelete.length, equals(2));
+      expect(afterDelete[0].id, equals(first.id));
+      expect(afterDelete[0].description, equals('Discovery'));
+      expect(afterDelete[1].id, equals(third.id));
+      expect(afterDelete[1].description, equals('Architecture'));
+      expect(afterDelete[1].unitPriceCents, equals(90000));
+
+      final minOneGuard = removeLineItemAt([first], 0);
+      expect(minOneGuard.length, equals(1));
+      expect(minOneGuard.first.id, equals(first.id));
+    });
+  });
+
+  group('Group 17: Task 12 Cross-Stack Backup Compatibility & Desktop Save Extensions', () {
+    test('BackupService.normalizeBackupPayloadForFlutter converts React Web JSON into validated Flutter SQLite tables', () {
+      final reactSnapshot = <String, dynamic>{
+        'exported_at': '2026-11-20T10:15:00.000Z',
+        'businessProfile': {
+          'business_name': 'Web Studio LLC',
+          'currency_code': 'USD',
+          'currency_symbol': '\$',
+          'currency_decimals': 2,
+          'accent_color': 'emerald',
+          'theme_mode': 'dark',
+        },
+        'clients': [
+          {
+            'id': 'c-web-1',
+            'name': 'Pacific Traders',
+            'email': 'ap@pacific.example',
+          },
+        ],
+        'invoices': [
+          {
+            'id': 'inv-web-1',
+            'client_id': 'c-web-1',
+            'client_name': 'Pacific Traders',
+            'invoice_number': 'INV-0042',
+            'subtotal_cents': 100000,
+            'tax_cents': 10000,
+            'total_cents': 110000,
+            'paid_cents': 50000,
+            'status': 'PARTIALLY_PAID',
+            'issue_date': '2026-11-01',
+            'due_date': '2026-11-15',
+            'items': [
+              {
+                'description': 'Platform Audit',
+                'sacHsn': '998314',
+                'quantity': 2,
+                'unitPriceCents': 50000,
+                'taxSlab': 10,
+              },
+            ],
+          },
+        ],
+        'estimates': [
+          {
+            'id': 'est-web-1',
+            'client_id': 'c-web-1',
+            'estimate_number': 'EST-0012',
+            'subtotal_cents': 50000,
+            'tax_cents': 0,
+            'total_cents': 50000,
+            'status': 'PENDING',
+            'issue_date': '2026-11-10',
+            'expiry_date': '2026-12-10',
+            'items': [
+              {
+                'description': 'Phase 2 Proposal',
+                'quantity': 1,
+                'unitPriceCents': 50000,
+                'taxSlab': 0,
+              },
+            ],
+          },
+        ],
+        'expenses': [
+          {
+            'id': 'exp-web-1',
+            'category': 'Cloud',
+            'vendor': 'AWS',
+            'tax_cents': 1800,
+            'total_cents': 11800,
+            'expense_date': '2026-11-05',
+          },
+        ],
+        'savedItems': [
+          {
+            'id': 'si-web-1',
+            'title': 'Hourly Advisory',
+            'defaultPriceCents': 15000,
+            'sacHsn': '998311',
+          },
+        ],
+      };
+
+      expect(() => BackupService.validateBackupMap(reactSnapshot), returnsNormally);
+
+      final normalized = BackupService.normalizeBackupPayloadForFlutter(reactSnapshot);
+      final profiles = normalized['business_profile'] as List<dynamic>;
+      expect(profiles.length, equals(1));
+      expect((profiles.first as Map)['business_name'], equals('Web Studio LLC'));
+      expect((profiles.first as Map).containsKey('accent_color'), isFalse);
+
+      final invItems = normalized['invoice_items'] as List<dynamic>;
+      expect(invItems.length, equals(1));
+      expect((invItems.first as Map)['invoice_id'], equals('inv-web-1'));
+      expect((invItems.first as Map)['unit_price_cents'], equals(50000));
+      expect((invItems.first as Map)['total_cents'], equals(100000));
+      expect((invItems.first as Map)['tax_cents'], equals(10000));
+
+      final payments = normalized['payments'] as List<dynamic>;
+      expect(payments.length, equals(1));
+      expect((payments.first as Map)['invoice_id'], equals('inv-web-1'));
+      expect((payments.first as Map)['amount_cents'], equals(50000));
+
+      final estItems = normalized['estimate_items'] as List<dynamic>;
+      expect(estItems.length, equals(1));
+      expect((estItems.first as Map)['estimate_id'], equals('est-web-1'));
+
+      final expenses = normalized['expenses'] as List<dynamic>;
+      expect((expenses.first as Map)['amount_cents'], equals(10000));
+
+      final savedItems = normalized['saved_items'] as List<dynamic>;
+      expect((savedItems.first as Map)['default_price_cents'], equals(15000));
+      expect((savedItems.first as Map)['sac_hsn'], equals('998311'));
+
+      // Invalid React payload shapes must still throw FormatException
+      expect(
+        () => BackupService.validateBackupMap({
+          'clients': const [],
+          'invoices': const [],
+          'businessProfile': 'not-an-object',
+        }),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => BackupService.validateBackupMap({
+          'clients': const [{'id': 'c1', 'name': 'Acme'}],
+          'invoices': const [
+            {
+              'id': 'inv-bad',
+              'client_id': 'c1',
+              'invoice_number': 'INV-1',
+              'subtotal_cents': 1000,
+              'tax_cents': 0,
+              'total_cents': '1000',
+              'status': 'PENDING',
+            }
+          ],
+        }),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('ExportFileHelper.ensureDesktopExtension appends omitted extensions cleanly', () {
+      expect(
+        ExportFileHelper.ensureDesktopExtension('/Users/test/Desktop/my_backup', 'json'),
+        equals('/Users/test/Desktop/my_backup.json'),
+      );
+      expect(
+        ExportFileHelper.ensureDesktopExtension('/Users/test/Desktop/my_backup.JSON', '.json'),
+        equals('/Users/test/Desktop/my_backup.JSON'),
+      );
+      expect(
+        ExportFileHelper.ensureDesktopExtension(r'C:\Exports\invoices', 'csv'),
+        equals(r'C:\Exports\invoices.csv'),
+      );
+      expect(
+        ExportFileHelper.ensureDesktopExtension(r'C:\Exports\invoices.csv', 'csv'),
+        equals(r'C:\Exports\invoices.csv'),
+      );
+    });
+  });
+
+  group('Group 18: Task 13 Soft-Delete Tombstones, Deleted Filtering & Isolate Backup Round-Trip', () {
+    test('Providers filter deleted_at IS NULL, cascade soft-deletes atomically, and isolate backup preserves tombstones', () async {
+      final db = sqlite3.openInMemory();
+      addTearDown(db.dispose);
+      initializeLocalSchema(db);
+
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final clientsNotifier = container.read(clientsProvider.notifier);
+      final invoicesNotifier = container.read(invoicesProvider.notifier);
+      final estimatesNotifier = container.read(estimatesProvider.notifier);
+      final expensesNotifier = container.read(expensesProvider.notifier);
+      final savedItemsNotifier = container.read(savedItemsProvider.notifier);
+
+      // 1. Create client and verify active query sees it
+      clientsNotifier.addClient(name: 'Orion Aerospace', email: 'ap@orion.example');
+      expect(container.read(clientsProvider).length, equals(1));
+      final clientId = container.read(clientsProvider).first.id;
+
+      // 2. Create an estimate linked to client -> client deletion must be blocked
+      final estId = estimatesNotifier.saveEstimate(
+        clientId: clientId,
+        items: const [
+          DraftItem(description: 'Propulsion Audit', unitPriceCents: 50000, quantity: 1, totalCents: 50000),
+        ],
+        taxPercentage: 10,
+      );
+      expect(container.read(estimatesProvider).length, equals(1));
+      expect(estimatesNotifier.getEstimateItems(estId).length, equals(1));
+      expect(clientsNotifier.deleteClient(clientId), isFalse);
+
+      // 3. Soft-delete estimate -> hides from active state, cascades tombstone to estimate_items
+      estimatesNotifier.deleteEstimate(estId);
+      expect(container.read(estimatesProvider), isEmpty);
+      expect(estimatesNotifier.getEstimateItems(estId), isEmpty);
+      final estRaw = db.select('SELECT deleted_at FROM estimates WHERE id = ?', [estId]);
+      expect(estRaw.first['deleted_at'], isA<String>());
+      final estItemRaw = db.select('SELECT deleted_at FROM estimate_items WHERE estimate_id = ?', [estId]);
+      expect(estItemRaw.first['deleted_at'], isA<String>());
+
+      // 4. Now that estimate is soft-deleted, create & pay an invoice, then soft-delete invoice
+      final invId = invoicesNotifier.saveInvoice(
+        clientId: clientId,
+        items: const [
+          DraftItem(description: 'Telemetry Review', unitPriceCents: 100000, quantity: 1, totalCents: 100000),
+        ],
+        taxPercentage: 0,
+      );
+      invoicesNotifier.recordPayment(
+        invoiceId: invId,
+        amountCents: 40000,
+        paymentMethod: 'Wire Transfer',
+        paymentDate: DateTime(2026, 11, 20),
+      );
+      expect(container.read(invoicesProvider).first.paidCents, equals(40000));
+      expect(clientsNotifier.deleteClient(clientId), isFalse);
+
+      invoicesNotifier.deleteInvoice(invId);
+      expect(container.read(invoicesProvider), isEmpty);
+      expect(invoicesNotifier.getInvoiceItems(invId), isEmpty);
+      expect(invoicesNotifier.getInvoicePayments(invId), isEmpty);
+
+      final invRaw = db.select('SELECT deleted_at FROM invoices WHERE id = ?', [invId]);
+      expect(invRaw.first['deleted_at'], isA<String>());
+      final payRaw = db.select('SELECT deleted_at FROM payments WHERE invoice_id = ?', [invId]);
+      expect(payRaw.first['deleted_at'], isA<String>());
+
+      // 5. Client deletion now succeeds cleanly via deleted_at tombstone
+      expect(clientsNotifier.deleteClient(clientId), isTrue);
+      expect(container.read(clientsProvider), isEmpty);
+      final clientRaw = db.select('SELECT deleted_at FROM clients WHERE id = ?', [clientId]);
+      expect(clientRaw.first['deleted_at'], isA<String>());
+
+      // 6. Expenses soft-delete sets deleted_at and hides from loadExpenses()
+      expensesNotifier.addExpense(
+        category: 'Cloud',
+        vendor: 'Hetzner',
+        amountCents: 5000,
+        expenseDate: '2026-11-22',
+      );
+      final expId = container.read(expensesProvider).first.id;
+      expensesNotifier.deleteExpense(expId);
+      expect(container.read(expensesProvider), isEmpty);
+      final expRaw = db.select('SELECT deleted_at FROM expenses WHERE id = ?', [expId]);
+      expect(expRaw.first['deleted_at'], isA<String>());
+
+      // 7. SavedItems soft-delete hides deleted items without resurrecting defaults on reload
+      final seededItems = List.of(container.read(savedItemsProvider));
+      expect(seededItems.length, greaterThanOrEqualTo(4));
+      for (final item in seededItems) {
+        savedItemsNotifier.deleteItem(item.id);
+      }
+      expect(container.read(savedItemsProvider), isEmpty);
+      savedItemsNotifier.loadItems();
+      expect(container.read(savedItemsProvider), isEmpty);
+
+      // 8. Isolate-offloaded backup export + decode/validate preserves tombstones cleanly
+      final exportedBytes = await BackupService.exportDatabaseToJsonBytesAsync(db);
+      final decodedMap = await BackupService.decodeAndValidateBackupBytesAsync(exportedBytes);
+      expect((decodedMap['clients'] as List).length, equals(1));
+      expect((decodedMap['invoices'] as List).length, equals(1));
+      expect((decodedMap['estimates'] as List).length, equals(1));
+      expect((decodedMap['expenses'] as List).length, equals(1));
+    });
+  });
+
+  group('Group 19: Currency Tagging on Expenses/SavedItems & Locale-Independent Digit Grouping', () {
+    test('formatIntegerGrouped & formatMoney apply Indian lakhs/crores for INR without Intl', () {
+      expect(formatIntegerGrouped(1234567, 'INR'), equals('12,34,567'));
+      expect(formatIntegerGrouped(1234567, 'USD'), equals('1,234,567'));
+      expect(formatMoney(123456700, symbol: '₹', decimals: 2, currencyCode: 'INR'), equals('₹12,34,567.00'));
+      expect(formatMoney(-10000000, symbol: '₹', decimals: 2), equals('-₹1,00,000.00'));
+      expect(formatMoney(123456700, symbol: '\$', decimals: 2, currencyCode: 'USD'), equals('\$1,234,567.00'));
+      expect(formatMoney(1000000, symbol: '¥', decimals: 0, currencyCode: 'JPY'), equals('¥1,000,000'));
+    });
+
+    test('currencySymbolForCode and resolveEffectiveCurrency resolve stored codes accurately', () {
+      expect(currencySymbolForCode('JPY'), equals('¥'));
+      expect(currencySymbolForCode('INR'), equals('₹'));
+      expect(currencySymbolForCode('KWD'), equals('KWD'));
+
+      final jpyResolved = resolveEffectiveCurrency(
+        recordCode: 'JPY',
+        recordDecimals: 0,
+        defaultCode: 'USD',
+        defaultSymbol: '\$',
+        defaultDecimals: 2,
+      );
+      expect(jpyResolved.code, equals('JPY'));
+      expect(jpyResolved.symbol, equals('¥'));
+      expect(jpyResolved.decimals, equals(0));
+
+      final legacyFallback = resolveEffectiveCurrency(
+        recordCode: '',
+        defaultCode: 'JPY',
+        defaultSymbol: '¥',
+        defaultDecimals: 0,
+      );
+      expect(legacyFallback.code, equals('JPY'));
+      expect(legacyFallback.symbol, equals('¥'));
+      expect(legacyFallback.decimals, equals(0));
+    });
+
+    test('computeDashboardCashFlow isolates multi-currency expenses (USD + JPY + KWD)', () {
+      final summary = computeDashboardCashFlow(
+        [
+          const CurrencyLedgerEntry(
+            currencyCode: 'USD',
+            currencySymbol: '\$',
+            currencyDecimals: 2,
+            totalUnits: 110000,
+            paidUnits: 110000,
+            taxUnits: 10000,
+          ),
+          const CurrencyLedgerEntry(
+            currencyCode: 'JPY',
+            currencySymbol: '¥',
+            currencyDecimals: 0,
+            totalUnits: 50000,
+            paidUnits: 50000,
+            taxUnits: 0,
+          ),
+        ],
+        expenseEntries: const [
+          CurrencyExpenseEntry(
+            currencyCode: 'USD',
+            currencyDecimals: 2,
+            totalUnits: 22000,
+            taxUnits: 2000,
+          ),
+          CurrencyExpenseEntry(
+            currencyCode: 'JPY',
+            currencyDecimals: 0,
+            totalUnits: 10000,
+            taxUnits: 0,
+          ),
+          CurrencyExpenseEntry(
+            currencyCode: 'KWD',
+            currencyDecimals: 3,
+            totalUnits: 12500,
+            taxUnits: 0,
+          ),
+        ],
+        defaultCode: 'USD',
+        defaultSymbol: '\$',
+        defaultDecimals: 2,
+      );
+
+      expect(summary.byCurrency.length, equals(3));
+      final usd = summary.byCurrency.firstWhere((b) => b.code == 'USD');
+      final jpy = summary.byCurrency.firstWhere((b) => b.code == 'JPY');
+      final kwd = summary.byCurrency.firstWhere((b) => b.code == 'KWD');
+
+      expect(usd.expenseGrossUnits, equals(22000));
+      expect(usd.taxLiabilityUnits, equals(8000));
+      expect(usd.netProfitUnits, equals(80000));
+
+      expect(jpy.expenseGrossUnits, equals(10000));
+      expect(jpy.netProfitUnits, equals(40000));
+
+      expect(kwd.expenseGrossUnits, equals(12500));
+      expect(kwd.netProfitUnits, equals(-12500));
+      expect(summary.formattedNetProfit, equals('\$800.00 + ¥40,000 + -KWD12.500'));
+    });
+
+    test('SQLite ExpensesNotifier & SavedItemsNotifier capture and preserve currency across profile switches, CSV export, and backups', () {
+      final db = sqlite3.openInMemory();
+      addTearDown(db.dispose);
+      initializeLocalSchema(db);
+
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final profileNotifier = container.read(businessProfileProvider.notifier);
+      final expensesNotifier = container.read(expensesProvider.notifier);
+      final itemsNotifier = container.read(savedItemsProvider.notifier);
+
+      // 1. Set active profile to JPY (0 decimals) and insert expense + catalog item
+      profileNotifier.updateProfile(
+        businessName: 'Tokyo Studio',
+        email: 'hi@tokyo.example',
+        phone: '',
+        address: '',
+        taxId: '',
+        paymentDetails: '',
+        currencySymbol: '¥',
+        currencyCode: 'JPY',
+        currencyDecimals: 0,
+      );
+
+      expensesNotifier.addExpense(
+        category: 'Travel',
+        vendor: 'Shinkansen',
+        amountCents: 14000,
+        taxCents: 1400,
+        expenseDate: '2026-11-22',
+      );
+      itemsNotifier.addItem(
+        title: 'Tokyo Onsite Workshop',
+        sacHsn: '998313',
+        defaultPriceCents: 50000,
+      );
+
+      // 2. Switch profile to KWD (3 decimals) and add KWD records
+      profileNotifier.updateProfile(
+        businessName: 'Kuwait Advisory',
+        email: 'hi@kuwait.example',
+        phone: '',
+        address: '',
+        taxId: '',
+        paymentDetails: '',
+        currencySymbol: 'KWD',
+        currencyCode: 'KWD',
+        currencyDecimals: 3,
+      );
+      expensesNotifier.addExpense(
+        category: 'Office',
+        vendor: 'Dinar Hosting',
+        amountCents: 12500,
+        taxCents: 0,
+        expenseDate: '2026-11-23',
+      );
+
+      final allExpenses = container.read(expensesProvider);
+      final jpyExp = allExpenses.firstWhere((e) => e.vendor == 'Shinkansen');
+      final kwdExp = allExpenses.firstWhere((e) => e.vendor == 'Dinar Hosting');
+      expect(jpyExp.currencyCode, equals('JPY'));
+      expect(jpyExp.currencyDecimals, equals(0));
+      expect(kwdExp.currencyCode, equals('KWD'));
+      expect(kwdExp.currencyDecimals, equals(3));
+
+      // 3. Updating JPY expense without passing currency preserves JPY/0 instead of overwriting with KWD/3
+      expensesNotifier.updateExpense(
+        id: jpyExp.id,
+        category: 'Travel',
+        vendor: 'Shinkansen Green Car',
+        amountCents: 18000,
+        taxCents: 1800,
+        expenseDate: '2026-11-22',
+      );
+      final updatedJpyExp = container.read(expensesProvider).firstWhere((e) => e.id == jpyExp.id);
+      expect(updatedJpyExp.currencyCode, equals('JPY'));
+      expect(updatedJpyExp.currencyDecimals, equals(0));
+
+      final tokyoItem = container.read(savedItemsProvider).firstWhere((i) => i.title == 'Tokyo Onsite Workshop');
+      expect(tokyoItem.currencyCode, equals('JPY'));
+      expect(tokyoItem.currencyDecimals, equals(0));
+
+      // 4. Per-expense CSV formats each row with its own currency code & decimals
+      final expCsv = CsvExportService.generateExpensesCsv(
+        expenses: allExpenses,
+        currencyCode: 'KWD',
+      );
+      expect(expCsv, contains(',"JPY",18000,1800,19800,'));
+      expect(expCsv, contains(',"KWD",12.500,0.000,12.500,'));
+
+      // 5. JSON backup round-trip preserves currency_code and currency_decimals on expenses and saved_items
+      final jsonText = BackupService.exportDatabaseToJson(db);
+      final db2 = sqlite3.openInMemory();
+      addTearDown(db2.dispose);
+      initializeLocalSchema(db2);
+      BackupService.importDatabaseFromJson(db2, jsonText);
+      final restoredExp = db2.select('SELECT currency_code, currency_decimals FROM expenses WHERE vendor = ?', ['Shinkansen Green Car']).first;
+      expect(restoredExp['currency_code'], equals('JPY'));
+      expect(restoredExp['currency_decimals'], equals(0));
+      final restoredItem = db2.select('SELECT currency_code, currency_decimals FROM saved_items WHERE title = ?', ['Tokyo Onsite Workshop']).first;
+      expect(restoredItem['currency_code'], equals('JPY'));
+      expect(restoredItem['currency_decimals'], equals(0));
+    });
+  });
+
+  group('Group 20: Business Profile Numbering Prefixes, Sequence Sync & Dynamic QR Payloads', () {
+    test('BusinessProfileNotifier persists/validates prefixes, nextInvoiceNumber, paymentQrPayload and preserves omitted fields', () {
+      final db = sqlite3.openInMemory();
+      addTearDown(db.dispose);
+      initializeLocalSchema(db);
+
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(businessProfileProvider.notifier);
+
+      notifier.updateProfile(
+        businessName: 'Studio Alpha',
+        email: 'billing@alpha.example',
+        phone: '+1 555 0100',
+        address: '100 Main St',
+        taxId: 'TAX-1',
+        paymentDetails: 'ACH 123',
+        invoicePrefix: '  FY26-  ',
+        estimatePrefix: '  QT-  ',
+        nextInvoiceNumber: 42,
+        paymentQrPayload: '  alpha@upi  ',
+      );
+
+      var prof = container.read(businessProfileProvider);
+      expect(prof.invoicePrefix, equals('FY26-'));
+      expect(prof.estimatePrefix, equals('QT-'));
+      expect(prof.nextInvoiceNumber, equals(42));
+      expect(prof.paymentQrPayload, equals('alpha@upi'));
+
+      // Updating unrelated fields without passing prefix/QR preserves them cleanly
+      notifier.updateProfile(
+        businessName: 'Studio Alpha LLC',
+        email: 'billing@alpha.example',
+        phone: '+1 555 0100',
+        address: '100 Main St',
+        taxId: 'TAX-1',
+        paymentDetails: 'ACH 456',
+      );
+      prof = container.read(businessProfileProvider);
+      expect(prof.invoicePrefix, equals('FY26-'));
+      expect(prof.estimatePrefix, equals('QT-'));
+      expect(prof.nextInvoiceNumber, equals(42));
+      expect(prof.paymentQrPayload, equals('alpha@upi'));
+
+      // Blank prefixes normalize to defaults; nextInvoiceNumber < 1 clamps to 1
+      notifier.updateProfile(
+        businessName: 'Studio Alpha LLC',
+        email: '',
+        phone: '',
+        address: '',
+        taxId: '',
+        paymentDetails: '',
+        invoicePrefix: '   ',
+        estimatePrefix: '',
+        nextInvoiceNumber: 0,
+        paymentQrPayload: '',
+      );
+      prof = container.read(businessProfileProvider);
+      expect(prof.invoicePrefix, equals('INV-'));
+      expect(prof.estimatePrefix, equals('EST-'));
+      expect(prof.nextInvoiceNumber, equals(1));
+      expect(prof.paymentQrPayload, equals(''));
+    });
+
+    test('InvoicesNotifier & EstimatesNotifier honor custom prefixes, skip DRAFTs/keep VOID gaps, and sync businessProfileProvider', () {
+      final db = sqlite3.openInMemory();
+      addTearDown(db.dispose);
+      initializeLocalSchema(db);
+
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container.read(clientsProvider.notifier).addClient(name: 'Horizon Corp');
+      final clientId = container.read(clientsProvider).first.id;
+
+      container.read(businessProfileProvider.notifier).updateProfile(
+            businessName: 'Northstar',
+            email: '',
+            phone: '',
+            address: '',
+            taxId: '',
+            paymentDetails: '',
+            invoicePrefix: 'FY26-',
+            estimatePrefix: 'QT-',
+            nextInvoiceNumber: 25,
+            paymentQrPayload: 'northstar@upi',
+          );
+
+      final invNotifier = container.read(invoicesProvider.notifier);
+      final estNotifier = container.read(estimatesProvider.notifier);
+
+      // Draft consumes no fiscal sequence number
+      final draftInvId = invNotifier.saveInvoice(
+        clientId: clientId,
+        items: const [DraftItem(description: 'Draft Work', unitPriceCents: 1000, quantity: 1, totalCents: 1000)],
+        taxPercentage: 0,
+        status: 'DRAFT',
+      );
+      expect(container.read(invoicesProvider).first.invoiceNumber, startsWith('DRAFT-'));
+      expect(container.read(businessProfileProvider).nextInvoiceNumber, equals(25));
+
+      // Finalizing draft advances using custom prefix FY26- and nextInvoiceNumber=25
+      invNotifier.finalizeDraftInvoice(draftInvId);
+      final finalized = container.read(invoicesProvider).firstWhere((i) => i.id == draftInvId);
+      expect(finalized.invoiceNumber, equals('FY26-0025'));
+      expect(container.read(businessProfileProvider).nextInvoiceNumber, equals(26));
+
+      // Voiding FY26-0025 must NOT cause FY26-0025 to be reused on duplicateInvoice
+      invNotifier.voidInvoice(draftInvId);
+      final dupNumber = invNotifier.duplicateInvoice(draftInvId);
+      expect(dupNumber, equals('FY26-0026'));
+      expect(container.read(businessProfileProvider).nextInvoiceNumber, equals(27));
+
+      // Estimates honor QT- prefix & converting estimate advances FY26-0027
+      final estId = estNotifier.saveEstimate(
+        clientId: clientId,
+        items: const [DraftItem(description: 'Quote Item', unitPriceCents: 5000, quantity: 1, totalCents: 5000)],
+        taxPercentage: 0,
+      );
+      expect(container.read(estimatesProvider).firstWhere((e) => e.id == estId).estimateNumber, equals('QT-0001'));
+
+      estNotifier.convertEstimateToInvoice(estId);
+      final convertedInv = container.read(invoicesProvider).firstWhere((i) => i.invoiceNumber == 'FY26-0027');
+      expect(convertedInv.status, equals('PENDING'));
+      expect(container.read(businessProfileProvider).nextInvoiceNumber, equals(28));
+    });
+
+    test('generateDynamicQrPayload builds UPI & payment URL QR payloads with currency decimals', () {
+      expect(
+        generateDynamicQrPayload(
+          rawPayload: '',
+          businessName: 'Studio',
+          balanceDueUnits: 12500,
+          currencyDecimals: 2,
+          invoiceNumber: 'INV-0001',
+        ),
+        isEmpty,
+      );
+
+      final upiInr = generateDynamicQrPayload(
+        rawPayload: 'merchant@upi',
+        businessName: 'Alpha Studio',
+        balanceDueUnits: 12550,
+        currencyDecimals: 2,
+        invoiceNumber: 'FY26-0025',
+        currencyCode: 'INR',
+      );
+      expect(upiInr, equals('upi://pay?pa=merchant%40upi&pn=Alpha%20Studio&am=125.50&tn=Invoice-FY26-0025&cu=INR'));
+
+      final upiJpy = generateDynamicQrPayload(
+        rawPayload: 'upi://pay?pa=tokyo@bank&pn=OldName',
+        businessName: 'Tokyo Lab',
+        balanceDueUnits: 45000,
+        currencyDecimals: 0,
+        invoiceNumber: 'INV-0010',
+        currencyCode: 'JPY',
+      );
+      expect(upiJpy, contains('am=45000'));
+      expect(upiJpy, contains('cu=JPY'));
+
+      final linkWithInv = generateDynamicQrPayload(
+        rawPayload: 'https://pay.studio.example/checkout',
+        businessName: 'Studio',
+        balanceDueUnits: 1000,
+        currencyDecimals: 2,
+        invoiceNumber: 'FY26-0025',
+      );
+      expect(linkWithInv, equals('https://pay.studio.example/checkout?invoice=FY26-0025'));
+
+      final linkExistingRef = generateDynamicQrPayload(
+        rawPayload: 'https://pay.studio.example/checkout?ref=ABC',
+        businessName: 'Studio',
+        balanceDueUnits: 1000,
+        currencyDecimals: 2,
+        invoiceNumber: 'FY26-0025',
+      );
+      expect(linkExistingRef, equals('https://pay.studio.example/checkout?ref=ABC'));
+    });
+  });
+
+  group('Group 21: OEM Telephony Fallback, Empty-Email Mailto Guard, PDF RTL & Script Diagnostics', () {
+    test('buildSmsFallbackUri generates smsto: fallback URIs and rejects empty phones', () {
+      expect(
+        buildSmsFallbackUri(phone: '+1 (555) 019-2834', body: 'Hello & Pay').toString(),
+        equals('smsto:+15550192834?body=Hello%20%26%20Pay'),
+      );
+      expect(
+        buildSmsFallbackUri(phone: '+91 98765 43210').toString(),
+        equals('smsto:+919876543210'),
+      );
+      expect(buildSmsFallbackUri(phone: '   ', body: 'Hello'), isNull);
+    });
+
+    test('buildSmsUri uses &body= when Apple iOS/macOS flag is enabled', () {
+      const macPlatforms = [TargetPlatform.iOS, TargetPlatform.macOS];
+      for (final p in macPlatforms) {
+        final isApple = p == TargetPlatform.iOS || p == TargetPlatform.macOS;
+        expect(
+          buildSmsUri(phone: '+971 50 123 4567', body: 'Invoice Due', isIos: isApple).toString(),
+          equals('sms:+971501234567&body=Invoice%20Due'),
+        );
+      }
+      const nonApple = TargetPlatform.android;
+      final isAndroidApple = nonApple == TargetPlatform.iOS || nonApple == TargetPlatform.macOS;
+      expect(
+        buildSmsUri(phone: '+971 50 123 4567', body: 'Invoice Due', isIos: isAndroidApple).toString(),
+        equals('sms:+971501234567?body=Invoice%20Due'),
+      );
+    });
+
+    test('buildMailtoUri omits dangling empty queries and handles empty recipient cleanly', () {
+      expect(
+        buildMailtoUri(email: '', subject: 'Subject', body: 'Body').toString(),
+        equals('mailto:?subject=Subject&body=Body'),
+      );
+      expect(
+        buildMailtoUri(email: '', subject: '', body: '').toString(),
+        equals('mailto:'),
+      );
+      expect(
+        buildMailtoUri(email: 'ap@client.test', subject: 'Hello', body: '').toString(),
+        equals('mailto:ap@client.test?subject=Hello'),
+      );
+      expect(
+        buildCopyEverythingReminderText(
+          subject: 'Invoice INV-0001 Reminder',
+          message: 'Hi Client, balance due.',
+          clientName: 'Acme Corp',
+          clientEmail: '',
+          phone: '+1 555 0192',
+        ),
+        equals('To: Acme Corp • +15550192\nSubject: Invoice INV-0001 Reminder\n\nHi Client, balance due.'),
+      );
+    });
+
+    test('containsRtlCharacters detects Arabic and Hebrew blocks while ignoring Latin and currency symbols', () {
+      expect(containsRtlCharacters('شركة الأمل للتقنية'), isTrue);
+      expect(containsRtlCharacters('Invoice for شركة أمل'), isTrue);
+      expect(containsRtlCharacters('חשבונית מס'), isTrue);
+      expect(containsRtlCharacters('\u0750\u08A0'), isTrue);
+      expect(containsRtlCharacters('Acme Studio AED 1,250.00 ₹100 ¥500 €20'), isFalse);
+      expect(containsRtlCharacters(''), isFalse);
+    });
+
+    test('InvoicePdfService.diagnoseUnsupportedPdfScripts warns honestly on CJK/Indic/Arabic and passes Latin/EUR/INR', () {
+      expect(
+        InvoicePdfService.diagnoseUnsupportedPdfScripts([
+          'Studio Alpha GmbH',
+          'Invoice INV-0010 • ₹12,34,567.00 • €450.00 • ¥50,000 • Café München',
+        ]),
+        isNull,
+      );
+      final cjkDiag = InvoicePdfService.diagnoseUnsupportedPdfScripts(['株式会社東京']);
+      expect(cjkDiag, contains('CJK'));
+      final indicDiag = InvoicePdfService.diagnoseUnsupportedPdfScripts(['सेवा शुल्क']);
+      expect(indicDiag, contains('Indic'));
+      final arabicDiag = InvoicePdfService.diagnoseUnsupportedPdfScripts(['شركة الخليج']);
+      expect(arabicDiag, contains('Arabic'));
+    });
+
+    test('InvoicePdfService.generateInvoicePdf renders GCC/Arabic RTL invoice cleanly without errors', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final bytes = await InvoicePdfService.generateInvoicePdf(
+        invoice: const InvoiceRecord(
+          id: 'inv-rtl',
+          clientId: 'c-rtl',
+          clientName: 'شركة الخليج',
+          invoiceNumber: 'INV-0100',
+          subtotalCents: 100000,
+          taxCents: 5000,
+          totalCents: 105000,
+          paidCents: 0,
+          balanceDueCents: 105000,
+          status: 'PENDING',
+          issueDate: '2026-11-23',
+          dueDate: '2026-12-07',
+          paymentTerms: 'Net 14',
+          currencyCode: 'AED',
+          currencySymbol: 'AED',
+          currencyDecimals: 2,
+          taxMode: 'GULF_VAT',
+          createdAt: '2026-11-23T00:00:00Z',
+        ),
+        items: const [
+          InvoiceItem(
+            id: 'it-1',
+            invoiceId: 'inv-rtl',
+            description: 'تطوير تطبيقات الجوال',
+            quantity: 1,
+            unitPriceCents: 100000,
+            totalCents: 100000,
+            createdAt: '2026-11-23T00:00:00Z',
+          ),
+        ],
+        client: const Client(
+          id: 'c-rtl',
+          name: 'شركة الخليج',
+          address: 'دبي، الإمارات العربية المتحدة',
+          taxId: '100234567800003',
+          createdAt: '2026-11-23T00:00:00Z',
+        ),
+        businessProfile: const BusinessProfile(
+          id: 'default',
+          businessName: 'Dubai Digital LLC',
+          email: 'billing@dubaidigital.example',
+          phone: '+971 4 000 0000',
+          address: 'Dubai Internet City',
+          taxId: '100987654300003',
+          paymentDetails: 'IBAN AE070331234567890123456',
+          currencyCode: 'AED',
+          currencySymbol: 'AED',
+          currencyDecimals: 2,
+        ),
+      );
+      expect(bytes, isNotEmpty);
     });
   });
 }

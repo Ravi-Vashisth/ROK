@@ -31,6 +31,7 @@ import {
   calculateDashboardMetrics,
   generateDynamicQrPayload,
   generateInvoicesCsvString,
+  hasLinkedClientDocuments,
   validateBackupPayload,
   normalizePhoneForUri,
   buildWhatsAppDigits,
@@ -52,6 +53,10 @@ import {
   validateWhatsAppPhone,
   getDesktopTelephonyFallbackNote,
   isIosDevice,
+  isAppleDevice,
+  buildSmsFallbackUrl,
+  buildCopyEverythingReminderText,
+  containsRtlCharacters,
   validateUploadedFileBytes,
   MAX_ATTACHMENT_SIZE_BYTES,
   sanitizeCsvCell,
@@ -64,6 +69,10 @@ import {
   normalizeThemeMode,
   duplicateInvoiceRecord,
   voidInvoiceRecord,
+  updateLineItemRecord,
+  removeLineItemById,
+  currencySymbolForCode,
+  formatIntegerGrouped,
 } from './billingRules';
 
 // ============================================================================
@@ -1365,3 +1374,558 @@ test('Task 9: voidInvoiceRecord marks finalized invoices VOID with 0 balance and
   assert.equal(untouchedDraft.balance_due_cents, 10000);
 });
 
+test('Task 11: updateLineItemRecord & removeLineItemById support inline edits and safe middle-row deletion', () => {
+  const initial = [
+    { id: 'row-1', description: 'Discovery', sacHsn: '998311', quantity: 1, unitPriceCents: 25000, taxSlab: 18 },
+    { id: 'row-2', description: 'Middle Item', sacHsn: '998312', quantity: 2, unitPriceCents: 15000, taxSlab: 10 },
+    { id: 'row-3', description: 'Deployment', sacHsn: '998313', quantity: 1, unitPriceCents: 40000, taxSlab: 12 },
+  ];
+
+  const edited = updateLineItemRecord(initial, 'row-3', {
+    description: 'Production Deployment',
+    sacHsn: '998399',
+    quantity: 3,
+    unitPriceCents: 45000,
+    taxSlab: 18,
+  });
+
+  assert.equal(edited[0].description, 'Discovery');
+  assert.equal(edited[2].description, 'Production Deployment');
+  assert.equal(edited[2].sacHsn, '998399');
+  assert.equal(edited[2].quantity, 3);
+  assert.equal(edited[2].unitPriceCents, 45000);
+  assert.equal(edited[2].taxSlab, 18);
+
+  const afterMiddleDelete = removeLineItemById(edited, 'row-2');
+  assert.equal(afterMiddleDelete.length, 2);
+  assert.equal(afterMiddleDelete[0].id, 'row-1');
+  assert.equal(afterMiddleDelete[1].id, 'row-3');
+  assert.equal(afterMiddleDelete[1].description, 'Production Deployment');
+  assert.equal(afterMiddleDelete[1].unitPriceCents, 45000);
+});
+
+// ============================================================================
+// TASK 12 REGRESSION TESTS: CROSS-STACK BACKUP PARITY & UPLOAD SECURITY
+// ============================================================================
+
+test('Task 12: validateBackupPayload normalizes Flutter SQLite export snapshots cleanly and rejects corrupt child tables', () => {
+  const flutterExport = {
+    version: 1,
+    exported_at: '2026-11-22T09:00:00.000Z',
+    business_profile: [
+      {
+        id: 'default',
+        business_name: 'Alpine Engineering GmbH',
+        currency_code: 'EUR',
+        currency_symbol: '€',
+        currency_decimals: 2,
+        theme_mode: 'dark',
+        accent_color: 4283385573,
+      },
+    ],
+    clients: [
+      {
+        id: 'cl-101',
+        name: 'Nordic Mobility AS',
+        email: 'finance@nordic.example',
+        tax_id: 'NO-999888777',
+        created_at: '2026-10-01T00:00:00Z',
+      },
+    ],
+    invoices: [
+      {
+        id: 'inv-101',
+        client_id: 'cl-101',
+        invoice_number: 'INV-0101',
+        subtotal_cents: 200000,
+        tax_cents: 38000,
+        total_cents: 238000,
+        status: 'PENDING',
+        issue_date: '2026-11-01',
+        due_date: '2026-11-30',
+        created_at: '2026-11-01T08:00:00Z',
+      },
+    ],
+    invoice_items: [
+      {
+        id: 'ii-1',
+        invoice_id: 'inv-101',
+        description: 'Embedded Telemetry Firmware',
+        sac_hsn: '998314',
+        quantity: 2,
+        unit_price_cents: 100000,
+        tax_rate_percentage: 19,
+        tax_cents: 38000,
+        total_cents: 200000,
+      },
+    ],
+    payments: [
+      {
+        id: 'pay-1',
+        invoice_id: 'inv-101',
+        amount_cents: 100000,
+        payment_method: 'SEPA Wire',
+        payment_date: '2026-11-10',
+      },
+      {
+        id: 'pay-deleted',
+        invoice_id: 'inv-101',
+        amount_cents: 50000,
+        payment_method: 'Duplicate',
+        payment_date: '2026-11-11',
+        deleted_at: '2026-11-12T00:00:00Z',
+      },
+    ],
+    estimates: [
+      {
+        id: 'est-101',
+        client_id: 'cl-101',
+        estimate_number: 'EST-0021',
+        subtotal_cents: 120000,
+        tax_cents: 0,
+        total_cents: 120000,
+        status: 'PENDING',
+        issue_date: '2026-11-15',
+        expiry_date: '2026-12-15',
+      },
+    ],
+    estimate_items: [
+      {
+        id: 'ei-1',
+        estimate_id: 'est-101',
+        description: 'Discovery Workshop',
+        sac_hsn: '998311',
+        quantity: 1,
+        unit_price_cents: 120000,
+        tax_rate_percentage: 0,
+        tax_cents: 0,
+        total_cents: 120000,
+      },
+    ],
+    expenses: [
+      {
+        id: 'exp-101',
+        category: 'Hardware',
+        vendor: 'Framework Computer',
+        amount_cents: 150000,
+        tax_cents: 28500,
+        expense_date: '2026-11-03',
+      },
+    ],
+    saved_items: [
+      {
+        id: 'si-101',
+        title: 'PCB Rev2 Review',
+        sac_hsn: '998399',
+        default_price_cents: 75000,
+      },
+    ],
+  };
+
+  const res = validateBackupPayload(flutterExport);
+  assert.equal(res.valid, true);
+  assert.ok(res.normalized);
+
+  const norm = res.normalized!;
+  assert.equal(norm.businessProfile.business_name, 'Alpine Engineering GmbH');
+  assert.equal(norm.invoices[0].client_name, 'Nordic Mobility AS');
+  assert.equal(norm.invoices[0].items.length, 1);
+  assert.equal(norm.invoices[0].items[0].sacHsn, '998314');
+  assert.equal(norm.invoices[0].items[0].unitPriceCents, 100000);
+  assert.equal(norm.invoices[0].paid_cents, 100000);
+  assert.equal(norm.invoices[0].balance_due_cents, 138000);
+  assert.equal(norm.invoices[0].computed_status, 'PARTIALLY_PAID');
+
+  assert.equal(norm.estimates?.[0].client_name, 'Nordic Mobility AS');
+  assert.equal(norm.estimates?.[0].items.length, 1);
+  assert.equal(norm.estimates?.[0].items[0].unitPriceCents, 120000);
+
+  assert.equal(norm.expenses?.[0].total_cents, 178500);
+  assert.equal(norm.savedItems?.[0].defaultPriceCents, 75000);
+  assert.equal(norm.savedItems?.[0].sacHsn, '998399');
+
+  // Corrupt child table entries must be rejected
+  assert.equal(
+    validateBackupPayload({
+      clients: [],
+      invoices: [],
+      invoice_items: [{ id: 'ii-bad', invoice_id: 'inv-1', description: 'Test', quantity: '2', unit_price_cents: 100, total_cents: 200 }],
+    }).valid,
+    false
+  );
+  assert.equal(
+    validateBackupPayload({
+      clients: [],
+      invoices: [],
+      business_profile: [{ business_name: '' }],
+    }).valid,
+    false
+  );
+});
+
+test('Task 12: validateUploadedFileBytes rejects spoofed SVG and oversized branding images', () => {
+  const svgBytes = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+  const spoofedRes = validateUploadedFileBytes({
+    bytes: svgBytes,
+    filename: 'logo.png',
+    allowPdf: false,
+  });
+  assert.equal(spoofedRes.isValid, false);
+
+  const validPng = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const oversized = new Uint8Array(MAX_ATTACHMENT_SIZE_BYTES + 1);
+  oversized.set(validPng, 0);
+  const sizeRes = validateUploadedFileBytes({
+    bytes: oversized,
+    filename: 'huge_logo.png',
+    allowPdf: false,
+  });
+  assert.equal(sizeRes.isValid, false);
+  assert.ok(sizeRes.errorMessage?.includes('5 MB'));
+});
+
+test('Task 13: hasLinkedClientDocuments blocks client deletion when linked invoices OR estimates exist', () => {
+  assert.equal(
+    hasLinkedClientDocuments('c1', [{ client_id: 'c1' }], []),
+    true
+  );
+  assert.equal(
+    hasLinkedClientDocuments('c1', [], [{ client_id: 'c1' }]),
+    true
+  );
+  assert.equal(
+    hasLinkedClientDocuments('c1', [{ client_id: 'c2' }], [{ client_id: 'c2' }]),
+    false
+  );
+});
+
+test('Task 13: validateBackupPayload filters soft-deleted tombstones when restoring Flutter backups into React', () => {
+  const snapshotWithTombstones = {
+    clients: [
+      { id: 'c-active', name: 'Active Client' },
+      { id: 'c-deleted', name: 'Deleted Client', deleted_at: '2026-11-22T10:00:00Z' },
+    ],
+    invoices: [
+      {
+        id: 'inv-active',
+        client_id: 'c-active',
+        invoice_number: 'INV-0001',
+        subtotal_cents: 10000,
+        tax_cents: 0,
+        total_cents: 10000,
+        status: 'PENDING',
+      },
+      {
+        id: 'inv-deleted',
+        client_id: 'c-deleted',
+        invoice_number: 'INV-0002',
+        subtotal_cents: 20000,
+        tax_cents: 0,
+        total_cents: 20000,
+        status: 'PENDING',
+        deleted_at: '2026-11-22T10:00:00Z',
+      },
+    ],
+    expenses: [
+      {
+        id: 'exp-deleted',
+        category: 'SaaS',
+        vendor: 'Vercel',
+        amount_cents: 2000,
+        expense_date: '2026-11-22',
+        deleted_at: '2026-11-22T10:00:00Z',
+      },
+    ],
+    saved_items: [
+      {
+        id: 'si-active',
+        title: 'Consulting',
+        default_price_cents: 10000,
+      },
+      {
+        id: 'si-deleted',
+        title: 'Archived Package',
+        default_price_cents: 5000,
+        deleted_at: '2026-11-22T10:00:00Z',
+      },
+    ],
+  };
+
+  const res = validateBackupPayload(snapshotWithTombstones);
+  assert.equal(res.valid, true);
+  assert.ok(res.normalized);
+  assert.deepEqual(res.normalized!.clients.map((c) => c.id), ['c-active']);
+  assert.deepEqual(res.normalized!.invoices.map((i) => i.id), ['inv-active']);
+  assert.equal(res.normalized!.expenses?.length, 0);
+  assert.deepEqual(res.normalized!.savedItems?.map((s) => s.id), ['si-active']);
+});
+
+test('Task 14: formatIntegerGrouped & formatMoney apply Indian lakhs/crores grouping for INR cleanly', () => {
+  assert.equal(formatIntegerGrouped(1234567, 'INR'), '12,34,567');
+  assert.equal(formatIntegerGrouped(1234567, 'USD'), '1,234,567');
+  assert.equal(formatMoney(123456700, '₹', 2, 'INR'), '₹12,34,567.00');
+  assert.equal(formatMoney(-10000000, '₹', 2), '-₹1,00,000.00');
+  assert.equal(formatMoney(123456700, '$', 2, 'USD'), '$1,234,567.00');
+  assert.equal(formatMoney(1000000, '¥', 0, 'JPY'), '¥1,000,000');
+  assert.equal(currencySymbolForCode('JPY'), '¥');
+  assert.equal(currencySymbolForCode('INR'), '₹');
+  assert.equal(currencySymbolForCode('KWD'), 'KWD');
+});
+
+test('Task 14: resolveEffectiveCurrency & calculateDashboardMetrics isolate mixed USD + JPY + KWD expenses', () => {
+  const jpyCur = resolveEffectiveCurrency({
+    recordCode: 'JPY',
+    recordDecimals: 0,
+    defaultCode: 'USD',
+    defaultSymbol: '$',
+    defaultDecimals: 2,
+  });
+  assert.equal(jpyCur.symbol, '¥');
+  assert.equal(jpyCur.decimals, 0);
+
+  const metrics = calculateDashboardMetrics(
+    [
+      {
+        id: 'inv-usd',
+        status: 'PAID',
+        currency_code: 'USD',
+        currency_symbol: '$',
+        currency_decimals: 2,
+        total_cents: 110000,
+        paid_cents: 110000,
+        tax_cents: 10000,
+      },
+      {
+        id: 'inv-jpy',
+        status: 'PAID',
+        currency_code: 'JPY',
+        currency_symbol: '¥',
+        currency_decimals: 0,
+        total_cents: 50000,
+        paid_cents: 50000,
+        tax_cents: 0,
+      },
+    ],
+    [
+      {
+        id: 'exp-usd',
+        currency_code: 'USD',
+        currency_decimals: 2,
+        total_cents: 22000,
+        tax_cents: 2000,
+      },
+      {
+        id: 'exp-jpy',
+        currency_code: 'JPY',
+        currency_decimals: 0,
+        total_cents: 10000,
+        tax_cents: 0,
+      },
+      {
+        id: 'exp-kwd',
+        currency_code: 'KWD',
+        currency_decimals: 3,
+        total_cents: 12500,
+        tax_cents: 0,
+      },
+    ],
+    new Date(2026, 10, 23),
+    { code: 'USD', symbol: '$', decimals: 2 }
+  );
+
+  assert.equal(metrics.byCurrency.length, 3);
+  const usd = metrics.byCurrency.find((b) => b.currencyCode === 'USD')!;
+  const jpy = metrics.byCurrency.find((b) => b.currencyCode === 'JPY')!;
+  const kwd = metrics.byCurrency.find((b) => b.currencyCode === 'KWD')!;
+
+  assert.equal(usd.totalExpenseGrossCents, 22000);
+  assert.equal(usd.taxLiabilityCents, 8000);
+  assert.equal(usd.netProfitCents, 80000);
+  assert.equal(jpy.totalExpenseGrossCents, 10000);
+  assert.equal(jpy.netProfitCents, 40000);
+  assert.equal(kwd.totalExpenseGrossCents, 12500);
+  assert.equal(kwd.netProfitCents, -12500);
+  assert.equal(metrics.formattedNetProfit, '$800.00 + ¥40,000 + -KWD12.500');
+});
+
+test('Task 14: exportExpensesToCsv & validateBackupPayload preserve per-record currency_code and decimals', () => {
+  const csv = exportExpensesToCsv(
+    [
+      {
+        id: 'e1',
+        expense_date: '2026-11-22',
+        category: 'Travel',
+        vendor: 'Shinkansen',
+        currency_code: 'JPY',
+        currency_decimals: 0,
+        amount_cents: 18000,
+        tax_cents: 1800,
+        total_cents: 19800,
+      },
+      {
+        id: 'e2',
+        expense_date: '2026-11-23',
+        category: 'Office',
+        vendor: 'Dinar Hosting',
+        currency_code: 'KWD',
+        currency_decimals: 3,
+        amount_cents: 12500,
+        tax_cents: 0,
+        total_cents: 12500,
+      },
+    ],
+    'USD'
+  );
+  assert.ok(csv.includes(',"JPY",18000,1800,19800,'));
+  assert.ok(csv.includes(',"KWD",12.500,0.000,12.500,'));
+
+  const backupRes = validateBackupPayload({
+    clients: [],
+    invoices: [],
+    expenses: [
+      {
+        id: 'e1',
+        category: 'Travel',
+        vendor: 'Shinkansen',
+        amount_cents: 18000,
+        tax_cents: 1800,
+        expense_date: '2026-11-22',
+        currency_code: 'JPY',
+        currency_decimals: 0,
+      },
+    ],
+    savedItems: [
+      {
+        id: 's1',
+        title: 'Tokyo Workshop',
+        defaultPriceCents: 50000,
+        currencyCode: 'JPY',
+        currencyDecimals: 0,
+      },
+    ],
+  });
+  assert.equal(backupRes.valid, true);
+  assert.equal(backupRes.normalized?.expenses?.[0].currency_code, 'JPY');
+  assert.equal(backupRes.normalized?.expenses?.[0].currency_decimals, 0);
+  assert.equal(backupRes.normalized?.savedItems?.[0].currency_code, 'JPY');
+  assert.equal(backupRes.normalized?.savedItems?.[0].currency_decimals, 0);
+});
+
+test('Task 15: custom prefixes, minNext numbering, profile backup validation, and dynamic QR payloads', () => {
+  // Custom invoice & estimate prefixes skip DRAFTs and respect existing VOID sequence numbers
+  assert.equal(
+    getNextSequentialDocNumber(
+      ['DRAFT-AABB1122', 'FY26-0014', 'VOID-OLD'],
+      'FY26-',
+      10
+    ),
+    'FY26-0015'
+  );
+  assert.equal(
+    getNextSequentialDocNumber(['FY26-0014'], 'FY26-', 30),
+    'FY26-0030'
+  );
+  assert.equal(
+    getNextSequentialDocNumber(['DRAFT-1234', 'QT-0002'], 'QT-'),
+    'QT-0003'
+  );
+
+  // Backup validation normalizes and rejects invalid numbering/QR profile fields
+  const validBackup = validateBackupPayload({
+    clients: [],
+    invoices: [],
+    businessProfile: {
+      business_name: 'Alpha Studio',
+      invoice_prefix: '  FY26-  ',
+      estimate_prefix: '  QT-  ',
+      next_invoice_number: 25,
+      payment_qr_payload: 'alpha@upi',
+    },
+  });
+  assert.equal(validBackup.valid, true);
+  assert.equal(validBackup.normalized?.businessProfile.invoice_prefix, 'FY26-');
+  assert.equal(validBackup.normalized?.businessProfile.estimate_prefix, 'QT-');
+  assert.equal(validBackup.normalized?.businessProfile.next_invoice_number, 25);
+  assert.equal(validBackup.normalized?.businessProfile.payment_qr_payload, 'alpha@upi');
+
+  assert.equal(
+    validateBackupPayload({
+      clients: [],
+      invoices: [],
+      businessProfile: {
+        business_name: 'Alpha Studio',
+        next_invoice_number: 0,
+      },
+    }).valid,
+    false
+  );
+  assert.equal(
+    validateBackupPayload({
+      clients: [],
+      invoices: [],
+      businessProfile: {
+        business_name: 'Alpha Studio',
+        invoice_prefix: 123,
+      },
+    }).valid,
+    false
+  );
+
+  // Dynamic QR payloads encode decimal-aware amounts and invoice references
+  assert.equal(
+    generateDynamicQrPayload('', 'Studio', 1000, 2, 'INV-0001'),
+    ''
+  );
+  assert.equal(
+    generateDynamicQrPayload('merchant@upi', 'Alpha Studio', 12550, 2, 'FY26-0025', 'INR'),
+    'upi://pay?pa=merchant%40upi&pn=Alpha%20Studio&am=125.50&tn=Invoice-FY26-0025&cu=INR'
+  );
+  assert.equal(
+    generateDynamicQrPayload('tokyo@bank', 'Tokyo Lab', 45000, 0, 'INV-0010', 'JPY'),
+    'upi://pay?pa=tokyo%40bank&pn=Tokyo%20Lab&am=45000&tn=Invoice-INV-0010&cu=JPY'
+  );
+  assert.equal(
+    generateDynamicQrPayload('https://pay.studio.example/checkout', 'Studio', 12500, 3, 'INV-0099', 'KWD'),
+    'https://pay.studio.example/checkout?invoice=INV-0099'
+  );
+});
+
+test('Task 17: smsto fallback URI, macOS &body= detection, empty-email mailto guard, and RTL script detection', () => {
+  assert.equal(
+    buildSmsFallbackUrl('+1 (555) 019-2834', 'Hello & Pay'),
+    'smsto:+15550192834?body=Hello%20%26%20Pay'
+  );
+  assert.equal(buildSmsFallbackUrl('+91 98765 43210'), 'smsto:+919876543210');
+  assert.equal(buildSmsFallbackUrl('   ', 'Hi'), null);
+
+  // macOS and iOS both return true for isAppleDevice -> '&body=' delimiter
+  assert.equal(isAppleDevice('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'), true);
+  assert.equal(isAppleDevice('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)'), true);
+  assert.equal(isAppleDevice('Mozilla/5.0 (Linux; Android 14)'), false);
+  assert.equal(
+    buildSmsUrl('+971 50 123 4567', 'Invoice Due', isAppleDevice('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')),
+    'sms:+971501234567&body=Invoice%20Due'
+  );
+
+  // mailto omits empty subject/body query parameters cleanly
+  assert.equal(buildMailtoUrl('', 'Subject', 'Body'), 'mailto:?subject=Subject&body=Body');
+  assert.equal(buildMailtoUrl('', '', ''), 'mailto:');
+  assert.equal(buildMailtoUrl('ap@client.test', 'Hello', ''), 'mailto:ap@client.test?subject=Hello');
+
+  assert.equal(
+    buildCopyEverythingReminderText({
+      subject: 'Invoice INV-0001 Reminder',
+      message: 'Hi Client, balance due.',
+      clientName: 'Acme Corp',
+      clientEmail: '',
+      phone: '+1 555 0192',
+    }),
+    'To: Acme Corp • +15550192\nSubject: Invoice INV-0001 Reminder\n\nHi Client, balance due.'
+  );
+
+  // Arabic & Hebrew RTL character detection
+  assert.equal(containsRtlCharacters('شركة الأمل'), true);
+  assert.equal(containsRtlCharacters('חשבונית מס'), true);
+  assert.equal(containsRtlCharacters('Dubai Studio AED 1,500.00 ₹100 ¥500'), false);
+  assert.equal(containsRtlCharacters(''), false);
+});

@@ -138,10 +138,11 @@ EOF
   fi
 fi
 
-# 5. Idempotently inject Android 11-15 (API 30+) <queries> intents & OEM WhatsApp package visibility
+# 5. Idempotently inject Android 11-15 (API 30+) <queries> intents, OEM WhatsApp package visibility,
+#    non-required telephony hardware feature (Wi-Fi tablets/ChromeOS), and allowBackup="false"
 MANIFEST="android/app/src/main/AndroidManifest.xml"
 if [ -f "$MANIFEST" ]; then
-  echo "Ensuring Android 11-15 <queries> OS intents and package visibility in $MANIFEST..."
+  echo "Ensuring Android 11-15 <queries> OS intents, telephony feature flag, and allowBackup=\"false\" in $MANIFEST..."
   python3 - "$MANIFEST" << 'PYEOF'
 import sys
 import xml.etree.ElementTree as ET
@@ -150,14 +151,42 @@ path = sys.argv[1]
 ANDROID_NS = 'http://schemas.android.com/apk/res/android'
 ANDROID_NAME = f'{{{ANDROID_NS}}}name'
 ANDROID_SCHEME = f'{{{ANDROID_NS}}}scheme'
+ANDROID_REQUIRED = f'{{{ANDROID_NS}}}required'
+ANDROID_ALLOW_BACKUP = f'{{{ANDROID_NS}}}allowBackup'
 
 ET.register_namespace('android', ANDROID_NS)
 tree = ET.parse(path)
 root = tree.getroot()
 
+changed = False
+
+app_el = root.find('application')
+if app_el is not None and app_el.attrib.get(ANDROID_ALLOW_BACKUP) != 'false':
+    app_el.set(ANDROID_ALLOW_BACKUP, 'false')
+    changed = True
+
+telephony_feature = None
+for feature in root.findall('uses-feature'):
+    if feature.attrib.get(ANDROID_NAME) == 'android.hardware.telephony':
+        telephony_feature = feature
+        break
+
+if telephony_feature is None:
+    telephony_feature = ET.Element('uses-feature')
+    telephony_feature.set(ANDROID_NAME, 'android.hardware.telephony')
+    telephony_feature.set(ANDROID_REQUIRED, 'false')
+    # Insert before <application> to maintain clean manifest ordering
+    app_index = list(root).index(app_el) if app_el is not None else len(list(root))
+    root.insert(app_index, telephony_feature)
+    changed = True
+elif telephony_feature.attrib.get(ANDROID_REQUIRED) != 'false':
+    telephony_feature.set(ANDROID_REQUIRED, 'false')
+    changed = True
+
 queries = root.find('queries')
 if queries is None:
     queries = ET.SubElement(root, 'queries')
+    changed = True
 
 existing_intents = set()
 for intent in queries.findall('intent'):
@@ -188,7 +217,6 @@ required_packages = [
     'com.whatsapp.w4b',
 ]
 
-changed = False
 for action_name, scheme in required_intents:
     if (action_name, scheme) not in existing_intents:
         intent = ET.SubElement(queries, 'intent')

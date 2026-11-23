@@ -44,10 +44,19 @@ class OfflineInvoicesList extends ConsumerWidget {
       ),
     );
 
+    final scriptWarning = InvoicePdfService.diagnoseInvoiceScripts(
+      invoice: inv,
+      items: items,
+      client: client,
+      businessProfile: businessProfile,
+      payments: payments,
+    );
+
     showDialog(
       context: context,
       builder: (_) => PdfPreviewDialog(
         title: 'Invoice ${inv.invoiceNumber}',
+        scriptWarning: scriptWarning,
         buildPdf: () => InvoicePdfService.generateInvoicePdf(
           invoice: inv,
           items: items,
@@ -228,20 +237,15 @@ class OfflineInvoicesList extends ConsumerWidget {
                   final isOverdue = inv.isOverdue;
                   final isLast = index == filtered.length - 1;
 
-                  return Card(
-                    elevation: 0,
-                    margin: EdgeInsets.only(bottom: isLast ? 0 : 8),
-                    shape: RoundedRectangleBorder(
-                      side: BorderSide(color: theme.dividerColor),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: ExpansionTile(
-                        key: PageStorageKey('invoice_${inv.id}'),
-                        shape: const Border(),
-                        collapsedShape: const Border(),
-                        leading: Container(
+                  final screenWidth = MediaQuery.sizeOf(context).width;
+                  final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+                  final stackAmountsBelow = screenWidth < 420 || textScale > 1.3;
+                  final showInlineActions = !isCompact && !stackAmountsBelow;
+                  final useCompactMenu = !showInlineActions;
+                  final invSym = inv.currencySymbol.isNotEmpty ? inv.currencySymbol : sym;
+                  final invDec = inv.currencyCode.isNotEmpty ? inv.currencyDecimals : profile.currencyDecimals;
+
+                  final invoiceNumberBadge = Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: (inv.isVoid || inv.status == 'VOID')
@@ -282,427 +286,469 @@ class OfflineInvoicesList extends ConsumerWidget {
                                         : colorScheme.onPrimaryContainer))),
                       ),
                     ),
-                  ),
-                  title: Builder(builder: (context) {
-                    final invSym = inv.currencySymbol.isNotEmpty ? inv.currencySymbol : sym;
-                    final invDec = inv.currencyCode.isNotEmpty ? inv.currencyDecimals : profile.currencyDecimals;
-                    return Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          inv.clientName,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        // Status Badge (VOID / DRAFT / PAID / PARTIALLY PAID / OVERDUE / PENDING)
-                        if (inv.isVoid || inv.status == 'VOID')
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: neutralTone.background,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: neutralTone.border),
-                            ),
-                            child: Text(
-                              'VOID',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: neutralTone.text,
-                              ),
-                            ),
-                          )
-                        else if (inv.isDraft)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: neutralTone.background,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: neutralTone.border),
-                            ),
-                            child: Text(
-                              'DRAFT',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: neutralTone.text,
-                              ),
-                            ),
-                          )
-                        else if (isPaid)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: successTone.background,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: successTone.border),
-                            ),
-                            child: Text(
-                              'PAID',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: successTone.text,
-                              ),
-                            ),
-                          )
-                        else if (isPartial)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: warningTone.background,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: warningTone.border),
-                            ),
-                            child: Text(
-                              'PARTIAL (${formatCents(inv.paidCents, symbol: invSym, decimals: invDec)} / ${formatCents(inv.totalCents, symbol: invSym, decimals: invDec)})',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: warningTone.text,
-                              ),
-                            ),
-                          )
-                        else if (isOverdue)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: dangerTone.background,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: dangerTone.border),
-                            ),
-                            child: Text(
-                              'OVERDUE (${inv.daysOverdue}d late)',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: dangerTone.text,
-                              ),
-                            ),
-                          )
-                        else
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: neutralTone.background,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: neutralTone.border),
-                            ),
-                            child: Text(
-                              'Due: ${inv.dueDate}',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: neutralTone.text,
-                              ),
+                  );
+
+                  final statusBadge = (inv.isVoid || inv.status == 'VOID')
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: neutralTone.background,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: neutralTone.border),
+                          ),
+                          child: Text(
+                            'VOID',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: neutralTone.text,
                             ),
                           ),
-                      ],
-                    );
-                  }),
-                  subtitle: Text(
-                    '${inv.poNumber.isNotEmpty ? 'PO: ${inv.poNumber} • ' : ''}Terms: ${inv.paymentTerms} • Issued: ${inv.issueDate} • Due: ${inv.dueDate}',
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: isCompact ? 116 : 160),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              formatCents(inv.totalCents, symbol: inv.currencySymbol.isNotEmpty ? inv.currencySymbol : sym, decimals: inv.currencyCode.isNotEmpty ? inv.currencyDecimals : profile.currencyDecimals),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    fontFeatures: const [FontFeature.tabularFigures()],
-                                    color: isPaid
-                                        ? successTone.text
-                                        : (isOverdue ? dangerTone.text : null),
-                                  ),
-                            ),
-                            Text(
-                              (inv.isVoid || inv.status == 'VOID')
-                                  ? 'Voided'
-                                  : (inv.balanceDueCents > 0
-                                      ? 'Bal: ${formatCents(inv.balanceDueCents, symbol: inv.currencySymbol.isNotEmpty ? inv.currencySymbol : sym, decimals: inv.currencyCode.isNotEmpty ? inv.currencyDecimals : profile.currencyDecimals)}'
-                                      : '✓ Settled'),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                fontFeatures: const [FontFeature.tabularFigures()],
-                                color: (inv.isVoid || inv.status == 'VOID')
-                                    ? colorScheme.onSurfaceVariant
-                                    : (inv.balanceDueCents > 0
-                                        ? (isOverdue ? dangerTone.text : colorScheme.primary)
-                                        : successTone.text),
+                        )
+                      : inv.isDraft
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: neutralTone.background,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: neutralTone.border),
                               ),
+                              child: Text(
+                                'DRAFT',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: neutralTone.text,
+                                ),
+                              ),
+                            )
+                          : isPaid
+                              ? Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: successTone.background,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: successTone.border),
+                                  ),
+                                  child: Text(
+                                    'PAID',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: successTone.text,
+                                    ),
+                                  ),
+                                )
+                              : isPartial
+                                  ? Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: warningTone.background,
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: warningTone.border),
+                                      ),
+                                      child: Text(
+                                        'PARTIAL (${formatCents(inv.paidCents, symbol: invSym, decimals: invDec)} / ${formatCents(inv.totalCents, symbol: invSym, decimals: invDec)})',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: warningTone.text,
+                                        ),
+                                      ),
+                                    )
+                                  : isOverdue
+                                      ? Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: dangerTone.background,
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(color: dangerTone.border),
+                                          ),
+                                          child: Text(
+                                            'OVERDUE (${inv.daysOverdue}d late)',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: dangerTone.text,
+                                            ),
+                                          ),
+                                        )
+                                      : Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: neutralTone.background,
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(color: neutralTone.border),
+                                          ),
+                                          child: Text(
+                                            'Due: ${inv.dueDate}',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: neutralTone.text,
+                                            ),
+                                          ),
+                                        );
+
+                  final totalFormatted = formatCents(
+                    inv.totalCents,
+                    symbol: invSym,
+                    decimals: invDec,
+                  );
+                  final balanceLabel = (inv.isVoid || inv.status == 'VOID')
+                      ? 'Voided'
+                      : (inv.balanceDueCents > 0
+                          ? 'Bal: ${formatCents(inv.balanceDueCents, symbol: invSym, decimals: invDec)}'
+                          : '✓ Settled');
+                  final totalStyle = theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    color: isPaid ? successTone.text : (isOverdue ? dangerTone.text : null),
+                  );
+                  final balanceStyle = TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    color: (inv.isVoid || inv.status == 'VOID')
+                        ? colorScheme.onSurfaceVariant
+                        : (inv.balanceDueCents > 0
+                            ? (isOverdue ? dangerTone.text : colorScheme.primary)
+                            : successTone.text),
+                  );
+
+                  final popupMenuButton = PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 18),
+                    tooltip: 'More actions',
+                    onSelected: (val) {
+                      if (val == 'edit_draft') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => InvoiceEditorScreen(
+                              isQuote: false,
+                              existingInvoice: inv,
                             ),
+                          ),
+                        );
+                      } else if (val == 'duplicate') {
+                        _handleDuplicate(context, ref, inv);
+                      } else if (val == 'pay') {
+                        _openRecordPayment(context, inv);
+                      } else if (val == 'pdf') {
+                        _handlePrint(context, ref, inv);
+                      } else if (val == 'finalize') {
+                        ref.read(invoicesProvider.notifier).finalizeDraftInvoice(inv.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Invoice ${inv.invoiceNumber} finalized and issued!')),
+                        );
+                      } else if (val == 'reminder') {
+                        showDialog(
+                          context: context,
+                          builder: (_) => PaymentReminderModal(invoice: inv),
+                        );
+                      } else if (val == 'delete') {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete Invoice'),
+                            content: Text('Are you sure you want to delete invoice ${inv.invoiceNumber}?'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                              FilledButton(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: colorScheme.error,
+                                  foregroundColor: colorScheme.onError,
+                                ),
+                                onPressed: () {
+                                  ref.read(invoicesProvider.notifier).deleteInvoice(inv.id);
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Invoice ${inv.invoiceNumber} deleted.')),
+                                  );
+                                },
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                      } else if (val == 'void') {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Void Invoice'),
+                            content: Text('Are you sure you want to void invoice ${inv.invoiceNumber}? This action cannot be undone.'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                              FilledButton(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: colorScheme.error,
+                                  foregroundColor: colorScheme.onError,
+                                ),
+                                onPressed: () {
+                                  ref.read(invoicesProvider.notifier).voidInvoice(inv.id);
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Invoice ${inv.invoiceNumber} marked as VOID.')),
+                                  );
+                                },
+                                child: const Text('Void Invoice'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      if (useCompactMenu && inv.isDraft)
+                        const PopupMenuItem(
+                          value: 'edit_draft',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit_outlined, size: 16),
+                              SizedBox(width: 8),
+                              Text('Edit Draft', style: TextStyle(fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      if (inv.isDraft)
+                        PopupMenuItem(
+                          value: 'finalize',
+                          child: Row(
+                            children: [
+                              Icon(Icons.check_circle_outline, size: 16, color: colorScheme.primary),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Finalize & Issue',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (useCompactMenu && inv.balanceDueCents > 0 && inv.status != 'VOID' && !inv.isDraft)
+                        const PopupMenuItem(
+                          value: 'pay',
+                          child: Row(
+                            children: [
+                              Icon(Icons.add_card, size: 16),
+                              SizedBox(width: 8),
+                              Text('Record Payment', style: TextStyle(fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      if (useCompactMenu)
+                        const PopupMenuItem(
+                          value: 'pdf',
+                          child: Row(
+                            children: [
+                              Icon(Icons.picture_as_pdf, size: 16),
+                              SizedBox(width: 8),
+                              Text('PDF / Print', style: TextStyle(fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      if (useCompactMenu)
+                        const PopupMenuItem(
+                          value: 'duplicate',
+                          child: Row(
+                            children: [
+                              Icon(Icons.copy_outlined, size: 16),
+                              SizedBox(width: 8),
+                              Text('Duplicate', style: TextStyle(fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      if (inv.balanceDueCents > 0 && !inv.isDraft && inv.status != 'VOID')
+                        PopupMenuItem(
+                          value: 'reminder',
+                          child: Row(
+                            children: [
+                              Icon(Icons.send_outlined, size: 16, color: warningTone.icon),
+                              const SizedBox(width: 8),
+                              const Text('Send Reminder', style: TextStyle(fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      if (inv.status != 'VOID' && !inv.isDraft)
+                        PopupMenuItem(
+                          value: 'void',
+                          child: Row(
+                            children: [
+                              Icon(Icons.block, size: 16, color: dangerTone.icon),
+                              const SizedBox(width: 8),
+                              Text('Void / Cancel Invoice', style: TextStyle(color: dangerTone.icon, fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline, size: 16, color: dangerTone.icon),
+                            const SizedBox(width: 8),
+                            Text('Delete Invoice', style: TextStyle(color: dangerTone.icon, fontSize: 13)),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      if (!isCompact) ...[
-                        // Edit and Finalize Draft buttons for DRAFT status
-                        if (inv.isDraft) ...[
-                          OutlinedButton.icon(
-                            icon: const Icon(Icons.edit_outlined, size: 15),
-                            label: const Text('Edit Draft', style: TextStyle(fontSize: 12)),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                              visualDensity: VisualDensity.compact,
+                    ],
+                  );
+
+                  return Card(
+                    elevation: 0,
+                    margin: EdgeInsets.only(bottom: isLast ? 0 : 8),
+                    shape: RoundedRectangleBorder(
+                      side: BorderSide(color: theme.dividerColor),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: ExpansionTile(
+                        key: PageStorageKey('invoice_${inv.id}'),
+                        shape: const Border(),
+                        collapsedShape: const Border(),
+                        leading: stackAmountsBelow ? null : invoiceNumberBadge,
+                        title: Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            if (stackAmountsBelow) invoiceNumberBadge,
+                            Text(
+                              inv.clientName,
+                              style: const TextStyle(fontWeight: FontWeight.w600),
                             ),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => InvoiceEditorScreen(
-                                    isQuote: false,
-                                    existingInvoice: inv,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 6),
-                          FilledButton.icon(
-                            icon: const Icon(Icons.check_circle_outline, size: 15),
-                            label: const Text('Finalize', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: colorScheme.primary,
-                              foregroundColor: colorScheme.onPrimary,
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            onPressed: () {
-                              ref.read(invoicesProvider.notifier).finalizeDraftInvoice(inv.id);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Invoice ${inv.invoiceNumber} finalized and issued!')),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 6),
-                        ],
-                        // 1-Click Duplicate Button
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.copy_outlined, size: 15),
-                          label: const Text('Duplicate', style: TextStyle(fontSize: 12)),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          onPressed: () => _handleDuplicate(context, ref, inv),
+                            statusBadge,
+                          ],
                         ),
-                        const SizedBox(width: 6),
-                        // Record Payment Action Button
-                        if (inv.balanceDueCents > 0 && inv.status != 'VOID' && !inv.isDraft) ...[
-                          OutlinedButton.icon(
-                            icon: const Icon(Icons.add_card, size: 15),
-                            label: const Text('Pay', style: TextStyle(fontSize: 12)),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                              visualDensity: VisualDensity.compact,
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${inv.poNumber.isNotEmpty ? 'PO: ${inv.poNumber} • ' : ''}Terms: ${inv.paymentTerms} • Issued: ${inv.issueDate} • Due: ${inv.dueDate}',
+                              style: const TextStyle(fontSize: 11),
                             ),
-                            onPressed: () => _openRecordPayment(context, inv),
-                          ),
-                          const SizedBox(width: 6),
-                        ],
-                        // PDF / Print action button
-                        FilledButton.tonalIcon(
-                          icon: const Icon(Icons.picture_as_pdf, size: 16),
-                          label: const Text('PDF / Print',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          onPressed: () => _handlePrint(context, ref, inv),
+                            if (stackAmountsBelow) ...[
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(totalFormatted, style: totalStyle),
+                                  Text(balanceLabel, style: balanceStyle),
+                                ],
+                              ),
+                            ],
+                          ],
                         ),
-                        const SizedBox(width: 4),
-                      ],
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, size: 18),
-                        tooltip: 'More actions',
-                        onSelected: (val) {
-                          if (val == 'edit_draft') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => InvoiceEditorScreen(
-                                  isQuote: false,
-                                  existingInvoice: inv,
-                                ),
-                              ),
-                            );
-                          } else if (val == 'duplicate') {
-                            _handleDuplicate(context, ref, inv);
-                          } else if (val == 'pay') {
-                            _openRecordPayment(context, inv);
-                          } else if (val == 'pdf') {
-                            _handlePrint(context, ref, inv);
-                          } else if (val == 'finalize') {
-                            ref.read(invoicesProvider.notifier).finalizeDraftInvoice(inv.id);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Invoice ${inv.invoiceNumber} finalized and issued!')),
-                            );
-                          } else if (val == 'reminder') {
-                            showDialog(
-                              context: context,
-                              builder: (_) => PaymentReminderModal(invoice: inv),
-                            );
-                          } else if (val == 'delete') {
-                            showDialog(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: const Text('Delete Invoice'),
-                                content: Text('Are you sure you want to delete invoice ${inv.invoiceNumber}?'),
-                                actions: [
-                                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                                  FilledButton(
-                                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                                    onPressed: () {
-                                      ref.read(invoicesProvider.notifier).deleteInvoice(inv.id);
-                                      Navigator.pop(ctx);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Invoice ${inv.invoiceNumber} deleted.')),
-                                      );
-                                    },
-                                    child: const Text('Delete'),
-                                  ),
-                                ],
-                              ),
-                            );
-                          } else if (val == 'void') {
-                            showDialog(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: const Text('Void Invoice'),
-                                content: Text('Are you sure you want to void invoice ${inv.invoiceNumber}? This action cannot be undone.'),
-                                actions: [
-                                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                                  FilledButton(
-                                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                                    onPressed: () {
-                                      ref.read(invoicesProvider.notifier).voidInvoice(inv.id);
-                                      Navigator.pop(ctx);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Invoice ${inv.invoiceNumber} marked as VOID.')),
-                                      );
-                                    },
-                                    child: const Text('Void Invoice'),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-                        },
-                        itemBuilder: (_) => [
-                          if (isCompact && inv.isDraft)
-                            const PopupMenuItem(
-                              value: 'edit_draft',
-                              child: Row(
+                        trailing: stackAmountsBelow
+                            ? popupMenuButton
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.edit_outlined, size: 16),
-                                  SizedBox(width: 8),
-                                  Text('Edit Draft', style: TextStyle(fontSize: 13)),
-                                ],
-                              ),
-                            ),
-                          if (inv.isDraft)
-                            PopupMenuItem(
-                              value: 'finalize',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.check_circle_outline, size: 16, color: colorScheme.primary),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Finalize & Issue',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      color: colorScheme.primary,
+                                  ConstrainedBox(
+                                    constraints: BoxConstraints(maxWidth: isCompact ? 116 : 160),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          totalFormatted,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: totalStyle,
+                                        ),
+                                        Text(
+                                          balanceLabel,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: balanceStyle,
+                                        ),
+                                      ],
                                     ),
                                   ),
+                                  const SizedBox(width: 6),
+                                  if (showInlineActions) ...[
+                                    if (inv.isDraft) ...[
+                                      OutlinedButton.icon(
+                                        icon: const Icon(Icons.edit_outlined, size: 15),
+                                        label: const Text('Edit Draft', style: TextStyle(fontSize: 12)),
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => InvoiceEditorScreen(
+                                                isQuote: false,
+                                                existingInvoice: inv,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      const SizedBox(width: 6),
+                                      FilledButton.icon(
+                                        icon: const Icon(Icons.check_circle_outline, size: 15),
+                                        label: const Text('Finalize', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: colorScheme.primary,
+                                          foregroundColor: colorScheme.onPrimary,
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        onPressed: () {
+                                          ref.read(invoicesProvider.notifier).finalizeDraftInvoice(inv.id);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('Invoice ${inv.invoiceNumber} finalized and issued!')),
+                                          );
+                                        },
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    OutlinedButton.icon(
+                                      icon: const Icon(Icons.copy_outlined, size: 15),
+                                      label: const Text('Duplicate', style: TextStyle(fontSize: 12)),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      onPressed: () => _handleDuplicate(context, ref, inv),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    if (inv.balanceDueCents > 0 && inv.status != 'VOID' && !inv.isDraft) ...[
+                                      OutlinedButton.icon(
+                                        icon: const Icon(Icons.add_card, size: 15),
+                                        label: const Text('Pay', style: TextStyle(fontSize: 12)),
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        onPressed: () => _openRecordPayment(context, inv),
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    FilledButton.tonalIcon(
+                                      icon: const Icon(Icons.picture_as_pdf, size: 16),
+                                      label: const Text('PDF / Print',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                      style: FilledButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      onPressed: () => _handlePrint(context, ref, inv),
+                                    ),
+                                    const SizedBox(width: 4),
+                                  ],
+                                  popupMenuButton,
                                 ],
                               ),
-                            ),
-                          if (isCompact && inv.balanceDueCents > 0 && inv.status != 'VOID' && !inv.isDraft)
-                            const PopupMenuItem(
-                              value: 'pay',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.add_card, size: 16),
-                                  SizedBox(width: 8),
-                                  Text('Record Payment', style: TextStyle(fontSize: 13)),
-                                ],
-                              ),
-                            ),
-                          if (isCompact)
-                            const PopupMenuItem(
-                              value: 'pdf',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.picture_as_pdf, size: 16),
-                                  SizedBox(width: 8),
-                                  Text('PDF / Print', style: TextStyle(fontSize: 13)),
-                                ],
-                              ),
-                            ),
-                          if (isCompact)
-                            const PopupMenuItem(
-                              value: 'duplicate',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.copy_outlined, size: 16),
-                                  SizedBox(width: 8),
-                                  Text('Duplicate', style: TextStyle(fontSize: 13)),
-                                ],
-                              ),
-                            ),
-                          if (inv.balanceDueCents > 0 && !inv.isDraft && inv.status != 'VOID')
-                            PopupMenuItem(
-                              value: 'reminder',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.send_outlined, size: 16, color: warningTone.icon),
-                                  const SizedBox(width: 8),
-                                  const Text('Send Reminder', style: TextStyle(fontSize: 13)),
-                                ],
-                              ),
-                            ),
-                          if (inv.status != 'VOID' && !inv.isDraft)
-                            PopupMenuItem(
-                              value: 'void',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.block, size: 16, color: dangerTone.icon),
-                                  const SizedBox(width: 8),
-                                  Text('Void / Cancel Invoice', style: TextStyle(color: dangerTone.icon, fontSize: 13)),
-                                ],
-                              ),
-                            ),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                Icon(Icons.delete_outline, size: 16, color: dangerTone.icon),
-                                const SizedBox(width: 8),
-                                Text('Delete Invoice', style: TextStyle(color: dangerTone.icon, fontSize: 13)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
                   children: [
                     _InvoiceItemsBreakdown(
                       invoice: inv,

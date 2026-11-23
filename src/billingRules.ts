@@ -180,6 +180,64 @@ export function getCurrencyDecimals(codeOrSymbol: string): number {
   return 2;
 }
 
+/**
+ * Maps ISO currency code to its canonical display symbol cleanly.
+ */
+export function currencySymbolForCode(currencyCode: string): string {
+  const upper = (currencyCode || '').trim().toUpperCase();
+  switch (upper) {
+    case 'USD':
+      return '$';
+    case 'INR':
+      return '₹';
+    case 'EUR':
+      return '€';
+    case 'GBP':
+      return '£';
+    case 'JPY':
+      return '¥';
+    case 'KRW':
+      return '₩';
+    case 'VND':
+      return '₫';
+    case 'CAD':
+      return 'C$';
+    case 'AUD':
+      return 'A$';
+    case '':
+      return '$';
+    default:
+      return upper;
+  }
+}
+
+/**
+ * Formats an unsigned integer part with deterministic digit grouping independent of OS locale.
+ * Uses Indian numbering (12,34,567) when currencyCode is 'INR', otherwise standard 3-digit grouping.
+ */
+export function formatIntegerGrouped(absWhole: number, currencyCode = ''): string {
+  const digits = String(Math.floor(Math.abs(absWhole)));
+  if (digits.length <= 3) return digits;
+
+  if ((currencyCode || '').trim().toUpperCase() === 'INR') {
+    const tail = digits.slice(-3);
+    const prefix = digits.slice(0, -3);
+    const chunks: string[] = [];
+    for (let i = prefix.length; i > 0; i -= 2) {
+      const start = Math.max(0, i - 2);
+      chunks.push(prefix.slice(start, i));
+    }
+    return `${chunks.reverse().join(',')},${tail}`;
+  }
+
+  const chunks: string[] = [];
+  for (let i = digits.length; i > 0; i -= 3) {
+    const start = Math.max(0, i - 3);
+    chunks.push(digits.slice(start, i));
+  }
+  return chunks.reverse().join(',');
+}
+
 function clampDecimals(decimals: number): number {
   const safe = Math.floor(decimals);
   if (safe < 0) return 0;
@@ -474,27 +532,31 @@ export function calculateDaysOverdue(dueDateStr: string, referenceNow?: Date): n
 }
 
 /**
- * Formats minor units as formatted currency string using integer division/modulo.
+ * Formats minor units as formatted currency string using pure integer arithmetic.
  */
-export function formatMoney(units: number, symbol = '$', decimals = 2): string {
+export function formatMoney(
+  units: number,
+  symbol = '$',
+  decimals = 2,
+  currencyCode = ''
+): string {
   const safeUnits = Math.round(units);
   const safeDecimals = clampDecimals(decimals);
   const isNegative = safeUnits < 0;
   const absUnits = isNegative ? -safeUnits : safeUnits;
-  const intFormatter = new Intl.NumberFormat('en-US', {
-    maximumFractionDigits: 0,
-    minimumFractionDigits: 0,
-  });
+  const effectiveCode = currencyCode.trim()
+    ? currencyCode.trim().toUpperCase()
+    : (symbol.trim() === '₹' ? 'INR' : '');
 
   if (safeDecimals === 0) {
-    const wholeFormatted = intFormatter.format(absUnits);
+    const wholeFormatted = formatIntegerGrouped(absUnits, effectiveCode);
     return `${isNegative ? '-' : ''}${symbol}${wholeFormatted}`;
   }
 
   const scale = pow10Int(safeDecimals);
   const whole = Math.floor(absUnits / scale);
   const frac = absUnits % scale;
-  const wholeFormatted = intFormatter.format(whole);
+  const wholeFormatted = formatIntegerGrouped(whole, effectiveCode);
   const fracStr = String(frac).padStart(safeDecimals, '0');
   return `${isNegative ? '-' : ''}${symbol}${wholeFormatted}.${fracStr}`;
 }
@@ -520,8 +582,13 @@ export function formatDecimalUnits(units: number, decimals = 2): string {
 /**
  * UI display formatting with dynamic currency symbol and decimal exponent.
  */
-export function formatCents(cents: number, symbol = '$', decimals = 2): string {
-  return formatMoney(cents, symbol, decimals);
+export function formatCents(
+  cents: number,
+  symbol = '$',
+  decimals = 2,
+  currencyCode = ''
+): string {
+  return formatMoney(cents, symbol, decimals, currencyCode);
 }
 
 /**
@@ -684,11 +751,20 @@ export function exportExpensesToCsv(
   expenses: any[],
   currencyCode = 'USD'
 ): string {
-  const effectiveCode = currencyCode.trim() || 'USD';
-  const dec = getCurrencyDecimals(effectiveCode);
+  const fallbackCode = currencyCode.trim().toUpperCase() || 'USD';
+  const fallbackDec = getCurrencyDecimals(fallbackCode);
   const lines = ['Expense ID,Date,Category,Vendor,Currency Code,Amount,Tax,Total,Notes'];
 
   for (const exp of expenses) {
+    const recCode = String(exp.currency_code ?? exp.currencyCode ?? '').trim();
+    const recDec = exp.currency_decimals ?? exp.currencyDecimals;
+    const resolved = resolveEffectiveCurrency({
+      recordCode: recCode,
+      recordDecimals: recCode && typeof recDec === 'number' ? recDec : undefined,
+      defaultCode: fallbackCode,
+      defaultSymbol: currencySymbolForCode(fallbackCode),
+      defaultDecimals: fallbackDec,
+    });
     const amountUnits = exp.amount_cents ?? exp.amountCents ?? 0;
     const taxUnits = exp.tax_cents ?? exp.taxCents ?? 0;
     const totalUnits = exp.total_cents ?? exp.totalCents ?? (amountUnits + taxUnits);
@@ -698,10 +774,10 @@ export function exportExpensesToCsv(
         quoteCsvField(exp.expense_date ?? exp.expenseDate ?? ''),
         quoteCsvField(exp.category || ''),
         quoteCsvField(exp.vendor || ''),
-        quoteCsvField(effectiveCode),
-        formatDecimalUnits(amountUnits, dec),
-        formatDecimalUnits(taxUnits, dec),
-        formatDecimalUnits(totalUnits, dec),
+        quoteCsvField(resolved.code),
+        formatDecimalUnits(amountUnits, resolved.decimals),
+        formatDecimalUnits(taxUnits, resolved.decimals),
+        formatDecimalUnits(totalUnits, resolved.decimals),
         quoteCsvField(exp.notes || ''),
       ].join(',')
     );
@@ -880,7 +956,11 @@ export function resolveEffectiveCurrency(params: {
   const trimmedSym = (params.recordSymbol || '').trim();
 
   const code = trimmedCode || fallbackCode;
-  const symbol = trimmedSym || fallbackSymbol;
+  const symbol = trimmedSym
+    ? trimmedSym
+    : trimmedCode
+      ? (trimmedCode === fallbackCode ? fallbackSymbol : currencySymbolForCode(code))
+      : fallbackSymbol;
   const decimals = trimmedCode
     ? clampDecimals(
         params.recordDecimals !== undefined && params.recordDecimals !== null
@@ -900,7 +980,7 @@ export function formatMultiCurrencyAmounts(
   const nonZero = amounts.filter((a) => a.amountUnits !== 0);
   if (nonZero.length === 0) return emptyFallback;
   return nonZero
-    .map((a) => formatMoney(a.amountUnits, a.symbol, a.decimals))
+    .map((a) => formatMoney(a.amountUnits, a.symbol, a.decimals, a.code))
     .join(separator);
 }
 
@@ -1082,11 +1162,23 @@ export function calculateDashboardMetrics(
     }
   }
 
-  let totalExpenseGrossCents = 0;
-  let totalExpenseTaxCents = 0;
+  const expenseGrossMap: Record<string, number> = {};
+  const expenseTaxMap: Record<string, number> = {};
   for (const exp of expenses) {
-    totalExpenseGrossCents += exp.total_cents || 0;
-    totalExpenseTaxCents += exp.tax_cents || 0;
+    const recCode = exp.currency_code ?? exp.currencyCode ?? '';
+    const recDec = exp.currency_decimals ?? exp.currencyDecimals;
+    const cur = resolveEffectiveCurrency({
+      recordCode: recCode,
+      recordDecimals: String(recCode).trim() ? recDec : undefined,
+      defaultCode: base.code,
+      defaultSymbol: base.symbol,
+      defaultDecimals: base.decimals,
+    });
+    meta[cur.code] = cur;
+    const expGross = exp.total_cents ?? exp.totalCents ?? ((exp.amount_cents || 0) + (exp.tax_cents || 0));
+    const expTax = exp.tax_cents ?? exp.taxCents ?? 0;
+    expenseGrossMap[cur.code] = (expenseGrossMap[cur.code] || 0) + expGross;
+    expenseTaxMap[cur.code] = (expenseTaxMap[cur.code] || 0) + expTax;
   }
 
   const codes = Object.keys(meta).sort((a, b) => compareCurrencyOrder(a, b, base.code));
@@ -1098,8 +1190,8 @@ export function calculateDashboardMetrics(
     const pendingBalance = pendingMap[code] || 0;
     const overdueAmount = overdueMap[code] || 0;
     const taxCollected = taxCollectedMap[code] || 0;
-    const expGross = code === base.code ? totalExpenseGrossCents : 0;
-    const expTax = code === base.code ? totalExpenseTaxCents : 0;
+    const expGross = expenseGrossMap[code] || 0;
+    const expTax = expenseTaxMap[code] || 0;
     const netRevenueExclTax = totalCollected - taxCollected;
     const netExpenseExclTax = Math.max(0, expGross - expTax);
     const taxLiability = taxCollected - expTax;
@@ -1319,11 +1411,13 @@ const BACKUP_TABLE_RULES: Record<string, BackupTableRule> = {
   expenses: {
     requiredNonEmptyStrings: ['id', 'category', 'vendor', 'expense_date'],
     requiredInts: ['amount_cents'],
-    optionalInts: ['tax_cents', 'total_cents'],
+    optionalInts: ['tax_cents', 'total_cents', 'currency_decimals', 'currencyDecimals'],
     optionalStrings: [
       'notes',
       'receipt_base64',
       'receipt_name',
+      'currency_code',
+      'currencyCode',
       'created_at',
       'updated_at',
       'deleted_at',
@@ -1332,17 +1426,54 @@ const BACKUP_TABLE_RULES: Record<string, BackupTableRule> = {
   savedItems: {
     requiredNonEmptyStrings: ['id', 'title'],
     requiredInts: [],
-    optionalInts: ['default_price_cents', 'defaultPriceCents'],
+    optionalInts: [
+      'default_price_cents',
+      'defaultPriceCents',
+      'currency_decimals',
+      'currencyDecimals',
+    ],
     optionalStrings: [
       'sac_hsn',
       'sacHsn',
       'description',
+      'currency_code',
+      'currencyCode',
       'created_at',
       'updated_at',
       'deleted_at',
     ],
   },
 };
+
+const FLUTTER_CHILD_TABLE_RULES: Record<string, BackupTableRule> = {
+  invoice_items: {
+    requiredNonEmptyStrings: ['id', 'invoice_id', 'description'],
+    requiredInts: ['quantity', 'unit_price_cents', 'total_cents'],
+    optionalInts: ['tax_rate_percentage', 'tax_cents'],
+    optionalStrings: ['sac_hsn', 'created_at', 'updated_at', 'deleted_at'],
+  },
+  estimate_items: {
+    requiredNonEmptyStrings: ['id', 'estimate_id', 'description'],
+    requiredInts: ['quantity', 'unit_price_cents', 'total_cents'],
+    optionalInts: ['tax_rate_percentage', 'tax_cents'],
+    optionalStrings: ['sac_hsn', 'created_at', 'updated_at', 'deleted_at'],
+  },
+  payments: {
+    requiredNonEmptyStrings: ['id', 'invoice_id', 'payment_method', 'payment_date'],
+    requiredInts: ['amount_cents'],
+    optionalInts: ['amount_received_cents', 'tds_cents'],
+    optionalStrings: ['reference_number', 'notes', 'created_at', 'updated_at', 'deleted_at'],
+  },
+};
+
+export interface NormalizedBackupPayload {
+  clients: any[];
+  invoices: any[];
+  estimates?: any[];
+  expenses?: any[];
+  savedItems?: any[];
+  businessProfile?: any;
+}
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
@@ -1352,13 +1483,346 @@ function isStrictInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && Number.isFinite(value);
 }
 
+function validateTableRows(
+  key: string,
+  val: unknown,
+  rule: BackupTableRule
+): string | null {
+  if (!Array.isArray(val)) {
+    return `Invalid backup file: "${key}" must be an array.`;
+  }
+  for (let i = 0; i < val.length; i++) {
+    const item = val[i];
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      return `Invalid backup file: Entries in "${key}" must be JSON objects.`;
+    }
+    const row = item as Record<string, unknown>;
+
+    for (const col of rule.requiredNonEmptyStrings) {
+      if (!isNonEmptyString(row[col])) {
+        return `Invalid backup file: "${key}" row ${i + 1} missing required non-empty string "${col}".`;
+      }
+    }
+
+    for (const col of rule.requiredInts) {
+      if (!isStrictInteger(row[col])) {
+        return `Invalid backup file: "${key}" row ${i + 1} requires integer value for "${col}".`;
+      }
+    }
+
+    if (key === 'savedItems' || key === 'saved_items') {
+      const hasSnake = row.default_price_cents !== undefined;
+      const hasCamel = row.defaultPriceCents !== undefined;
+      if (!hasSnake && !hasCamel) {
+        return `Invalid backup file: "${key}" row ${i + 1} requires integer "default_price_cents".`;
+      }
+    }
+
+    if ((key === 'invoices' || key === 'estimates') && row.items !== undefined && !Array.isArray(row.items)) {
+      return `Invalid backup file: "${key}" row ${i + 1} field "items" must be an array.`;
+    }
+
+    for (const col of rule.optionalInts) {
+      if (row[col] !== undefined && row[col] !== null && !isStrictInteger(row[col])) {
+        return `Invalid backup file: "${key}" row ${i + 1} expected integer for "${col}".`;
+      }
+    }
+
+    for (const col of rule.optionalStrings) {
+      if (row[col] !== undefined && row[col] !== null && typeof row[col] !== 'string') {
+        return `Invalid backup file: "${key}" row ${i + 1} expected string for "${col}".`;
+      }
+    }
+  }
+  return null;
+}
+
+function validateProfileRecord(prof: Record<string, unknown>, label: string): string | null {
+  if (!isNonEmptyString(prof.business_name)) {
+    return `Invalid backup file: "${label}" missing required non-empty "business_name".`;
+  }
+  for (const intCol of [
+    'currency_decimals',
+    'next_invoice_number',
+    'default_pst_rate_percentage',
+    'accent_color',
+  ]) {
+    if (prof[intCol] !== undefined && prof[intCol] !== null && !isStrictInteger(prof[intCol])) {
+      return `Invalid backup file: "${label}.${intCol}" must be an integer.`;
+    }
+  }
+  if (
+    prof.next_invoice_number !== undefined &&
+    prof.next_invoice_number !== null &&
+    (prof.next_invoice_number as number) < 1
+  ) {
+    return `Invalid backup file: "${label}.next_invoice_number" must be >= 1.`;
+  }
+  for (const strCol of [
+    'theme_mode',
+    'invoice_prefix',
+    'estimate_prefix',
+    'payment_qr_payload',
+  ]) {
+    if (prof[strCol] !== undefined && prof[strCol] !== null && typeof prof[strCol] !== 'string') {
+      return `Invalid backup file: "${label}.${strCol}" must be a string.`;
+    }
+  }
+  return null;
+}
+
 /**
- * Validates parsed backup JSON snapshot, column NOT NULL requirements, and value types
- * before mutating application state.
+ * Normalizes a validated React or Flutter SQLite JSON backup into the canonical React state structure.
+ */
+export function normalizeBackupPayloadForWeb(record: Record<string, unknown>): NormalizedBackupPayload {
+  const fallbackTs = isNonEmptyString(record.exported_at)
+    ? record.exported_at.trim()
+    : new Date().toISOString();
+
+  const rawClients = Array.isArray(record.clients)
+    ? (record.clients as Record<string, unknown>[]).filter((c) => !c.deleted_at)
+    : [];
+  const clientNameById = new Map<string, string>();
+  const clients = rawClients.map((c) => {
+    const id = String(c.id ?? '');
+    const name = String(c.name ?? '');
+    if (id) clientNameById.set(id, name);
+    return {
+      ...c,
+      id,
+      name,
+      email: typeof c.email === 'string' ? c.email : '',
+      phone: typeof c.phone === 'string' ? c.phone : '',
+      address: typeof c.address === 'string' ? c.address : '',
+      tax_id: typeof c.tax_id === 'string' ? c.tax_id : (typeof c.taxId === 'string' ? c.taxId : ''),
+      created_at: isNonEmptyString(c.created_at) ? c.created_at : fallbackTs,
+    };
+  });
+
+  // Group active flat Flutter invoice_items by invoice_id
+  const invItemsByParent = new Map<string, any[]>();
+  if (Array.isArray(record.invoice_items)) {
+    for (const rawIt of record.invoice_items as Record<string, unknown>[]) {
+      if (rawIt.deleted_at) continue;
+      const parentId = String(rawIt.invoice_id ?? '');
+      if (!parentId) continue;
+      const list = invItemsByParent.get(parentId) ?? [];
+      const unitPriceCents = Number(rawIt.unit_price_cents ?? rawIt.unitPriceCents ?? 0) || 0;
+      const taxSlab = Number(rawIt.tax_rate_percentage ?? rawIt.taxSlab ?? 0) || 0;
+      const sacHsn = String(rawIt.sac_hsn ?? rawIt.sacHsn ?? '');
+      list.push({
+        id: String(rawIt.id ?? generateUniqueId()),
+        description: String(rawIt.description ?? ''),
+        sacHsn,
+        sac_hsn: sacHsn,
+        quantity: Number(rawIt.quantity ?? 1) || 1,
+        unitPriceCents,
+        unit_price_cents: unitPriceCents,
+        taxSlab,
+        tax_rate_percentage: taxSlab,
+        tax_cents: Number(rawIt.tax_cents ?? 0) || 0,
+        total_cents: Number(rawIt.total_cents ?? 0) || 0,
+      });
+      invItemsByParent.set(parentId, list);
+    }
+  }
+
+  // Sum Flutter payments per invoice_id
+  const paidByInvoiceId = new Map<string, number>();
+  if (Array.isArray(record.payments)) {
+    for (const pay of record.payments as Record<string, unknown>[]) {
+      if (pay.deleted_at) continue;
+      const invId = String(pay.invoice_id ?? '');
+      if (!invId) continue;
+      const amt = Number(pay.amount_cents ?? 0) || 0;
+      paidByInvoiceId.set(invId, (paidByInvoiceId.get(invId) ?? 0) + amt);
+    }
+  }
+
+  const rawInvoices = Array.isArray(record.invoices)
+    ? (record.invoices as Record<string, unknown>[]).filter((inv) => !inv.deleted_at)
+    : [];
+  const invoices = rawInvoices.map((inv) => {
+    const id = String(inv.id ?? '');
+    const clientId = String(inv.client_id ?? '');
+    const totalCents = Number(inv.total_cents ?? 0) || 0;
+    const paidCents =
+      typeof inv.paid_cents === 'number'
+        ? inv.paid_cents
+        : (paidByInvoiceId.get(id) ?? 0);
+    const upperStatus = String(inv.status ?? 'PENDING').toUpperCase();
+    const balanceDueCents =
+      typeof inv.balance_due_cents === 'number'
+        ? inv.balance_due_cents
+        : (upperStatus === 'VOID' ? 0 : Math.max(0, totalCents - paidCents));
+
+    let computedStatus = typeof inv.computed_status === 'string' && inv.computed_status.trim()
+      ? inv.computed_status
+      : upperStatus;
+    if (!(typeof inv.computed_status === 'string' && inv.computed_status.trim())) {
+      if (upperStatus === 'VOID' || upperStatus === 'DRAFT') {
+        computedStatus = upperStatus;
+      } else if (totalCents > 0 && paidCents >= totalCents) {
+        computedStatus = 'PAID';
+      } else if (paidCents > 0) {
+        computedStatus = 'PARTIALLY_PAID';
+      }
+    }
+
+    const nestedItems = Array.isArray(inv.items)
+      ? inv.items
+      : (invItemsByParent.get(id) ?? []);
+
+    return {
+      ...inv,
+      client_name: isNonEmptyString(inv.client_name)
+        ? inv.client_name
+        : (clientNameById.get(clientId) ?? 'Unknown Client'),
+      items: nestedItems,
+      paid_cents: paidCents,
+      balance_due_cents: balanceDueCents,
+      computed_status: computedStatus,
+      created_at: isNonEmptyString(inv.created_at) ? inv.created_at : fallbackTs,
+    };
+  });
+
+  // Group active flat Flutter estimate_items by estimate_id
+  const estItemsByParent = new Map<string, any[]>();
+  if (Array.isArray(record.estimate_items)) {
+    for (const rawIt of record.estimate_items as Record<string, unknown>[]) {
+      if (rawIt.deleted_at) continue;
+      const parentId = String(rawIt.estimate_id ?? '');
+      if (!parentId) continue;
+      const list = estItemsByParent.get(parentId) ?? [];
+      const unitPriceCents = Number(rawIt.unit_price_cents ?? rawIt.unitPriceCents ?? 0) || 0;
+      const taxSlab = Number(rawIt.tax_rate_percentage ?? rawIt.taxSlab ?? 0) || 0;
+      const sacHsn = String(rawIt.sac_hsn ?? rawIt.sacHsn ?? '');
+      list.push({
+        id: String(rawIt.id ?? generateUniqueId()),
+        description: String(rawIt.description ?? ''),
+        sacHsn,
+        sac_hsn: sacHsn,
+        quantity: Number(rawIt.quantity ?? 1) || 1,
+        unitPriceCents,
+        unit_price_cents: unitPriceCents,
+        taxSlab,
+        tax_rate_percentage: taxSlab,
+        tax_cents: Number(rawIt.tax_cents ?? 0) || 0,
+        total_cents: Number(rawIt.total_cents ?? 0) || 0,
+      });
+      estItemsByParent.set(parentId, list);
+    }
+  }
+
+  let estimates: any[] | undefined;
+  if (Array.isArray(record.estimates)) {
+    estimates = (record.estimates as Record<string, unknown>[])
+      .filter((est) => !est.deleted_at)
+      .map((est) => {
+        const id = String(est.id ?? '');
+        const clientId = String(est.client_id ?? '');
+        const nestedItems = Array.isArray(est.items)
+          ? est.items
+          : (estItemsByParent.get(id) ?? []);
+        return {
+          ...est,
+          client_name: isNonEmptyString(est.client_name)
+            ? est.client_name
+            : (clientNameById.get(clientId) ?? 'Unknown Client'),
+          items: nestedItems,
+          created_at: isNonEmptyString(est.created_at) ? est.created_at : fallbackTs,
+        };
+      });
+  }
+
+  let expenses: any[] | undefined;
+  if (Array.isArray(record.expenses)) {
+    expenses = (record.expenses as Record<string, unknown>[])
+      .filter((exp) => !exp.deleted_at)
+      .map((exp) => {
+        const amountCents = Number(exp.amount_cents ?? 0) || 0;
+        const taxCents = Number(exp.tax_cents ?? 0) || 0;
+        const totalCents =
+          typeof exp.total_cents === 'number' ? exp.total_cents : amountCents + taxCents;
+        const rawExpCode = String(exp.currency_code ?? exp.currencyCode ?? '').trim().toUpperCase();
+        const rawExpDec = exp.currency_decimals ?? exp.currencyDecimals;
+        return {
+          ...exp,
+          tax_cents: taxCents,
+          total_cents: totalCents,
+          ...(rawExpCode ? { currency_code: rawExpCode } : {}),
+          ...(typeof rawExpDec === 'number' ? { currency_decimals: clampDecimals(rawExpDec) } : {}),
+          created_at: isNonEmptyString(exp.created_at) ? exp.created_at : fallbackTs,
+        };
+      });
+  }
+
+  let savedItems: any[] | undefined;
+  const rawSaved = Array.isArray(record.savedItems)
+    ? record.savedItems
+    : (Array.isArray(record.saved_items) ? record.saved_items : undefined);
+  if (rawSaved) {
+    savedItems = (rawSaved as Record<string, unknown>[])
+      .filter((item) => !item.deleted_at)
+      .map((item) => {
+        const sac = String(item.sacHsn ?? item.sac_hsn ?? '');
+        const price = Number(item.defaultPriceCents ?? item.default_price_cents ?? 0) || 0;
+        const rawItemCode = String(item.currency_code ?? item.currencyCode ?? '').trim().toUpperCase();
+        const rawItemDec = item.currency_decimals ?? item.currencyDecimals;
+        const itemDec = typeof rawItemDec === 'number' ? clampDecimals(rawItemDec) : undefined;
+        return {
+          ...item,
+          sacHsn: sac,
+          sac_hsn: sac,
+          defaultPriceCents: price,
+          default_price_cents: price,
+          ...(rawItemCode ? { currency_code: rawItemCode, currencyCode: rawItemCode } : {}),
+          ...(itemDec !== undefined ? { currency_decimals: itemDec, currencyDecimals: itemDec } : {}),
+        };
+      });
+  }
+
+  let businessProfile: any | undefined;
+  let rawProf: Record<string, unknown> | undefined;
+  if (record.businessProfile && typeof record.businessProfile === 'object' && !Array.isArray(record.businessProfile)) {
+    rawProf = record.businessProfile as Record<string, unknown>;
+  } else if (Array.isArray(record.business_profile) && record.business_profile.length > 0) {
+    const firstProf = record.business_profile[0];
+    if (firstProf && typeof firstProf === 'object' && !Array.isArray(firstProf)) {
+      rawProf = firstProf as Record<string, unknown>;
+    }
+  }
+  if (rawProf) {
+    businessProfile = {
+      ...rawProf,
+      invoice_prefix: isNonEmptyString(rawProf.invoice_prefix) ? rawProf.invoice_prefix.trim() : 'INV-',
+      estimate_prefix: isNonEmptyString(rawProf.estimate_prefix) ? rawProf.estimate_prefix.trim() : 'EST-',
+      next_invoice_number:
+        isStrictInteger(rawProf.next_invoice_number) && rawProf.next_invoice_number >= 1
+          ? rawProf.next_invoice_number
+          : 1,
+      payment_qr_payload: typeof rawProf.payment_qr_payload === 'string' ? rawProf.payment_qr_payload : '',
+    };
+  }
+
+  return {
+    clients,
+    invoices,
+    ...(estimates !== undefined ? { estimates } : {}),
+    ...(expenses !== undefined ? { expenses } : {}),
+    ...(savedItems !== undefined ? { savedItems } : {}),
+    ...(businessProfile !== undefined ? { businessProfile } : {}),
+  };
+}
+
+/**
+ * Validates parsed backup JSON snapshot (supporting both React Web JSON and Flutter SQLite JSON),
+ * enforcing column NOT NULL requirements and value types before mutating application state.
  */
 export function validateBackupPayload(data: unknown): {
   valid: boolean;
   error?: string;
+  normalized?: NormalizedBackupPayload;
 } {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     return {
@@ -1379,70 +1843,20 @@ export function validateBackupPayload(data: unknown): {
   for (const key of tableKeys) {
     const val = record[key];
     if (val === undefined) continue;
-    if (!Array.isArray(val)) {
-      return {
-        valid: false,
-        error: `Invalid backup file: "${key}" must be an array.`,
-      };
-    }
-    const rule = BACKUP_TABLE_RULES[key];
-    for (let i = 0; i < val.length; i++) {
-      const item = val[i];
-      if (!item || typeof item !== 'object' || Array.isArray(item)) {
-        return {
-          valid: false,
-          error: `Invalid backup file: Entries in "${key}" must be JSON objects.`,
-        };
-      }
-      const row = item as Record<string, unknown>;
+    const err = validateTableRows(key, val, BACKUP_TABLE_RULES[key]);
+    if (err) return { valid: false, error: err };
+  }
 
-      for (const col of rule.requiredNonEmptyStrings) {
-        if (!isNonEmptyString(row[col])) {
-          return {
-            valid: false,
-            error: `Invalid backup file: "${key}" row ${i + 1} missing required non-empty string "${col}".`,
-          };
-        }
-      }
+  if (record.saved_items !== undefined) {
+    const err = validateTableRows('saved_items', record.saved_items, BACKUP_TABLE_RULES.savedItems);
+    if (err) return { valid: false, error: err };
+  }
 
-      for (const col of rule.requiredInts) {
-        if (!isStrictInteger(row[col])) {
-          return {
-            valid: false,
-            error: `Invalid backup file: "${key}" row ${i + 1} requires integer value for "${col}".`,
-          };
-        }
-      }
-
-      if (key === 'savedItems') {
-        const hasSnake = row.default_price_cents !== undefined;
-        const hasCamel = row.defaultPriceCents !== undefined;
-        if (!hasSnake && !hasCamel) {
-          return {
-            valid: false,
-            error: `Invalid backup file: "savedItems" row ${i + 1} requires integer "default_price_cents".`,
-          };
-        }
-      }
-
-      for (const col of rule.optionalInts) {
-        if (row[col] !== undefined && row[col] !== null && !isStrictInteger(row[col])) {
-          return {
-            valid: false,
-            error: `Invalid backup file: "${key}" row ${i + 1} expected integer for "${col}".`,
-          };
-        }
-      }
-
-      for (const col of rule.optionalStrings) {
-        if (row[col] !== undefined && row[col] !== null && typeof row[col] !== 'string') {
-          return {
-            valid: false,
-            error: `Invalid backup file: "${key}" row ${i + 1} expected string for "${col}".`,
-          };
-        }
-      }
-    }
+  for (const childKey of ['invoice_items', 'estimate_items', 'payments'] as const) {
+    const val = record[childKey];
+    if (val === undefined) continue;
+    const err = validateTableRows(childKey, val, FLUTTER_CHILD_TABLE_RULES[childKey]);
+    if (err) return { valid: false, error: err };
   }
 
   if (record.businessProfile !== undefined) {
@@ -1456,35 +1870,54 @@ export function validateBackupPayload(data: unknown): {
         error: 'Invalid backup file: "businessProfile" must be a JSON object.',
       };
     }
-    const prof = record.businessProfile as Record<string, unknown>;
-    if (!isNonEmptyString(prof.business_name)) {
+    const profErr = validateProfileRecord(
+      record.businessProfile as Record<string, unknown>,
+      'businessProfile'
+    );
+    if (profErr) return { valid: false, error: profErr };
+  }
+
+  if (record.business_profile !== undefined) {
+    if (!Array.isArray(record.business_profile)) {
       return {
         valid: false,
-        error: 'Invalid backup file: "businessProfile" missing required non-empty "business_name".',
+        error: 'Invalid backup file: "business_profile" must be an array.',
       };
     }
-    for (const intCol of [
-      'currency_decimals',
-      'next_invoice_number',
-      'default_pst_rate_percentage',
-      'accent_color',
-    ]) {
-      if (prof[intCol] !== undefined && prof[intCol] !== null && !isStrictInteger(prof[intCol])) {
+    for (let i = 0; i < record.business_profile.length; i++) {
+      const entry = record.business_profile[i];
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
         return {
           valid: false,
-          error: `Invalid backup file: "businessProfile.${intCol}" must be an integer.`,
+          error: 'Invalid backup file: Entries in "business_profile" must be JSON objects.',
         };
       }
-    }
-    if (prof.theme_mode !== undefined && prof.theme_mode !== null && typeof prof.theme_mode !== 'string') {
-      return {
-        valid: false,
-        error: 'Invalid backup file: "businessProfile.theme_mode" must be a string.',
-      };
+      const profErr = validateProfileRecord(
+        entry as Record<string, unknown>,
+        `business_profile[${i}]`
+      );
+      if (profErr) return { valid: false, error: profErr };
     }
   }
 
-  return { valid: true };
+  return {
+    valid: true,
+    normalized: normalizeBackupPayloadForWeb(record),
+  };
+}
+
+/**
+ * Checks whether a client has linked invoices or estimates before deletion.
+ */
+export function hasLinkedClientDocuments(
+  clientId: string,
+  invoices: Array<{ client_id: string }>,
+  estimates: Array<{ client_id: string }>
+): boolean {
+  return (
+    invoices.some((inv) => inv.client_id === clientId) ||
+    estimates.some((est) => est.client_id === clientId)
+  );
 }
 
 /**
@@ -1614,31 +2047,107 @@ export function buildWhatsAppUrl(phone: string, message: string): string {
 }
 
 /**
- * Builds a mailto: URL, pre-filling recipient email when available.
+ * Builds a mailto: URL, pre-filling recipient email when available and omitting empty query parameters.
  */
 export function buildMailtoUrl(email: string, subject: string, body: string): string {
   const cleanEmail = email.trim();
-  return `mailto:${cleanEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const queryParts: string[] = [];
+  if (subject.trim()) queryParts.push(`subject=${encodeURIComponent(subject)}`);
+  if (body.trim()) queryParts.push(`body=${encodeURIComponent(body)}`);
+  const query = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+  return `mailto:${cleanEmail}${query}`;
 }
 
 /**
  * Builds an sms: URL for a normalized phone number, or null when phone is empty.
- * Applies Apple's '&body=' delimiter quirk when isIos is true.
+ * Applies Apple's '&body=' delimiter quirk when isApple is true (iOS/iPadOS/macOS).
  */
-export function buildSmsUrl(phone: string, body = '', isIos = false): string | null {
+export function buildSmsUrl(phone: string, body = '', isApple = false): string | null {
   const normalized = normalizePhoneForUri(phone);
   if (!normalized) return null;
   if (!body) return `sms:${normalized}`;
-  const delimiter = isIos ? '&' : '?';
+  const delimiter = isApple ? '&' : '?';
   return `sms:${normalized}${delimiter}body=${encodeURIComponent(body)}`;
+}
+
+/**
+ * Builds an smsto: fallback URL for Android OEM ROMs where primary sms: links fail.
+ */
+export function buildSmsFallbackUrl(phone: string, body = ''): string | null {
+  const normalized = normalizePhoneForUri(phone);
+  if (!normalized) return null;
+  if (!body) return `smsto:${normalized}`;
+  return `smsto:${normalized}?body=${encodeURIComponent(body)}`;
+}
+
+/**
+ * Builds a 1-tap clipboard bundle containing recipient contact, subject, and reminder body
+ * suitable for WeChat, Telegram, SMS, or manual email pasting.
+ */
+export function buildCopyEverythingReminderText(params: {
+  subject: string;
+  message: string;
+  clientName?: string;
+  clientEmail?: string;
+  phone?: string;
+}): string {
+  const lines: string[] = [];
+  const normalizedPhone = normalizePhoneForUri(params.phone || '');
+  const contactParts = [
+    params.clientName?.trim() || '',
+    params.clientEmail?.trim() || '',
+    normalizedPhone,
+  ].filter(Boolean);
+  if (contactParts.length > 0) {
+    lines.push(`To: ${contactParts.join(' • ')}`);
+  }
+  if (params.subject.trim()) {
+    lines.push(`Subject: ${params.subject.trim()}`);
+  }
+  if (lines.length > 0 && params.message.trim()) {
+    lines.push('');
+  }
+  if (params.message.trim()) {
+    lines.push(params.message.trim());
+  }
+  return lines.join('\n');
 }
 
 /**
  * Detects Apple mobile iOS/iPadOS user agents safely in browser environments.
  */
-export function isIosDevice(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  return /iPad|iPhone|iPod/i.test(navigator.userAgent || '');
+export function isIosDevice(userAgent?: string): boolean {
+  const ua = userAgent ?? (typeof navigator !== 'undefined' ? navigator.userAgent || '' : '');
+  return /iPad|iPhone|iPod/i.test(ua);
+}
+
+/**
+ * Detects Apple iOS, iPadOS, and macOS platforms for Apple's '&body=' SMS delimiter.
+ */
+export function isAppleDevice(userAgent?: string): boolean {
+  const ua = userAgent ?? (typeof navigator !== 'undefined' ? navigator.userAgent || '' : '');
+  return /iPad|iPhone|iPod|Macintosh|Mac OS X/i.test(ua);
+}
+
+/**
+ * Returns true if text contains Arabic or Hebrew RTL Unicode characters.
+ */
+export function containsRtlCharacters(text: string): boolean {
+  if (!text) return false;
+  for (const ch of text) {
+    const cp = ch.codePointAt(0);
+    if (cp === undefined) continue;
+    if (
+      (cp >= 0x0590 && cp <= 0x06ff) ||
+      (cp >= 0x0750 && cp <= 0x077f) ||
+      (cp >= 0x08a0 && cp <= 0x08ff) ||
+      (cp >= 0xfb50 && cp <= 0xfdff) ||
+      (cp >= 0xfe70 && cp <= 0xfeff)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -2184,4 +2693,56 @@ export function voidInvoiceRecord<T extends Record<string, any>>(source: T): T {
     computed_status: 'VOID',
     balance_due_cents: 0,
   };
+}
+
+export interface EditableLineItem {
+  id: string;
+  description: string;
+  sacHsn: string;
+  quantity: number;
+  unitPriceCents: number;
+  taxSlab: number;
+}
+
+/**
+ * Pure helper to update fields of a single line item by stable ID without
+ * shifting sibling row state or mutating integers inconsistently.
+ */
+export function updateLineItemRecord<T extends EditableLineItem>(
+  items: T[],
+  id: string,
+  patch: Partial<EditableLineItem>
+): T[] {
+  return items.map((item) => {
+    if (item.id !== id) return item;
+    const nextQty =
+      patch.quantity !== undefined
+        ? Math.max(1, Math.trunc(Number(patch.quantity) || 1))
+        : item.quantity;
+    const nextPrice =
+      patch.unitPriceCents !== undefined
+        ? Math.max(0, Math.trunc(Number(patch.unitPriceCents) || 0))
+        : item.unitPriceCents;
+    const nextTax =
+      patch.taxSlab !== undefined
+        ? Math.max(0, Math.min(100, Math.trunc(Number(patch.taxSlab) || 0)))
+        : item.taxSlab;
+    return {
+      ...item,
+      ...patch,
+      quantity: nextQty,
+      unitPriceCents: nextPrice,
+      taxSlab: nextTax,
+    };
+  });
+}
+
+/**
+ * Removes a line item by stable ID while preserving the identities and order of all other rows.
+ */
+export function removeLineItemById<T extends { id: string }>(
+  items: T[],
+  id: string
+): T[] {
+  return items.filter((item) => item.id !== id);
 }

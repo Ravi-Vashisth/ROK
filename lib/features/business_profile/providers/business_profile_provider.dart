@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqlite3/sqlite3.dart';
 
@@ -38,10 +39,13 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
       if (result.isNotEmpty) {
         state = BusinessProfile.fromRow(result.first);
       }
-    } catch (_) {
-      // Fallback if table initializing
+    } catch (e, stackTrace) {
+      debugPrint('Failed to load business_profile: $e\n$stackTrace');
+      rethrow;
     }
   }
+
+  void refresh() => _loadProfile();
 
   void updateProfile({
     required String businessName,
@@ -60,7 +64,28 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
     String signatureLabel = 'Authorized Signatory',
     String defaultTaxMode = 'standard',
     int defaultPstRatePercentage = 0,
+    String? invoicePrefix,
+    String? estimatePrefix,
+    int? nextInvoiceNumber,
+    String? paymentQrPayload,
   }) {
+    final trimmedInvPrefix = invoicePrefix?.trim();
+    final resolvedInvPrefix = trimmedInvPrefix == null
+        ? state.invoicePrefix
+        : (trimmedInvPrefix.isNotEmpty ? trimmedInvPrefix : 'INV-');
+
+    final trimmedEstPrefix = estimatePrefix?.trim();
+    final resolvedEstPrefix = trimmedEstPrefix == null
+        ? state.estimatePrefix
+        : (trimmedEstPrefix.isNotEmpty ? trimmedEstPrefix : 'EST-');
+
+    final resolvedNextNumber = nextInvoiceNumber == null
+        ? state.nextInvoiceNumber
+        : (nextInvoiceNumber < 1 ? 1 : nextInvoiceNumber);
+
+    final resolvedQrPayload =
+        paymentQrPayload == null ? state.paymentQrPayload : paymentQrPayload.trim();
+
     final updatedAt = DateTime.now().toUtc().toIso8601String();
     _db.execute(
       '''
@@ -81,6 +106,10 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
           signature_label = ?,
           default_tax_mode = ?,
           default_pst_rate_percentage = ?,
+          invoice_prefix = ?,
+          estimate_prefix = ?,
+          next_invoice_number = ?,
+          payment_qr_payload = ?,
           updated_at = ?
       WHERE id = 'default';
       ''',
@@ -101,6 +130,10 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
         signatureLabel,
         defaultTaxMode,
         defaultPstRatePercentage,
+        resolvedInvPrefix,
+        resolvedEstPrefix,
+        resolvedNextNumber,
+        resolvedQrPayload,
         updatedAt,
       ],
     );
@@ -122,6 +155,10 @@ class BusinessProfileNotifier extends StateNotifier<BusinessProfile> {
       signatureLabel: signatureLabel,
       defaultTaxMode: defaultTaxMode,
       defaultPstRatePercentage: defaultPstRatePercentage,
+      invoicePrefix: resolvedInvPrefix,
+      estimatePrefix: resolvedEstPrefix,
+      nextInvoiceNumber: resolvedNextNumber,
+      paymentQrPayload: resolvedQrPayload,
     );
   }
 }

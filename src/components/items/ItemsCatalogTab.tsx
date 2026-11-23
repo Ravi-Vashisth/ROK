@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Plus, Trash2, Edit2, ArrowLeft, Check } from 'lucide-react';
-import { formatDecimalUnits, getCurrencyDecimals, parsePriceToUnits } from '../../billingRules';
+import {
+  formatDecimalUnits,
+  formatMoney as formatMoneyUnits,
+  getCurrencyDecimals,
+  parsePriceToUnits,
+  resolveEffectiveCurrency,
+} from '../../billingRules';
 
 interface ItemsCatalogTabProps {
   savedItems: any[];
   isDarkMode: boolean;
+  currencyCode?: string;
   currencySymbol: string;
+  currencyDecimals?: number;
   formatMoney: (cents: number) => string;
   parsePriceToCents: (val: string) => number;
   onBack: () => void;
@@ -17,9 +25,11 @@ interface ItemsCatalogTabProps {
 export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
   savedItems,
   isDarkMode,
+  currencyCode,
   currencySymbol,
-  formatMoney,
-  parsePriceToCents,
+  currencyDecimals,
+  formatMoney: _formatMoney,
+  parsePriceToCents: _parsePriceToCents,
   onBack,
   onAddItem,
   onUpdateItem,
@@ -37,7 +47,10 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
   const [editSacHsn, setEditSacHsn] = useState<string>('');
   const [editDescription, setEditDescription] = useState<string>('');
 
-  const curDec = getCurrencyDecimals(currencySymbol);
+  const effectiveDefaultCode =
+    (currencyCode || '').trim().toUpperCase() ||
+    (currencySymbol.trim() === '₹' ? 'INR' : 'USD');
+  const curDec = currencyDecimals ?? getCurrencyDecimals(effectiveDefaultCode);
 
   useEffect(() => {
     if (!editingItem) return;
@@ -50,6 +63,18 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [editingItem]);
 
+  const resolveItemCurrency = (item: any) => {
+    const recCode = item?.currency_code ?? item?.currencyCode ?? '';
+    const recDec = item?.currency_decimals ?? item?.currencyDecimals;
+    return resolveEffectiveCurrency({
+      recordCode: recCode,
+      recordDecimals: String(recCode).trim() ? recDec : undefined,
+      defaultCode: effectiveDefaultCode,
+      defaultSymbol: currencySymbol,
+      defaultDecimals: curDec,
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
@@ -59,6 +84,8 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
       default_price_cents: cents,
       sac_hsn: sacHsn.trim(),
       description: description.trim(),
+      currency_code: effectiveDefaultCode,
+      currency_decimals: curDec,
     });
     setTitle('');
     setPriceStr('');
@@ -67,24 +94,28 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
   };
 
   const handleOpenEdit = (item: any) => {
+    const itemCur = resolveItemCurrency(item);
     setEditingItem(item);
     setEditTitle(item.title || '');
     setEditSacHsn(item.sac_hsn || item.sacHsn || '');
     const priceCents = item.default_price_cents ?? item.defaultPriceCents ?? 0;
-    setEditPriceStr(formatDecimalUnits(priceCents, curDec));
+    setEditPriceStr(formatDecimalUnits(priceCents, itemCur.decimals));
     setEditDescription(item.description || '');
   };
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem || !editTitle.trim()) return;
-    const cents = parsePriceToUnits(editPriceStr, curDec);
+    const itemCur = resolveItemCurrency(editingItem);
+    const cents = parsePriceToUnits(editPriceStr, itemCur.decimals);
     if (onUpdateItem) {
       onUpdateItem(editingItem.id, {
         title: editTitle.trim(),
         default_price_cents: cents,
         sac_hsn: editSacHsn.trim(),
         description: editDescription.trim(),
+        currency_code: itemCur.code,
+        currency_decimals: itemCur.decimals,
       });
     }
     setEditingItem(null);
@@ -173,7 +204,16 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
                   </td>
                 </tr>
               ) : (
-                savedItems.map((item) => (
+                savedItems.map((item) => {
+                  const itemCur = resolveItemCurrency(item);
+                  const isForeign = itemCur.code !== effectiveDefaultCode;
+                  const formattedPrice = formatMoneyUnits(
+                    item.default_price_cents ?? item.defaultPriceCents ?? 0,
+                    itemCur.symbol,
+                    itemCur.decimals,
+                    itemCur.code
+                  );
+                  return (
                   <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition">
                     <td className="p-3 font-bold text-slate-800 dark:text-slate-100">
                       <div className="flex items-center gap-2">
@@ -190,7 +230,12 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
                       {item.sac_hsn || item.sacHsn || '—'}
                     </td>
                     <td className="p-3 text-right font-mono tabular-nums font-bold accent-text whitespace-nowrap">
-                      {formatMoney(item.default_price_cents ?? item.defaultPriceCents ?? 0)}
+                      <span>{formattedPrice}</span>
+                      {isForeign && (
+                        <span className="ml-1.5 text-[10px] font-bold text-slate-400">
+                          {itemCur.code}
+                        </span>
+                      )}
                     </td>
                     <td className="p-3 text-center">
                       <div className="flex items-center justify-center gap-1.5">
@@ -211,7 +256,8 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -219,7 +265,9 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
       </div>
 
       {/* Edit Item Modal */}
-      {editingItem && (
+      {editingItem && (() => {
+        const editingCur = resolveItemCurrency(editingItem);
+        return (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50"
           onClick={(e) => {
@@ -233,7 +281,7 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
             aria-modal="true"
             className={`w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border p-6 space-y-4 ${isDarkMode ? 'bg-[#0F172A] border-slate-800' : 'bg-white border-slate-200'}`}
           >
-            <h3 className="font-bold text-sm">Edit Catalog Item</h3>
+            <h3 className="font-bold text-sm">Edit Catalog Item ({editingCur.code})</h3>
             <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
               <div>
                 <label className="block font-bold text-slate-500 mb-1">Item / Service Title *</label>
@@ -256,7 +304,7 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
                 />
               </div>
               <div>
-                <label className="block font-bold text-slate-500 mb-1">Default Unit Price ({currencySymbol}) *</label>
+                <label className="block font-bold text-slate-500 mb-1">Default Unit Price ({editingCur.symbol}) *</label>
                 <input
                   type="text"
                   value={editPriceStr}
@@ -293,7 +341,8 @@ export const ItemsCatalogTab: React.FC<ItemsCatalogTabProps> = ({
             </form>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

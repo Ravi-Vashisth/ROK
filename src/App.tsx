@@ -11,6 +11,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import {
+  MAX_BACKUP_SIZE_BYTES,
   TaxMode,
   calculateDueDate,
   duplicateInvoiceRecord,
@@ -22,12 +23,23 @@ import {
   generateUniqueId,
   getCurrencyDecimals,
   getNextSequentialDocNumber,
+  hasLinkedClientDocuments,
   isQuotaExceededError,
   normalizeAccentColorKey,
   parsePriceToCents,
   validateBackupPayload,
   voidInvoiceRecord,
 } from './billingRules';
+import {
+  clearAllMedia,
+  deleteMedia,
+  extractMediaKey,
+  getAllMedia,
+  getMedia,
+  isMediaPointer,
+  makeMediaPointer,
+  putMedia,
+} from './mediaStore';
 
 import { DashboardTab } from './components/dashboard/DashboardTab';
 import { SalesTab } from './components/billing/SalesTab';
@@ -121,6 +133,8 @@ export interface ExpenseRecord {
   notes?: string;
   receipt_base64?: string;
   receipt_name?: string;
+  currency_code?: string;
+  currency_decimals?: number;
   created_at: string;
 }
 
@@ -132,6 +146,10 @@ export interface StoredItem {
   sacHsn?: string;
   sac_hsn?: string;
   description?: string;
+  currency_code?: string;
+  currency_decimals?: number;
+  currencyCode?: string;
+  currencyDecimals?: number;
 }
 
 export const App: React.FC = () => {
@@ -244,8 +262,12 @@ export const App: React.FC = () => {
     ])
   );
 
-  const [businessProfile, setBusinessProfile] = useState<any>(() =>
-    readFromStorage<any>('freelance_business_profile', {
+  const [businessProfile, setBusinessProfile] = useState<any>(() => ({
+    invoice_prefix: 'INV-',
+    estimate_prefix: 'EST-',
+    next_invoice_number: 1,
+    payment_qr_payload: '',
+    ...readFromStorage<any>('freelance_business_profile', {
       business_name: 'My Freelance Studio',
       email: 'billing@studio.com',
       phone: '+1 (555) 019-2834',
@@ -258,8 +280,40 @@ export const App: React.FC = () => {
       payment_details: 'Bank: Silicon Valley Bank\nAccount: 987654321098\nRouting / SWIFT: SVB12345',
       default_terms: 'Payment due within agreed terms. Thank you for your business!',
       default_notes: 'All work includes 30 days post-delivery support.',
-    })
-  );
+    }),
+  }));
+
+  // Hydrate offloaded base64 media blobs from IndexedDB into memory on startup
+  useEffect(() => {
+    let cancelled = false;
+    getAllMedia().then((mediaMap) => {
+      if (cancelled || Object.keys(mediaMap).length === 0) return;
+      setBusinessProfile((prev: any) => {
+        const nextLogo = isMediaPointer(prev.logo_base64)
+          ? (mediaMap[extractMediaKey(prev.logo_base64)] ?? prev.logo_base64)
+          : prev.logo_base64;
+        const nextSig = isMediaPointer(prev.signature_base64)
+          ? (mediaMap[extractMediaKey(prev.signature_base64)] ?? prev.signature_base64)
+          : prev.signature_base64;
+        if (nextLogo === prev.logo_base64 && nextSig === prev.signature_base64) return prev;
+        return { ...prev, logo_base64: nextLogo, signature_base64: nextSig };
+      });
+      setExpenses((prev) => {
+        let changed = false;
+        const next = prev.map((exp) => {
+          if (!isMediaPointer(exp.receipt_base64)) return exp;
+          const resolved = mediaMap[extractMediaKey(exp.receipt_base64)];
+          if (!resolved) return exp;
+          changed = true;
+          return { ...exp, receipt_base64: resolved };
+        });
+        return changed ? next : prev;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // LocalStorage Sync Effects
   useEffect(() => {
@@ -280,16 +334,54 @@ export const App: React.FC = () => {
   useEffect(() => { persistToStorage('freelance_clients', clients); }, [clients]);
   useEffect(() => { persistToStorage('freelance_invoices', invoices); }, [invoices]);
   useEffect(() => { persistToStorage('freelance_estimates', estimates); }, [estimates]);
-  useEffect(() => { persistToStorage('freelance_expenses', expenses); }, [expenses]);
+  useEffect(() => {
+    if (typeof indexedDB === 'undefined') {
+      persistToStorage('freelance_expenses', expenses);
+      return;
+    }
+    const stripped = expenses.map((exp) => {
+      const key = `expense:${exp.id}`;
+      const raw = exp.receipt_base64;
+      if (!raw) {
+        void deleteMedia(key);
+        return exp;
+      }
+      if (isMediaPointer(raw)) return exp;
+      void putMedia(key, raw);
+      return { ...exp, receipt_base64: makeMediaPointer(key) };
+    });
+    persistToStorage('freelance_expenses', stripped);
+  }, [expenses]);
   useEffect(() => { persistToStorage('freelance_saved_items', savedItems); }, [savedItems]);
-  useEffect(() => { persistToStorage('freelance_business_profile', businessProfile); }, [businessProfile]);
+  useEffect(() => {
+    if (typeof indexedDB === 'undefined') {
+      persistToStorage('freelance_business_profile', businessProfile);
+      return;
+    }
+    const offloadField = (val: unknown, key: string): unknown => {
+      if (typeof val !== 'string' || !val) {
+        void deleteMedia(key);
+        return val;
+      }
+      if (isMediaPointer(val)) return val;
+      void putMedia(key, val);
+      return makeMediaPointer(key);
+    };
+    const stripped = {
+      ...businessProfile,
+      logo_base64: offloadField(businessProfile.logo_base64, 'profile:logo'),
+      signature_base64: offloadField(businessProfile.signature_base64, 'profile:signature'),
+    };
+    persistToStorage('freelance_business_profile', stripped);
+  }, [businessProfile]);
 
   const sym = businessProfile.currency_symbol || '$';
   const curDec =
     businessProfile.currency_decimals ??
     getCurrencyDecimals(businessProfile.currency_code || sym);
 
-  const formatMoney = (units: number) => formatMoneyUnits(units, sym, curDec);
+  const formatMoney = (units: number) =>
+    formatMoneyUnits(units, sym, curDec, businessProfile.currency_code || 'USD');
 
   // State Handlers
   const handleCreateInvoice = () => {
@@ -321,8 +413,8 @@ export const App: React.FC = () => {
   };
 
   const handleSaveDocFromEditor = (docData: any) => {
-    const invPrefix = businessProfile.invoice_prefix || 'INV-';
-    const estPrefix = businessProfile.estimate_prefix || 'EST-';
+    const invPrefix = (businessProfile.invoice_prefix || '').trim() || 'INV-';
+    const estPrefix = (businessProfile.estimate_prefix || '').trim() || 'EST-';
     const invMinNext = Math.max(1, Number(businessProfile.next_invoice_number) || 1);
 
     const syncProfileNextInvoiceNumber = (issuedNum: string) => {
@@ -545,7 +637,7 @@ export const App: React.FC = () => {
   };
 
   const handleFinalizeInvoice = (inv: InvoiceRecord) => {
-    const invPrefix = businessProfile.invoice_prefix || 'INV-';
+    const invPrefix = (businessProfile.invoice_prefix || '').trim() || 'INV-';
     const invMinNext = Math.max(1, Number(businessProfile.next_invoice_number) || 1);
     let issuedNum: string | null = null;
     setInvoices((prev) =>
@@ -573,7 +665,7 @@ export const App: React.FC = () => {
   };
 
   const handleDuplicateInvoice = (inv: InvoiceRecord) => {
-    const invPrefix = businessProfile.invoice_prefix || 'INV-';
+    const invPrefix = (businessProfile.invoice_prefix || '').trim() || 'INV-';
     const invMinNext = Math.max(1, Number(businessProfile.next_invoice_number) || 1);
     const duplicated = duplicateInvoiceRecord(inv, invoices, invPrefix, invMinNext);
     setInvoices((prev) => [duplicated, ...prev]);
@@ -604,7 +696,7 @@ export const App: React.FC = () => {
   };
 
   const handleFinalizeEstimate = (est: StoredEstimateRecord) => {
-    const estPrefix = businessProfile.estimate_prefix || 'EST-';
+    const estPrefix = (businessProfile.estimate_prefix || '').trim() || 'EST-';
     setEstimates((prev) =>
       prev.map((e) => {
         if (e.id !== est.id) return e;
@@ -622,7 +714,7 @@ export const App: React.FC = () => {
 
   const handleConvertEstimate = (est: StoredEstimateRecord) => {
     const todayIso = formatLocalCalendarDate();
-    const invPrefix = businessProfile.invoice_prefix || 'INV-';
+    const invPrefix = (businessProfile.invoice_prefix || '').trim() || 'INV-';
     const invMinNext = Math.max(1, Number(businessProfile.next_invoice_number) || 1);
     const nextInvNum = getNextSequentialDocNumber(
       invoices.map((x) => x.invoice_number),
@@ -704,6 +796,8 @@ export const App: React.FC = () => {
     notes: string;
     receipt_base64: string;
     receipt_name: string;
+    currency_code?: string;
+    currency_decimals?: number;
   }) => {
     if (expData.id) {
       setExpenses((prev) =>
@@ -720,6 +814,8 @@ export const App: React.FC = () => {
                 notes: expData.notes,
                 receipt_base64: expData.receipt_base64,
                 receipt_name: expData.receipt_name,
+                currency_code: expData.currency_code || e.currency_code || businessProfile.currency_code || 'USD',
+                currency_decimals: expData.currency_decimals ?? e.currency_decimals ?? curDec,
               }
             : e
         )
@@ -739,6 +835,8 @@ export const App: React.FC = () => {
       notes: expData.notes,
       receipt_base64: expData.receipt_base64,
       receipt_name: expData.receipt_name,
+      currency_code: expData.currency_code || businessProfile.currency_code || 'USD',
+      currency_decimals: expData.currency_decimals ?? curDec,
       created_at: new Date().toISOString(),
     };
     setExpenses((prev) => [newExp, ...prev]);
@@ -752,6 +850,7 @@ export const App: React.FC = () => {
       confirmLabel: 'Delete Expense',
       isDestructive: true,
       onConfirm: () => {
+        void deleteMedia(`expense:${exp.id}`);
         setExpenses((prev) => prev.filter((e) => e.id !== exp.id));
         setConfirmState(null);
         showToast(`Deleted expense for ${exp.vendor}.`);
@@ -790,10 +889,9 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteClient = (client: Client) => {
-    const hasInvoices = invoices.some((i) => i.client_id === client.id);
-    if (hasInvoices) {
+    if (hasLinkedClientDocuments(client.id, invoices, estimates)) {
       showToast(
-        `Cannot delete client "${client.name}" because active invoices exist for this client.`,
+        `Cannot delete client "${client.name}" because active invoices or estimates exist for this client.`,
         true
       );
       return;
@@ -812,31 +910,44 @@ export const App: React.FC = () => {
   };
 
   const handleAddItem = (iData: any) => {
-    const newI = {
+    const itemCode = iData.currency_code || businessProfile.currency_code || 'USD';
+    const itemDec = iData.currency_decimals ?? curDec;
+    const newI: StoredItem = {
       id: generateUniqueId(),
       title: iData.title,
       defaultPriceCents: iData.default_price_cents,
+      default_price_cents: iData.default_price_cents,
       sacHsn: iData.sac_hsn || '',
+      sac_hsn: iData.sac_hsn || '',
       description: iData.description || '',
+      currency_code: itemCode,
+      currencyCode: itemCode,
+      currency_decimals: itemDec,
+      currencyDecimals: itemDec,
     };
     setSavedItems((prev) => [...prev, newI]);
   };
 
   const handleUpdateItem = (id: string, updatedData: any) => {
     setSavedItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              title: updatedData.title,
-              defaultPriceCents: updatedData.default_price_cents,
-              default_price_cents: updatedData.default_price_cents,
-              sacHsn: updatedData.sac_hsn,
-              sac_hsn: updatedData.sac_hsn,
-              description: updatedData.description,
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const itemCode = updatedData.currency_code || item.currency_code || item.currencyCode || businessProfile.currency_code || 'USD';
+        const itemDec = updatedData.currency_decimals ?? item.currency_decimals ?? item.currencyDecimals ?? curDec;
+        return {
+          ...item,
+          title: updatedData.title,
+          defaultPriceCents: updatedData.default_price_cents,
+          default_price_cents: updatedData.default_price_cents,
+          sacHsn: updatedData.sac_hsn,
+          sac_hsn: updatedData.sac_hsn,
+          description: updatedData.description,
+          currency_code: itemCode,
+          currencyCode: itemCode,
+          currency_decimals: itemDec,
+          currencyDecimals: itemDec,
+        };
+      })
     );
   };
 
@@ -854,14 +965,35 @@ export const App: React.FC = () => {
     });
   };
 
-  const handleExportDatabase = () => {
+  const handleExportDatabase = async () => {
+    const resolvePtr = async (val: unknown): Promise<unknown> => {
+      if (!isMediaPointer(val)) return val;
+      return (await getMedia(extractMediaKey(val))) ?? '';
+    };
+    const resolvedExpenses = await Promise.all(
+      expenses.map(async (exp) => ({
+        ...exp,
+        receipt_base64: exp.receipt_base64
+          ? String(await resolvePtr(exp.receipt_base64))
+          : exp.receipt_base64,
+      }))
+    );
+    const resolvedProfile = {
+      ...businessProfile,
+      logo_base64: businessProfile.logo_base64
+        ? await resolvePtr(businessProfile.logo_base64)
+        : businessProfile.logo_base64,
+      signature_base64: businessProfile.signature_base64
+        ? await resolvePtr(businessProfile.signature_base64)
+        : businessProfile.signature_base64,
+    };
     const backupData = {
       clients,
       invoices,
       estimates,
-      expenses,
+      expenses: resolvedExpenses,
       savedItems,
-      businessProfile,
+      businessProfile: resolvedProfile,
       version: 1,
       exported_at: new Date().toISOString(),
     };
@@ -879,21 +1011,36 @@ export const App: React.FC = () => {
   };
 
   const handleRestoreDatabase = (file: File) => {
+    if (file.size > MAX_BACKUP_SIZE_BYTES) {
+      showToast('Backup file exceeds maximum supported size (50 MB).', true);
+      return;
+    }
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = JSON.parse(e.target?.result as string);
         const validation = validateBackupPayload(data);
-        if (!validation.valid) {
+        if (!validation.valid || !validation.normalized) {
           showToast(validation.error || 'Invalid database backup file.', true);
           return;
         }
-        setClients(data.clients);
-        setInvoices(data.invoices);
-        if (data.estimates) setEstimates(data.estimates);
-        if (data.expenses) setExpenses(data.expenses);
-        if (data.savedItems) setSavedItems(data.savedItems);
-        if (data.businessProfile) setBusinessProfile(data.businessProfile);
+        const restored = validation.normalized;
+        if (restored.expenses && restored.businessProfile) {
+          await clearAllMedia();
+        } else {
+          if (restored.expenses) {
+            await Promise.all(expenses.map((ex) => deleteMedia(`expense:${ex.id}`)));
+          }
+          if (restored.businessProfile) {
+            await Promise.all([deleteMedia('profile:logo'), deleteMedia('profile:signature')]);
+          }
+        }
+        setClients(restored.clients);
+        setInvoices(restored.invoices);
+        if (restored.estimates) setEstimates(restored.estimates);
+        if (restored.expenses) setExpenses(restored.expenses);
+        if (restored.savedItems) setSavedItems(restored.savedItems);
+        if (restored.businessProfile) setBusinessProfile(restored.businessProfile);
         showToast('Database restored successfully from backup JSON.');
       } catch (_) {
         showToast('Invalid database backup file: Unable to parse JSON.', true);
@@ -1073,11 +1220,11 @@ export const App: React.FC = () => {
                 editorMode === 'estimate'
                   ? getNextSequentialDocNumber(
                       estimates.map((e) => e.estimate_number),
-                      businessProfile.estimate_prefix || 'EST-'
+                      (businessProfile.estimate_prefix || '').trim() || 'EST-'
                     )
                   : getNextSequentialDocNumber(
                       invoices.map((i) => i.invoice_number),
-                      businessProfile.invoice_prefix || 'INV-',
+                      (businessProfile.invoice_prefix || '').trim() || 'INV-',
                       Math.max(1, Number(businessProfile.next_invoice_number) || 1)
                     )
               }
@@ -1147,6 +1294,9 @@ export const App: React.FC = () => {
             <ExpensesTab
               expenses={expenses}
               isDarkMode={isDarkMode}
+              currencyCode={businessProfile.currency_code || 'USD'}
+              currencySymbol={sym}
+              currencyDecimals={curDec}
               formatMoney={formatMoney}
               onAddExpense={handleAddExpense}
               onEditExpense={handleEditExpense}
@@ -1157,6 +1307,7 @@ export const App: React.FC = () => {
               isDarkMode={isDarkMode}
               businessProfile={businessProfile}
               savedItems={savedItems}
+              currencyCode={businessProfile.currency_code || 'USD'}
               currencySymbol={sym}
               formatMoney={formatMoney}
               parsePriceToCents={parsePriceToCents}
@@ -1271,7 +1422,7 @@ export const App: React.FC = () => {
                   URL.revokeObjectURL(url);
                   setIsCsvModalOpen(false);
                 }}
-                className="w-full p-3 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-xs rounded-xl flex items-center justify-between transition cursor-pointer"
+                className="w-full p-3 accent-soft-btn border font-bold text-xs rounded-xl flex items-center justify-between transition cursor-pointer"
               >
                 <div className="text-left">
                   <div>Expenses CSV ({expenses.length})</div>
@@ -1314,6 +1465,7 @@ export const App: React.FC = () => {
       <ExpenseDrawerModal
         isOpen={isExpenseModalOpen}
         isDarkMode={isDarkMode}
+        currencyCode={businessProfile.currency_code || 'USD'}
         currencySymbol={sym}
         currencyDecimals={curDec}
         initialExpense={editingExpense}

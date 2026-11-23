@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, Plus, Search, Trash2, Edit2, Paperclip, X, FileText } from 'lucide-react';
+import {
+  calculateDashboardMetrics,
+  formatMoney as formatMoneyUnits,
+  formatMultiCurrencyAmounts,
+  getCurrencyDecimals,
+  resolveEffectiveCurrency,
+} from '../../billingRules';
 
 interface ExpensesTabProps {
   expenses: any[];
   isDarkMode: boolean;
+  currencyCode?: string;
+  currencySymbol?: string;
+  currencyDecimals?: number;
   formatMoney: (cents: number) => string;
   onAddExpense: () => void;
   onEditExpense: (expense: any) => void;
@@ -13,7 +23,10 @@ interface ExpensesTabProps {
 export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   expenses,
   isDarkMode,
-  formatMoney,
+  currencyCode = 'USD',
+  currencySymbol = '$',
+  currencyDecimals,
+  formatMoney: _formatMoney,
   onAddExpense,
   onEditExpense,
   onDeleteExpense,
@@ -21,6 +34,13 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [previewExpense, setPreviewExpense] = useState<any | null>(null);
+  const LEDGER_THRESHOLD = 60;
+  const LEDGER_PAGE_SIZE = 50;
+  const [visibleCount, setVisibleCount] = useState<number>(LEDGER_PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(LEDGER_PAGE_SIZE);
+  }, [searchQuery, categoryFilter]);
 
   useEffect(() => {
     if (!previewExpense) return;
@@ -58,7 +78,28 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
     return true;
   });
 
-  const totalExpenseCents = filteredExpenses.reduce((sum, exp) => sum + (exp.total_cents || 0), 0);
+  const defaultDecimals =
+    currencyDecimals ?? getCurrencyDecimals(currencyCode || currencySymbol);
+  const filteredSummary = calculateDashboardMetrics([], filteredExpenses, undefined, {
+    code: currencyCode,
+    symbol: currencySymbol,
+    decimals: defaultDecimals,
+  });
+  const totalExpensesLabel = formatMultiCurrencyAmounts(
+    filteredSummary.byCurrency.map((b) => ({
+      code: b.currencyCode,
+      symbol: b.currencySymbol,
+      decimals: b.currencyDecimals,
+      amountUnits: b.totalExpenseGrossCents,
+    })),
+    formatMoneyUnits(0, currencySymbol, defaultDecimals, currencyCode)
+  );
+
+  const shouldPaginate = filteredExpenses.length > LEDGER_THRESHOLD;
+  const displayedExpenses = shouldPaginate
+    ? filteredExpenses.slice(0, visibleCount)
+    : filteredExpenses;
+  const remainingExpenses = filteredExpenses.length - displayedExpenses.length;
 
   return (
     <div className="space-y-6">
@@ -92,7 +133,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
             />
           </div>
           <div className="text-xs font-bold font-mono tabular-nums px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300 shrink-0 text-center min-[900px]:text-left">
-            Total: {formatMoney(totalExpenseCents)}
+            Total: {totalExpensesLabel}
           </div>
         </div>
 
@@ -140,11 +181,29 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDarkMode ? 'divide-slate-800' : 'divide-slate-100'}`}>
-                {filteredExpenses.map((exp) => (
+                {displayedExpenses.map((exp) => {
+                  const recCode = exp.currency_code ?? exp.currencyCode ?? '';
+                  const recDec = exp.currency_decimals ?? exp.currencyDecimals;
+                  const resolved = resolveEffectiveCurrency({
+                    recordCode: recCode,
+                    recordDecimals: String(recCode).trim() ? recDec : undefined,
+                    defaultCode: currencyCode,
+                    defaultSymbol: currencySymbol,
+                    defaultDecimals,
+                  });
+                  const isForeign = resolved.code !== (currencyCode || 'USD').trim().toUpperCase();
+                  const fmtExp = (units: number) =>
+                    formatMoneyUnits(units, resolved.symbol, resolved.decimals, resolved.code);
+                  return (
                   <tr key={exp.id} className="accent-hover-row transition">
                     <td className="p-3.5 font-bold">
                       <div className="flex flex-wrap items-center gap-2">
                         <span>{exp.vendor}</span>
+                        {isForeign && (
+                          <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 text-[10px] font-bold">
+                            {resolved.code}
+                          </span>
+                        )}
                         {exp.receipt_base64 && (
                           <button
                             type="button"
@@ -165,9 +224,9 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                     </td>
                     <td className="p-3.5 text-slate-500">{exp.category}</td>
                     <td className="p-3.5 text-slate-500">{exp.expense_date}</td>
-                    <td className="p-3.5 text-right font-mono tabular-nums whitespace-nowrap">{formatMoney(exp.amount_cents)}</td>
-                    <td className="p-3.5 text-right font-mono tabular-nums text-slate-400 whitespace-nowrap">{formatMoney(exp.tax_cents || 0)}</td>
-                    <td className="p-3.5 text-right font-mono tabular-nums font-bold text-rose-600 whitespace-nowrap">-{formatMoney(exp.total_cents)}</td>
+                    <td className="p-3.5 text-right font-mono tabular-nums whitespace-nowrap">{fmtExp(exp.amount_cents)}</td>
+                    <td className="p-3.5 text-right font-mono tabular-nums text-slate-400 whitespace-nowrap">{fmtExp(exp.tax_cents || 0)}</td>
+                    <td className="p-3.5 text-right font-mono tabular-nums font-bold text-rose-600 whitespace-nowrap">-{fmtExp(exp.total_cents)}</td>
                     <td className="p-3.5 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-1.5">
                         <button
@@ -193,10 +252,29 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
+          {shouldPaginate && remainingExpenses > 0 && (
+            <div className={`px-4 py-3 border-t flex flex-wrap items-center justify-between gap-2 text-xs ${isDarkMode ? 'border-slate-800 bg-slate-900/40 text-slate-400' : 'border-slate-100 bg-slate-50 text-slate-600'}`}>
+              <span>
+                Showing {displayedExpenses.length} of {filteredExpenses.length} expenses
+              </span>
+              <button
+                type="button"
+                onClick={() => setVisibleCount((prev) => prev + LEDGER_PAGE_SIZE)}
+                className={`px-3 py-1.5 rounded-xl border font-bold text-xs transition cursor-pointer ${
+                  isDarkMode
+                    ? 'border-slate-700 hover:bg-slate-800 text-slate-200'
+                    : 'border-slate-300 hover:bg-white text-slate-700'
+                }`}
+              >
+                Show {Math.min(LEDGER_PAGE_SIZE, remainingExpenses)} more ({remainingExpenses} remaining)
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -236,7 +314,9 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
               </button>
             </div>
 
-            {previewExpense.receipt_base64?.startsWith('data:image') ? (
+            {previewExpense.receipt_base64?.startsWith('idb://') ? (
+              <p className="text-xs text-slate-400">Loading receipt preview from local storage...</p>
+            ) : previewExpense.receipt_base64?.startsWith('data:image') ? (
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-2">
                 <img
                   src={previewExpense.receipt_base64}

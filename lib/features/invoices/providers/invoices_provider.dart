@@ -5,6 +5,7 @@ import 'package:billing_app/core/database/database_provider.dart';
 import 'package:billing_app/core/utils/id_generator.dart';
 import 'package:billing_app/core/utils/money_utils.dart';
 import 'package:billing_app/core/utils/tax_compliance_utils.dart';
+import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
 import 'package:billing_app/features/payments/models/payment_record.dart';
 import 'package:billing_app/features/invoices/models/invoice_item.dart';
 import 'package:billing_app/features/invoices/models/invoice_record.dart';
@@ -32,8 +33,9 @@ class DraftItem {
 
 class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
   final Database _db;
+  final Ref? _ref;
 
-  InvoicesNotifier(this._db) : super([]) {
+  InvoicesNotifier(this._db, [this._ref]) : super([]) {
     loadInvoices();
   }
 
@@ -67,7 +69,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
         COALESCE(SUM(CASE WHEN p.amount_received_cents > 0 OR p.tds_cents > 0 THEN p.amount_received_cents + p.tds_cents ELSE p.amount_cents END), 0) AS paid_cents
       FROM invoices i
       LEFT JOIN clients c ON i.client_id = c.id
-      LEFT JOIN payments p ON i.id = p.invoice_id
+      LEFT JOIN payments p ON i.id = p.invoice_id AND p.deleted_at IS NULL
+      WHERE i.deleted_at IS NULL
       GROUP BY i.id
       ORDER BY i.created_at DESC
     ''');
@@ -82,7 +85,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     String prefix = 'INV-';
     int minNext = 1;
     if (profileRes.isNotEmpty) {
-      prefix = (profileRes.first['invoice_prefix'] as String?) ?? 'INV-';
+      final rawPrefix = ((profileRes.first['invoice_prefix'] as String?) ?? 'INV-').trim();
+      prefix = rawPrefix.isNotEmpty ? rawPrefix : 'INV-';
       final rawNext = (profileRes.first['next_invoice_number'] as int?) ?? 1;
       minNext = rawNext > 0 ? rawNext : 1;
     }
@@ -100,7 +104,8 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     String prefix = 'INV-';
     int currentNext = 1;
     if (profileRes.isNotEmpty) {
-      prefix = (profileRes.first['invoice_prefix'] as String?) ?? 'INV-';
+      final rawPrefix = ((profileRes.first['invoice_prefix'] as String?) ?? 'INV-').trim();
+      prefix = rawPrefix.isNotEmpty ? rawPrefix : 'INV-';
       final rawNext = (profileRes.first['next_invoice_number'] as int?) ?? 1;
       currentNext = rawNext > 0 ? rawNext : 1;
     }
@@ -115,7 +120,9 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
 
   void voidInvoice(String invoiceId) {
     final updatedAt = DateTime.now().toUtc().toIso8601String();
-    final stmt = _db.prepare("UPDATE invoices SET status = 'VOID', updated_at = ? WHERE id = ?");
+    final stmt = _db.prepare(
+      "UPDATE invoices SET status = 'VOID', updated_at = ? WHERE id = ? AND deleted_at IS NULL",
+    );
     try {
       stmt.execute([updatedAt, invoiceId]);
     } finally {
@@ -124,19 +131,19 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     loadInvoices();
   }
 
-  /// Fetches all line items associated with a specific invoice.
+  /// Fetches all active line items associated with a specific invoice.
   List<InvoiceItem> getInvoiceItems(String invoiceId) {
     final ResultSet results = _db.select(
-      'SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY rowid ASC',
+      'SELECT * FROM invoice_items WHERE invoice_id = ? AND deleted_at IS NULL ORDER BY rowid ASC',
       [invoiceId],
     );
     return results.map((row) => InvoiceItem.fromRow(row)).toList();
   }
 
-  /// Fetches all payments associated with a specific invoice.
+  /// Fetches all active payments associated with a specific invoice.
   List<PaymentRecord> getInvoicePayments(String invoiceId) {
     final ResultSet results = _db.select(
-      'SELECT * FROM payments WHERE invoice_id = ? ORDER BY payment_date DESC, created_at DESC',
+      'SELECT * FROM payments WHERE invoice_id = ? AND deleted_at IS NULL ORDER BY payment_date DESC, created_at DESC',
       [invoiceId],
     );
     return results.map((row) => PaymentRecord.fromRow(row)).toList();
@@ -215,7 +222,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
       _db.execute('BEGIN TRANSACTION;');
       try {
         final existingRes = _db.select(
-          'SELECT invoice_number, status FROM invoices WHERE id = ?',
+          'SELECT invoice_number, status FROM invoices WHERE id = ? AND deleted_at IS NULL',
           [existingInvoiceId],
         );
         if (existingRes.isNotEmpty) {
@@ -235,7 +242,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
               status = ?, issue_date = ?, due_date = ?, payment_terms = ?, terms = ?, notes = ?,
               discount_type = ?, discount_value = ?, discount_cents = ?, po_number = ?, currency_code = ?,
               currency_symbol = ?, currency_decimals = ?, tax_mode = ?, pst_rate_percentage = ?, tax_exemption_id = ?, updated_at = ?
-            WHERE id = ?
+            WHERE id = ? AND deleted_at IS NULL
           ''', [
             clientId, finalNum, subtotalCents, taxCents, totalCents,
             status, effectiveIssueDate, effectiveDueDate, paymentTerms, terms, notes,
@@ -243,7 +250,10 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
             currencySymbol, currencyDecimals, normalizedTaxMode, pstRatePercentage, taxExemptionId, updatedAt, existingInvoiceId
           ]);
 
-          _db.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [existingInvoiceId]);
+          _db.execute(
+            'UPDATE invoice_items SET deleted_at = ?, updated_at = ? WHERE invoice_id = ? AND deleted_at IS NULL',
+            [updatedAt, updatedAt, existingInvoiceId],
+          );
 
           final itemStmt = _db.prepare('''
             INSERT INTO invoice_items (
@@ -282,6 +292,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
       }
 
       if (updatedExisting) {
+        _ref?.read(businessProfileProvider.notifier).refresh();
         loadInvoices();
         return existingInvoiceId;
       }
@@ -373,6 +384,9 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
       rethrow;
     }
 
+    if (status != 'DRAFT') {
+      _ref?.read(businessProfileProvider.notifier).refresh();
+    }
     loadInvoices();
     return invoiceId;
   }
@@ -380,7 +394,10 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
 
   /// Clones/Duplicates an existing invoice with today's date and a fresh sequential INV number.
   String duplicateInvoice(String sourceInvoiceId) {
-    final invRes = _db.select('SELECT * FROM invoices WHERE id = ?', [sourceInvoiceId]);
+    final invRes = _db.select(
+      'SELECT * FROM invoices WHERE id = ? AND deleted_at IS NULL',
+      [sourceInvoiceId],
+    );
     if (invRes.isEmpty) {
       throw ArgumentError('Source invoice not found.');
     }
@@ -498,6 +515,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
       rethrow;
     }
 
+    _ref?.read(businessProfileProvider.notifier).refresh();
     loadInvoices();
     return newInvoiceNumber;
   }
@@ -551,13 +569,13 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
       }
 
       final paidRes = _db.select(
-        'SELECT COALESCE(SUM(CASE WHEN amount_received_cents > 0 OR tds_cents > 0 THEN amount_received_cents + tds_cents ELSE amount_cents END), 0) AS total_paid FROM payments WHERE invoice_id = ?',
+        'SELECT COALESCE(SUM(CASE WHEN amount_received_cents > 0 OR tds_cents > 0 THEN amount_received_cents + tds_cents ELSE amount_cents END), 0) AS total_paid FROM payments WHERE invoice_id = ? AND deleted_at IS NULL',
         [invoiceId],
       );
       final totalPaid = (paidRes.first['total_paid'] as int?) ?? 0;
 
       final invRes = _db.select(
-        'SELECT total_cents, status FROM invoices WHERE id = ?',
+        'SELECT total_cents, status FROM invoices WHERE id = ? AND deleted_at IS NULL',
         [invoiceId],
       );
       if (invRes.isNotEmpty) {
@@ -565,7 +583,9 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
         final currentStatus = (invRes.first['status'] as String?) ?? 'PENDING';
         if (currentStatus != 'VOID') {
           final newStatus = totalPaid >= totalCents ? 'PAID' : (totalPaid > 0 ? 'PARTIALLY_PAID' : 'PENDING');
-          final updateStmt = _db.prepare('UPDATE invoices SET status = ?, updated_at = ? WHERE id = ?');
+          final updateStmt = _db.prepare(
+            'UPDATE invoices SET status = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL',
+          );
           try {
             updateStmt.execute([newStatus, createdAt, invoiceId]);
           } finally {
@@ -587,7 +607,7 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
     _db.execute('BEGIN TRANSACTION;');
     try {
       final res = _db.select(
-        "SELECT invoice_number FROM invoices WHERE id = ? AND status = 'DRAFT'",
+        "SELECT invoice_number FROM invoices WHERE id = ? AND status = 'DRAFT' AND deleted_at IS NULL",
         [invoiceId],
       );
       if (res.isEmpty) {
@@ -623,15 +643,26 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
       _db.execute('ROLLBACK;');
       rethrow;
     }
+    _ref?.read(businessProfileProvider.notifier).refresh();
     loadInvoices();
   }
 
   void deleteInvoice(String invoiceId) {
+    final deletedAt = DateTime.now().toUtc().toIso8601String();
     _db.execute('BEGIN TRANSACTION;');
     try {
-      _db.execute('DELETE FROM payments WHERE invoice_id = ?', [invoiceId]);
-      _db.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [invoiceId]);
-      _db.execute('DELETE FROM invoices WHERE id = ?', [invoiceId]);
+      _db.execute(
+        'UPDATE payments SET deleted_at = ?, updated_at = ? WHERE invoice_id = ? AND deleted_at IS NULL',
+        [deletedAt, deletedAt, invoiceId],
+      );
+      _db.execute(
+        'UPDATE invoice_items SET deleted_at = ?, updated_at = ? WHERE invoice_id = ? AND deleted_at IS NULL',
+        [deletedAt, deletedAt, invoiceId],
+      );
+      _db.execute(
+        'UPDATE invoices SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL',
+        [deletedAt, deletedAt, invoiceId],
+      );
       _db.execute('COMMIT;');
     } catch (e) {
       _db.execute('ROLLBACK;');
@@ -642,7 +673,9 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
 
   void updateInvoiceStatus(String invoiceId, String newStatus) {
     final updatedAt = DateTime.now().toUtc().toIso8601String();
-    final stmt = _db.prepare('UPDATE invoices SET status = ?, updated_at = ? WHERE id = ?');
+    final stmt = _db.prepare(
+      'UPDATE invoices SET status = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL',
+    );
     try {
       stmt.execute([newStatus, updatedAt, invoiceId]);
     } finally {
@@ -653,6 +686,6 @@ class InvoicesNotifier extends StateNotifier<List<InvoiceRecord>> {
 }
 
 final invoicesProvider = StateNotifierProvider<InvoicesNotifier, List<InvoiceRecord>>((ref) {
-  return InvoicesNotifier(ref.watch(databaseProvider));
+  return InvoicesNotifier(ref.watch(databaseProvider), ref);
 });
 

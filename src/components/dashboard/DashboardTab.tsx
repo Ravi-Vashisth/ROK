@@ -71,7 +71,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       defaultSymbol: currencySymbol,
       defaultDecimals: resolvedDefaultDecimals,
     });
-    return formatMoneyUnits(units, cur.symbol, cur.decimals);
+    return formatMoneyUnits(units, cur.symbol, cur.decimals, cur.code);
+  };
+
+  const fmtExpenseMoney = (exp: any, units: number): string => {
+    const recCode = exp?.currency_code ?? exp?.currencyCode ?? '';
+    const recDec = exp?.currency_decimals ?? exp?.currencyDecimals;
+    const cur = resolveEffectiveCurrency({
+      recordCode: recCode,
+      recordDecimals: String(recCode).trim() ? recDec : undefined,
+      defaultCode: currencyCode,
+      defaultSymbol: currencySymbol,
+      defaultDecimals: resolvedDefaultDecimals,
+    });
+    return formatMoneyUnits(units, cur.symbol, cur.decimals, cur.code);
   };
 
   const recentInvoices = invoices
@@ -262,7 +275,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     <div className="text-slate-500 text-[11px] mt-0.5 truncate">{exp.category} • {exp.expense_date}</div>
                   </div>
                   <div className="text-right font-bold font-mono tabular-nums text-rose-500 shrink-0">
-                    -{formatMoney(exp.total_cents)}
+                    -{fmtExpenseMoney(exp, exp.total_cents)}
                   </div>
                 </div>
               ))}

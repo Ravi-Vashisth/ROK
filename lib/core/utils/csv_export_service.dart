@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:isolate';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:billing_app/core/theme/app_theme.dart';
 import 'package:billing_app/features/clients/models/client.dart';
 import 'package:billing_app/features/expenses/models/expense_record.dart';
 import 'package:billing_app/features/invoices/models/invoice_record.dart';
@@ -99,20 +102,26 @@ class CsvExportService {
     // Row 1: Headers
     buffer.writeln('Expense ID,Date,Category,Vendor,Currency Code,Amount,Tax,Total,Notes');
 
-    final effectiveCode = currencyCode.trim().isNotEmpty ? currencyCode.trim() : 'USD';
-    final dec = getCurrencyDecimals(effectiveCode);
+    final fallbackCode = currencyCode.trim().isNotEmpty ? currencyCode.trim().toUpperCase() : 'USD';
+    final fallbackDec = getCurrencyDecimals(fallbackCode);
 
     // Rows 2..N: Data
     for (final exp in expenses) {
+      final resolved = resolveEffectiveCurrency(
+        recordCode: exp.currencyCode,
+        recordDecimals: exp.currencyCode.trim().isNotEmpty ? exp.currencyDecimals : null,
+        defaultCode: fallbackCode,
+        defaultDecimals: fallbackDec,
+      );
       buffer.writeln([
         quote(exp.id),
         quote(exp.expenseDate),
         quote(exp.category),
         quote(exp.vendor),
-        quote(effectiveCode),
-        formatDecimal(exp.amountCents, dec),
-        formatDecimal(exp.taxCents, dec),
-        formatDecimal(exp.totalCents, dec),
+        quote(resolved.code),
+        formatDecimal(exp.amountCents, resolved.decimals),
+        formatDecimal(exp.taxCents, resolved.decimals),
+        formatDecimal(exp.totalCents, resolved.decimals),
         quote(exp.notes),
       ].join(','));
     }
@@ -120,18 +129,41 @@ class CsvExportService {
     return buffer.toString();
   }
 
-  static Future<String?> downloadInvoicesCsv({
-    required List<InvoiceRecord> invoices,
-    required List<Client> clients,
-    String currencyCode = 'USD',
-  }) async {
+  static Uint8List _encodeInvoicesCsvBytes(
+    List<InvoiceRecord> invoices,
+    List<Client> clients,
+    String currencyCode,
+  ) {
     final csvContent = generateInvoicesCsv(
       invoices: invoices,
       clients: clients,
       currencyCode: currencyCode,
     );
-    final bytes = utf8.encode(csvContent);
-    return ExportFileHelper.saveExportFile(
+    return Uint8List.fromList(utf8.encode(csvContent));
+  }
+
+  static Uint8List _encodeExpensesCsvBytes(
+    List<ExpenseRecord> expenses,
+    String currencyCode,
+  ) {
+    final csvContent = generateExpensesCsv(
+      expenses: expenses,
+      currencyCode: currencyCode,
+    );
+    return Uint8List.fromList(utf8.encode(csvContent));
+  }
+
+  static Future<ExportSaveResult?> downloadInvoicesCsvWithDetails({
+    required List<InvoiceRecord> invoices,
+    required List<Client> clients,
+    String currencyCode = 'USD',
+  }) async {
+    final invSnapshot = List<InvoiceRecord>.unmodifiable(invoices);
+    final clientSnapshot = List<Client>.unmodifiable(clients);
+    final bytes = await Isolate.run(
+      () => _encodeInvoicesCsvBytes(invSnapshot, clientSnapshot, currencyCode),
+    );
+    return ExportFileHelper.saveExportFileWithDetails(
       bytes: bytes,
       filename: 'invoices_export.csv',
       extension: 'csv',
@@ -139,21 +171,44 @@ class CsvExportService {
     );
   }
 
-  static Future<String?> downloadExpensesCsv({
+  static Future<String?> downloadInvoicesCsv({
+    required List<InvoiceRecord> invoices,
+    required List<Client> clients,
+    String currencyCode = 'USD',
+  }) async {
+    final res = await downloadInvoicesCsvWithDetails(
+      invoices: invoices,
+      clients: clients,
+      currencyCode: currencyCode,
+    );
+    return res?.path;
+  }
+
+  static Future<ExportSaveResult?> downloadExpensesCsvWithDetails({
     required List<ExpenseRecord> expenses,
     String currencyCode = 'USD',
   }) async {
-    final csvContent = generateExpensesCsv(
-      expenses: expenses,
-      currencyCode: currencyCode,
+    final expSnapshot = List<ExpenseRecord>.unmodifiable(expenses);
+    final bytes = await Isolate.run(
+      () => _encodeExpensesCsvBytes(expSnapshot, currencyCode),
     );
-    final bytes = utf8.encode(csvContent);
-    return ExportFileHelper.saveExportFile(
+    return ExportFileHelper.saveExportFileWithDetails(
       bytes: bytes,
       filename: 'expenses_export.csv',
       extension: 'csv',
       dialogTitle: 'Save Expenses CSV',
     );
+  }
+
+  static Future<String?> downloadExpensesCsv({
+    required List<ExpenseRecord> expenses,
+    String currencyCode = 'USD',
+  }) async {
+    final res = await downloadExpensesCsvWithDetails(
+      expenses: expenses,
+      currencyCode: currencyCode,
+    );
+    return res?.path;
   }
 
   /// Displays the Export Accounting Data modal allowing single-table CSV selection
@@ -167,14 +222,19 @@ class CsvExportService {
     final messenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
+      builder: (dialogCtx) {
+        final theme = Theme.of(dialogCtx);
+        final colorScheme = theme.colorScheme;
+        final warningTone = AppSemanticColors.resolve(theme.brightness, SemanticStatus.warning);
+        final secondaryTextColor = theme.textTheme.bodySmall?.color ?? colorScheme.onSurfaceVariant;
+        return AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         insetPadding: EdgeInsets.all(MediaQuery.sizeOf(dialogCtx).width < 600 ? 12 : 24),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.file_download_outlined, color: Colors.indigo),
-            SizedBox(width: 8),
-            Expanded(
+            Icon(Icons.file_download_outlined, color: colorScheme.primary),
+            const SizedBox(width: 8),
+            const Expanded(
               child: Text(
                 'Export Accounting Data',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -192,37 +252,51 @@ class CsvExportService {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Select a single-table CSV dataset compliant with Excel, QuickBooks, and accounting software:',
-                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                  style: TextStyle(fontSize: 13, color: secondaryTextColor),
                 ),
                 const SizedBox(height: 16),
                 ListTile(
                   shape: RoundedRectangleBorder(
-                    side: BorderSide(color: Theme.of(dialogCtx).dividerColor),
+                    side: BorderSide(color: theme.dividerColor),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFFEEF2FF),
-                    child: Icon(Icons.receipt_long, color: Colors.indigo, size: 20),
+                  leading: CircleAvatar(
+                    backgroundColor: colorScheme.primaryContainer,
+                    child: Icon(Icons.receipt_long, color: colorScheme.primary, size: 20),
                   ),
                   title: const Text('Invoices CSV', style: TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text('${invoices.where((i) => !i.isDraft && i.status.toUpperCase() != "DRAFT").length} finalized invoices • headers on row 1 (invoices_export.csv)', style: const TextStyle(fontSize: 11)),
                   trailing: const Icon(Icons.download, size: 18),
                   onTap: () async {
                     Navigator.of(dialogCtx).pop();
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Generating Invoices CSV...'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
                     try {
-                      final saved = await downloadInvoicesCsv(
+                      final saved = await downloadInvoicesCsvWithDetails(
                         invoices: invoices,
                         clients: clients,
                         currencyCode: currencyCode,
                       );
+                      messenger.hideCurrentSnackBar();
                       messenger.showSnackBar(
                         SnackBar(
-                          content: Text(saved != null ? 'Invoices CSV saved: $saved' : 'CSV export cancelled.'),
+                          content: Text(
+                            saved == null
+                                ? 'CSV export cancelled.'
+                                : (saved.usedFallbackDirectory
+                                    ? 'OS file picker unavailable — Invoices CSV saved to app exports folder: ${saved.path}'
+                                    : 'Invoices CSV saved: ${saved.path}'),
+                          ),
                         ),
                       );
                     } catch (e) {
+                      messenger.hideCurrentSnackBar();
                       messenger.showSnackBar(
                         SnackBar(content: Text('Failed to export Invoices CSV: $e')),
                       );
@@ -235,26 +309,40 @@ class CsvExportService {
                     side: BorderSide(color: Theme.of(dialogCtx).dividerColor),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFFFEF3C7),
-                    child: Icon(Icons.account_balance_wallet, color: Colors.amber, size: 20),
+                  leading: CircleAvatar(
+                    backgroundColor: warningTone.background,
+                    child: Icon(Icons.account_balance_wallet, color: warningTone.icon, size: 20),
                   ),
                   title: const Text('Expenses CSV', style: TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text('${expenses.length} expenses • headers on row 1 (expenses_export.csv)', style: const TextStyle(fontSize: 11)),
                   trailing: const Icon(Icons.download, size: 18),
                   onTap: () async {
                     Navigator.of(dialogCtx).pop();
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Generating Expenses CSV...'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
                     try {
-                      final saved = await downloadExpensesCsv(
+                      final saved = await downloadExpensesCsvWithDetails(
                         expenses: expenses,
                         currencyCode: currencyCode,
                       );
+                      messenger.hideCurrentSnackBar();
                       messenger.showSnackBar(
                         SnackBar(
-                          content: Text(saved != null ? 'Expenses CSV saved: $saved' : 'CSV export cancelled.'),
+                          content: Text(
+                            saved == null
+                                ? 'CSV export cancelled.'
+                                : (saved.usedFallbackDirectory
+                                    ? 'OS file picker unavailable — Expenses CSV saved to app exports folder: ${saved.path}'
+                                    : 'Expenses CSV saved: ${saved.path}'),
+                          ),
                         ),
                       );
                     } catch (e) {
+                      messenger.hideCurrentSnackBar();
                       messenger.showSnackBar(
                         SnackBar(content: Text('Failed to export Expenses CSV: $e')),
                       );
@@ -271,7 +359,8 @@ class CsvExportService {
             child: const Text('Cancel'),
           ),
         ],
-      ),
+      );
+      },
     );
   }
 }

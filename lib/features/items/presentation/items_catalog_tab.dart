@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:billing_app/core/theme/app_theme.dart';
-import 'package:billing_app/core/utils/currency_formatter_provider.dart';
 import 'package:billing_app/core/utils/money_utils.dart';
 import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
 import 'package:billing_app/features/items/models/saved_item.dart';
@@ -40,7 +39,8 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
       return;
     }
 
-    final decimals = ref.read(businessProfileProvider).currencyDecimals;
+    final profile = ref.read(businessProfileProvider);
+    final decimals = profile.currencyDecimals;
     final priceCents = parsePriceToUnits(_priceController.text, decimals);
     if (priceCents < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -54,6 +54,8 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
           sacHsn: _sacHsnController.text.trim(),
           defaultPriceCents: priceCents,
           description: _descriptionController.text.trim(),
+          currencyCode: profile.currencyCode,
+          currencyDecimals: profile.currencyDecimals,
         );
 
     _titleController.clear();
@@ -85,7 +87,10 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             onPressed: () {
               ref.read(savedItemsProvider.notifier).deleteItem(item.id);
               Navigator.of(dialogCtx).pop();
@@ -103,8 +108,8 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
   @override
   Widget build(BuildContext context) {
     final savedItems = ref.watch(savedItemsProvider);
-    final decimals = ref.watch(businessProfileProvider).currencyDecimals;
-    final formatCurrency = ref.watch(currencyFormatterProvider);
+    final profile = ref.watch(businessProfileProvider);
+    final decimals = profile.currencyDecimals;
     final priceHint = decimals == 0 ? '100' : decimals == 3 ? '100.000' : '100.00';
 
     final isWide = MediaQuery.sizeOf(context).width >= 900;
@@ -153,9 +158,11 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                             );
                             final priceField = TextField(
                               controller: _priceController,
-                              keyboardType: TextInputType.numberWithOptions(decimal: decimals > 0),
+                              keyboardType: decimals == 0
+                                  ? TextInputType.number
+                                  : const TextInputType.numberWithOptions(decimal: true),
                               decoration: InputDecoration(
-                                labelText: 'Default Price',
+                                labelText: 'Default Price (${profile.currencySymbol})',
                                 hintText: priceHint,
                               ),
                             );
@@ -226,8 +233,13 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                   border: Border.all(color: Theme.of(context).dividerColor),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Center(
-                  child: Text('No saved items in catalog yet.', style: TextStyle(color: Colors.grey)),
+                child: Center(
+                  child: Text(
+                    'No saved items in catalog yet.',
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodySmall?.color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -261,6 +273,20 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                         final brightness = Theme.of(context).brightness;
                         final infoTone = AppSemanticColors.resolve(brightness, SemanticStatus.info);
                         final neutralTone = AppSemanticColors.resolve(brightness, SemanticStatus.neutral);
+                        final resolved = resolveEffectiveCurrency(
+                          recordCode: item.currencyCode,
+                          recordDecimals: item.currencyCode.trim().isNotEmpty ? item.currencyDecimals : null,
+                          defaultCode: profile.currencyCode,
+                          defaultSymbol: profile.currencySymbol,
+                          defaultDecimals: profile.currencyDecimals,
+                        );
+                        final formattedPrice = formatMoney(
+                          item.defaultPriceCents,
+                          symbol: resolved.symbol,
+                          decimals: resolved.decimals,
+                          currencyCode: resolved.code,
+                        );
+                        final isForeign = resolved.code != profile.currencyCode.trim().toUpperCase();
                         return DataRow(
                           cells: [
                             DataCell(
@@ -288,9 +314,21 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                               ),
                             ),
                             DataCell(
-                              Text(
-                                formatCurrency(item.defaultPriceCents),
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    formattedPrice,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
+                                  ),
+                                  if (isForeign) ...[
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      resolved.code,
+                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                             DataCell(
@@ -318,7 +356,7 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                                   ),
                                   IconButton(
                                     tooltip: 'Delete Item',
-                                    icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                                    icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error, size: 18),
                                     onPressed: () => _confirmDeleteItem(context, item),
                                   ),
                                 ],
@@ -342,6 +380,20 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                   final item = savedItems[index];
                   final isLast = index == savedItems.length - 1;
                   final infoTone = AppSemanticColors.resolve(Theme.of(context).brightness, SemanticStatus.info);
+                  final resolved = resolveEffectiveCurrency(
+                    recordCode: item.currencyCode,
+                    recordDecimals: item.currencyCode.trim().isNotEmpty ? item.currencyDecimals : null,
+                    defaultCode: profile.currencyCode,
+                    defaultSymbol: profile.currencySymbol,
+                    defaultDecimals: profile.currencyDecimals,
+                  );
+                  final formattedPrice = formatMoney(
+                    item.defaultPriceCents,
+                    symbol: resolved.symbol,
+                    decimals: resolved.decimals,
+                    currencyCode: resolved.code,
+                  );
+                  final isForeign = resolved.code != profile.currencyCode.trim().toUpperCase();
                   return Card(
                     elevation: 0,
                     margin: EdgeInsets.only(bottom: isLast ? 0 : 8),
@@ -362,13 +414,24 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            formatCurrency(item.defaultPriceCents),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              fontFeatures: [FontFeature.tabularFigures()],
-                            ),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                formattedPrice,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  fontFeatures: [FontFeature.tabularFigures()],
+                                ),
+                              ),
+                              if (isForeign)
+                                Text(
+                                  resolved.code,
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                ),
+                            ],
                           ),
                           const SizedBox(width: 4),
                           IconButton(
@@ -380,7 +443,7 @@ class _ItemsCatalogTabState extends ConsumerState<ItemsCatalogTab> {
                           IconButton(
                             tooltip: 'Delete Item',
                             visualDensity: VisualDensity.compact,
-                            icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                            icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error, size: 18),
                             onPressed: () => _confirmDeleteItem(context, item),
                           ),
                         ],
@@ -416,11 +479,20 @@ class _EditCatalogItemDialogState extends ConsumerState<_EditCatalogItemDialog> 
   @override
   void initState() {
     super.initState();
-    final decimals = ref.read(businessProfileProvider).currencyDecimals;
+    final profile = ref.read(businessProfileProvider);
+    final resolved = resolveEffectiveCurrency(
+      recordCode: widget.item.currencyCode,
+      recordDecimals: widget.item.currencyCode.trim().isNotEmpty
+          ? widget.item.currencyDecimals
+          : null,
+      defaultCode: profile.currencyCode,
+      defaultSymbol: profile.currencySymbol,
+      defaultDecimals: profile.currencyDecimals,
+    );
     _titleController = TextEditingController(text: widget.item.title);
     _sacHsnController = TextEditingController(text: widget.item.sacHsn);
     _priceController = TextEditingController(
-      text: formatDecimalUnits(widget.item.defaultPriceCents, decimals),
+      text: formatDecimalUnits(widget.item.defaultPriceCents, resolved.decimals),
     );
     _descController = TextEditingController(text: widget.item.description);
   }
@@ -436,18 +508,28 @@ class _EditCatalogItemDialogState extends ConsumerState<_EditCatalogItemDialog> 
 
   @override
   Widget build(BuildContext context) {
-    final decimals = ref.watch(businessProfileProvider).currencyDecimals;
+    final profile = ref.watch(businessProfileProvider);
+    final resolved = resolveEffectiveCurrency(
+      recordCode: widget.item.currencyCode,
+      recordDecimals: widget.item.currencyCode.trim().isNotEmpty
+          ? widget.item.currencyDecimals
+          : null,
+      defaultCode: profile.currencyCode,
+      defaultSymbol: profile.currencySymbol,
+      defaultDecimals: profile.currencyDecimals,
+    );
+    final decimals = resolved.decimals;
 
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      title: const Row(
+      title: Row(
         children: [
-          Icon(Icons.edit_outlined),
-          SizedBox(width: 8),
+          const Icon(Icons.edit_outlined),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Edit Catalog Item',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              'Edit Catalog Item (${resolved.code})',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -477,8 +559,10 @@ class _EditCatalogItemDialogState extends ConsumerState<_EditCatalogItemDialog> 
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _priceController,
-                  keyboardType: TextInputType.numberWithOptions(decimal: decimals > 0),
-                  decoration: const InputDecoration(labelText: 'Default Unit Price *'),
+                  keyboardType: decimals == 0
+                      ? TextInputType.number
+                      : const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(labelText: 'Default Unit Price (${resolved.symbol}) *'),
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) return 'Please enter a price';
                     if (parsePriceToUnits(val, decimals) < 0) return 'Invalid price';
@@ -512,6 +596,8 @@ class _EditCatalogItemDialogState extends ConsumerState<_EditCatalogItemDialog> 
                   sacHsn: _sacHsnController.text.trim(),
                   defaultPriceCents: parsePriceToUnits(_priceController.text, decimals),
                   description: _descController.text.trim(),
+                  currencyCode: resolved.code,
+                  currencyDecimals: resolved.decimals,
                 );
             Navigator.of(context).pop();
             ScaffoldMessenger.of(context).showSnackBar(

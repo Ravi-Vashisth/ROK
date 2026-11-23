@@ -1,3 +1,4 @@
+import 'dart:ui' show AppExitResponse;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqlite3/sqlite3.dart' hide Row;
@@ -26,12 +27,45 @@ class _DatabaseBootstrapAppState extends State<DatabaseBootstrapApp> {
   Database? _db;
   Object? _error;
   bool _retrying = false;
+  bool _dbDisposed = false;
+  late final AppLifecycleListener _lifecycleListener;
 
   @override
   void initState() {
     super.initState();
     _db = widget.initialDb;
     _error = widget.initialError;
+    _lifecycleListener = AppLifecycleListener(
+      onDetach: _checkpointAndDisposeDb,
+      onExitRequested: () async {
+        _checkpointAndDisposeDb();
+        return AppExitResponse.exit;
+      },
+    );
+  }
+
+  void _checkpointAndDisposeDb() {
+    if (_dbDisposed) return;
+    final db = _db;
+    if (db == null) return;
+    _dbDisposed = true;
+    try {
+      db.execute('PRAGMA wal_checkpoint(TRUNCATE);');
+    } catch (_) {
+      // Best-effort WAL checkpoint on teardown; proceed to dispose handle.
+    }
+    try {
+      db.dispose();
+    } catch (_) {
+      // Handle may already be closed during teardown.
+    }
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    _checkpointAndDisposeDb();
+    super.dispose();
   }
 
   Future<void> _retryOpen() async {
@@ -40,9 +74,15 @@ class _DatabaseBootstrapAppState extends State<DatabaseBootstrapApp> {
     });
     try {
       final opened = await openLocalDatabase();
-      if (!mounted) return;
+      if (!mounted) {
+        try {
+          opened.dispose();
+        } catch (_) {}
+        return;
+      }
       setState(() {
         _db = opened;
+        _dbDisposed = false;
         _error = null;
         _retrying = false;
       });
@@ -87,11 +127,11 @@ class _DatabaseBootstrapAppState extends State<DatabaseBootstrapApp> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.storage_rounded, color: Colors.red, size: 28),
-                        SizedBox(width: 12),
-                        Expanded(
+                        Icon(Icons.storage_rounded, color: Theme.of(context).colorScheme.error, size: 28),
+                        const SizedBox(width: 12),
+                        const Expanded(
                           child: Text(
                             'Local Storage Unavailable',
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -110,7 +150,7 @@ class _DatabaseBootstrapAppState extends State<DatabaseBootstrapApp> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.08),
+                          color: AppSemanticColors.resolve(Theme.of(context).brightness, SemanticStatus.danger).background,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(

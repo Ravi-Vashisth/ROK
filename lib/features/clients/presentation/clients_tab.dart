@@ -34,6 +34,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
 
   Future<void> _launchClientIntent({
     required Uri? uri,
+    Uri? fallbackUri,
     required String actionLabel,
     required String fallbackCopyValue,
   }) async {
@@ -44,6 +45,13 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
       launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (_) {
       launched = false;
+    }
+    if (!launched && fallbackUri != null) {
+      try {
+        launched = await launchUrl(fallbackUri, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        launched = false;
+      }
     }
     if (!mounted) return;
     if (!launched && fallbackCopyValue.isNotEmpty) {
@@ -80,7 +88,10 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+              foregroundColor: Theme.of(ctx).colorScheme.onError,
+            ),
             onPressed: () {
               Navigator.pop(ctx);
               final deleted = ref.read(clientsProvider.notifier).deleteClient(client.id);
@@ -89,11 +100,14 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                   context: context,
                   builder: (warnCtx) => AlertDialog(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    title: const Row(
+                    title: Row(
                       children: [
-                        Icon(Icons.warning_amber_rounded, color: Colors.amber),
-                        SizedBox(width: 8),
-                        Expanded(child: Text('Cannot Delete Client')),
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: AppSemanticColors.resolve(Theme.of(warnCtx).brightness, SemanticStatus.warning).icon,
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(child: Text('Cannot Delete Client')),
                       ],
                     ),
                     content: Text(
@@ -213,9 +227,12 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                               builder: (_) => Scaffold(
                                 appBar: AppBar(title: const Text('Client Dossier')),
                                 body: SafeArea(
-                                  child: SingleChildScrollView(
-                                    padding: const EdgeInsets.all(16),
-                                    child: _buildDetailPane(id),
+                                  child: _ClientDossierView(
+                                    clientId: id,
+                                    pagePadding: 16,
+                                    onEditClient: _showEditClientDialog,
+                                    onDeleteClient: _handleDeleteClient,
+                                    onLaunchIntent: _launchClientIntent,
                                   ),
                                 ),
                               ),
@@ -287,9 +304,15 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                     side: BorderSide(color: Theme.of(context).dividerColor),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: _buildDetailPane(_selectedClientId),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: _ClientDossierView(
+                      clientId: _selectedClientId,
+                      pagePadding: 20,
+                      onEditClient: _showEditClientDialog,
+                      onDeleteClient: _handleDeleteClient,
+                      onLaunchIntent: _launchClientIntent,
+                    ),
                   ),
                 ),
               ),
@@ -358,31 +381,64 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
     );
     final hasDue = rollup.hasOutstandingBalance;
 
-    return ListTile(
-      selected: isSelected,
-      selectedTileColor: colorScheme.primaryContainer.withValues(alpha: 0.35),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-      subtitle: Text(
-        c.email.isNotEmpty ? c.email : (c.phone.isNotEmpty ? c.phone : 'No contact info'),
-        style: const TextStyle(fontSize: 11),
-      ),
-      trailing: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 132),
-        child: Text(
-          hasDue ? '${rollup.formattedOutstandingBalance} Due' : '✓ Settled',
-          textAlign: TextAlign.right,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            fontFeatures: const [FontFeature.tabularFigures()],
-            color: hasDue ? warningTone.text : successTone.text,
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final secondaryTextColor = theme.textTheme.bodySmall?.color ?? colorScheme.onSurfaceVariant;
+    final contactLabel = c.email.isNotEmpty ? c.email : (c.phone.isNotEmpty ? c.phone : 'No contact info');
+    final dueLabel = hasDue ? '${rollup.formattedOutstandingBalance} Due' : '✓ Settled';
+    final dueStyle = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.bold,
+      fontFeatures: const [FontFeature.tabularFigures()],
+      color: hasDue ? warningTone.text : successTone.text,
+    );
+
+    return LayoutBuilder(
+      builder: (context, rowConstraints) {
+        final stackBalanceBelow = rowConstraints.maxWidth < 360 || textScale > 1.3;
+        return InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => onSelect(c.id),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? colorScheme.primaryContainer.withValues(alpha: 0.35) : null,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              crossAxisAlignment: stackBalanceBelow ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      const SizedBox(height: 2),
+                      Text(contactLabel, style: TextStyle(fontSize: 11, color: secondaryTextColor)),
+                      if (stackBalanceBelow) ...[
+                        const SizedBox(height: 4),
+                        Text(dueLabel, style: dueStyle),
+                      ],
+                    ],
+                  ),
+                ),
+                if (!stackBalanceBelow) ...[
+                  const SizedBox(width: 10),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 132),
+                    child: Text(
+                      dueLabel,
+                      textAlign: TextAlign.right,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: dueStyle,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
-        ),
-      ),
-      onTap: () => onSelect(c.id),
+        );
+      },
     );
   }
 
@@ -416,9 +472,53 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
     );
   }
 
-  Widget _buildDetailPane(String? id) {
+}
+
+class _ClientDossierView extends ConsumerStatefulWidget {
+  final String? clientId;
+  final double pagePadding;
+  final void Function(Client client) onEditClient;
+  final void Function(Client client) onDeleteClient;
+  final Future<void> Function({
+    required Uri? uri,
+    Uri? fallbackUri,
+    required String actionLabel,
+    required String fallbackCopyValue,
+  }) onLaunchIntent;
+
+  const _ClientDossierView({
+    required this.clientId,
+    required this.pagePadding,
+    required this.onEditClient,
+    required this.onDeleteClient,
+    required this.onLaunchIntent,
+  });
+
+  @override
+  ConsumerState<_ClientDossierView> createState() => _ClientDossierViewState();
+}
+
+class _ClientDossierViewState extends ConsumerState<_ClientDossierView> {
+  int _activeSubTab = 0;
+
+  @override
+  void didUpdateWidget(covariant _ClientDossierView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.clientId != widget.clientId) {
+      _activeSubTab = 0;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final id = widget.clientId;
     if (id == null) {
-      return const Center(child: Text('Select a client to view their account dossier.'));
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text('Select a client to view their account dossier.'),
+        ),
+      );
     }
 
     final clients = ref.watch(clientsProvider);
@@ -428,10 +528,16 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
     );
 
     if (client.id.isEmpty) {
-      return const Center(child: Text('Client not found.'));
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text('Client not found.'),
+        ),
+      );
     }
 
     final allClientInvoices = ref.watch(invoicesProvider).where((i) => i.clientId == client.id).toList();
+    final nonDraftInvoices = allClientInvoices.where((i) => !i.isDraft).toList();
     final activeInvoices = allClientInvoices.where((i) => !i.isVoid && !i.isDraft).toList();
     final profile = ref.watch(businessProfileProvider);
 
@@ -469,6 +575,9 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
     final warningTone = AppSemanticColors.resolve(brightness, SemanticStatus.warning);
     final dangerTone = AppSemanticColors.resolve(brightness, SemanticStatus.danger);
     final neutralTone = AppSemanticColors.resolve(brightness, SemanticStatus.neutral);
+    final secondaryTextColor = theme.textTheme.bodySmall?.color ?? colorScheme.onSurfaceVariant;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final pad = widget.pagePadding;
 
     final metricCards = [
       Container(
@@ -481,7 +590,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Lifetime Billed', style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant)),
+            Text('Lifetime Billed', style: TextStyle(fontSize: 11, color: secondaryTextColor)),
             const SizedBox(height: 4),
             FittedBox(
               fit: BoxFit.scaleDown,
@@ -547,338 +656,186 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
       ),
     ];
 
-    final isCompactScreen = MediaQuery.sizeOf(context).width < 600;
-    final tabViewHeight = (MediaQuery.sizeOf(context).height * 0.48).clamp(320.0, 480.0);
-
-    return DefaultTabController(
-      length: 3,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Client Header
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final infoCol = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(client.name, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${client.email.isNotEmpty ? client.email : "No Email"} • ${client.phone.isNotEmpty ? client.phone : "No Phone"} • Tax ID: ${client.taxId.isNotEmpty ? client.taxId : "None"}',
-                    style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
-                  ),
-                  if (client.address.isNotEmpty)
-                    Text(client.address, style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant)),
-                ],
-              );
-              final actionsRow = Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.edit_outlined, size: 14),
-                    label: const Text('Edit Client', style: TextStyle(fontSize: 12)),
-                    onPressed: () => _showEditClientDialog(client),
-                  ),
-                  IconButton(
-                    tooltip: 'Delete Client',
-                    icon: Icon(Icons.delete_outline, size: 18, color: colorScheme.error),
-                    onPressed: () => _handleDeleteClient(client),
-                  ),
-                ],
-              );
-              if (constraints.maxWidth < 520) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    infoCol,
-                    const SizedBox(height: 10),
-                    actionsRow,
-                  ],
-                );
-              }
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: infoCol),
-                  const SizedBox(width: 12),
-                  actionsRow,
-                ],
-              );
-            },
-          ),
-          if (client.phone.trim().isNotEmpty || client.email.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(pad, pad, pad, 12),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (buildTelUri(client.phone) != null)
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: const Icon(Icons.call_outlined, size: 14),
-                    label: const Text('Call', style: TextStyle(fontSize: 12)),
-                    onPressed: () => _launchClientIntent(
-                      uri: buildTelUri(client.phone),
-                      actionLabel: 'phone dialer',
-                      fallbackCopyValue: normalizePhoneForUri(client.phone),
-                    ),
-                  ),
-                if (buildSmsUri(
-                      phone: client.phone,
-                      isIos: Theme.of(context).platform == TargetPlatform.iOS,
-                    ) !=
-                    null)
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: const Icon(Icons.sms_outlined, size: 14),
-                    label: const Text('SMS', style: TextStyle(fontSize: 12)),
-                    onPressed: () => _launchClientIntent(
-                      uri: buildSmsUri(
-                        phone: client.phone,
-                        isIos: Theme.of(context).platform == TargetPlatform.iOS,
-                      ),
-                      actionLabel: 'SMS',
-                      fallbackCopyValue: normalizePhoneForUri(client.phone),
-                    ),
-                  ),
-                if (client.email.trim().isNotEmpty)
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: const Icon(Icons.email_outlined, size: 14),
-                    label: const Text('Email', style: TextStyle(fontSize: 12)),
-                    onPressed: () => _launchClientIntent(
-                      uri: buildMailtoUri(
-                        email: client.email,
-                        subject: 'Regarding your account with us',
-                        body: 'Hi ${client.name},\n\n',
-                      ),
-                      actionLabel: 'email',
-                      fallbackCopyValue: client.email.trim(),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 16),
-
-          // 3 Financial Metric Cards
-          LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth < 560) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    metricCards[0],
-                    const SizedBox(height: 10),
-                    metricCards[1],
-                    const SizedBox(height: 10),
-                    metricCards[2],
-                  ],
-                );
-              }
-              return IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: metricCards[0]),
-                    const SizedBox(width: 10),
-                    Expanded(child: metricCards[1]),
-                    const SizedBox(width: 10),
-                    Expanded(child: metricCards[2]),
-                  ],
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // Sub-tabs: Invoices, Statements, Notes
-          TabBar(
-            isScrollable: isCompactScreen,
-            tabAlignment: isCompactScreen ? TabAlignment.start : TabAlignment.fill,
-            tabs: const [
-              Tab(text: 'Invoices & Billing'),
-              Tab(text: 'Statement of Account'),
-              Tab(text: 'Internal Notes'),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          SizedBox(
-            height: tabViewHeight,
-            child: TabBarView(
-              children: [
-                // Invoices List (Finalized/Issued Invoices only - No Drafts)
-                (() {
-                  final nonDraftInvoices = allClientInvoices.where((i) => !i.isDraft).toList();
-                  if (nonDraftInvoices.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'No finalized invoices issued to this client yet.',
-                        style: TextStyle(color: colorScheme.onSurfaceVariant),
-                      ),
+                // Client Header
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final infoCol = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(client.name, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${client.email.isNotEmpty ? client.email : "No Email"} • ${client.phone.isNotEmpty ? client.phone : "No Phone"} • Tax ID: ${client.taxId.isNotEmpty ? client.taxId : "None"}',
+                          style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                        ),
+                        if (client.address.isNotEmpty)
+                          Text(client.address, style: TextStyle(fontSize: 11, color: secondaryTextColor)),
+                      ],
                     );
-                  }
-                  return ListView.separated(
-                    itemCount: nonDraftInvoices.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, i) {
-                      final inv = nonDraftInvoices[i];
-                      final isVoid = inv.isVoid;
-                      final badgeTone = isVoid
-                          ? neutralTone
-                          : (inv.isFullyPaid ? successTone : warningTone);
-                      return ListTile(
-                        leading: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: badgeTone.background,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: badgeTone.border),
-                          ),
-                          child: Text(
-                            isVoid ? 'VOID' : inv.invoiceNumber,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: badgeTone.text,
-                            ),
-                          ),
+                    final actionsRow = Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.edit_outlined, size: 14),
+                          label: const Text('Edit Client', style: TextStyle(fontSize: 12)),
+                          onPressed: () => widget.onEditClient(client),
                         ),
-                        title: Text(
-                          isVoid ? '${inv.invoiceNumber} (VOID)' : inv.issueDate,
-                          style: TextStyle(
-                            fontSize: 12,
-                            decoration: isVoid ? TextDecoration.lineThrough : null,
-                          ),
+                        IconButton(
+                          tooltip: 'Delete Client',
+                          icon: Icon(Icons.delete_outline, size: 18, color: colorScheme.error),
+                          onPressed: () => widget.onDeleteClient(client),
                         ),
-                        subtitle: Text('Terms: ${inv.paymentTerms} • Due: ${inv.dueDate}', style: const TextStyle(fontSize: 11)),
-                        trailing: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 132),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                formatInvMoney(
-                                  inv.totalCents,
-                                  inv.currencyCode,
-                                  inv.currencySymbol,
-                                  inv.currencyDecimals,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, fontFeatures: [FontFeature.tabularFigures()]),
-                              ),
-                              Text(
-                                isVoid
-                                    ? 'Voided'
-                                    : (inv.balanceDueCents > 0
-                                        ? 'Bal: ${formatInvMoney(inv.balanceDueCents, inv.currencyCode, inv.currencySymbol, inv.currencyDecimals)}'
-                                        : '✓ Paid'),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontFeatures: const [FontFeature.tabularFigures()],
-                                  color: isVoid
-                                      ? colorScheme.onSurfaceVariant
-                                      : (inv.balanceDueCents > 0 ? dangerTone.text : successTone.text),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                })(),
-
-                // Statement of Account View (Excludes Drafts and Voided)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: double.infinity,
-                      child: Wrap(
-                        alignment: WrapAlignment.spaceBetween,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 8,
-                        runSpacing: 8,
+                      ],
+                    );
+                    if (constraints.maxWidth < 520) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Itemized Account Ledger', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          FilledButton.tonalIcon(
-                            icon: const Icon(Icons.picture_as_pdf, size: 15),
-                            label: const Text('Download Statement PDF', style: TextStyle(fontSize: 12)),
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (_) => ClientStatementDialog(client: client),
-                              );
-                            },
+                          infoCol,
+                          const SizedBox(height: 10),
+                          actionsRow,
+                        ],
+                      );
+                    }
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: infoCol),
+                        const SizedBox(width: 12),
+                        actionsRow,
+                      ],
+                    );
+                  },
+                ),
+                if (client.phone.trim().isNotEmpty || client.email.trim().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (buildTelUri(client.phone) != null)
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
+                          icon: const Icon(Icons.call_outlined, size: 14),
+                          label: const Text('Call', style: TextStyle(fontSize: 12)),
+                          onPressed: () => widget.onLaunchIntent(
+                            uri: buildTelUri(client.phone),
+                            actionLabel: 'phone dialer',
+                            fallbackCopyValue: normalizePhoneForUri(client.phone),
+                          ),
+                        ),
+                      if (buildSmsUri(
+                            phone: client.phone,
+                            isIos: theme.platform == TargetPlatform.iOS ||
+                                theme.platform == TargetPlatform.macOS,
+                          ) !=
+                          null)
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          icon: const Icon(Icons.sms_outlined, size: 14),
+                          label: const Text('SMS', style: TextStyle(fontSize: 12)),
+                          onPressed: () => widget.onLaunchIntent(
+                            uri: buildSmsUri(
+                              phone: client.phone,
+                              isIos: theme.platform == TargetPlatform.iOS ||
+                                  theme.platform == TargetPlatform.macOS,
+                            ),
+                            fallbackUri: buildSmsFallbackUri(phone: client.phone),
+                            actionLabel: 'SMS',
+                            fallbackCopyValue: normalizePhoneForUri(client.phone),
+                          ),
+                        ),
+                      if (client.email.trim().isNotEmpty)
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          icon: const Icon(Icons.email_outlined, size: 14),
+                          label: const Text('Email', style: TextStyle(fontSize: 12)),
+                          onPressed: () => widget.onLaunchIntent(
+                            uri: buildMailtoUri(
+                              email: client.email,
+                              subject: 'Regarding your account with us',
+                              body: 'Hi ${client.name},\n\n',
+                            ),
+                            actionLabel: 'email',
+                            fallbackCopyValue: client.email.trim(),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 16),
+
+                // 3 Financial Metric Cards
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth < 560) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          metricCards[0],
+                          const SizedBox(height: 10),
+                          metricCards[1],
+                          const SizedBox(height: 10),
+                          metricCards[2],
+                        ],
+                      );
+                    }
+                    return IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(child: metricCards[0]),
+                          const SizedBox(width: 10),
+                          Expanded(child: metricCards[1]),
+                          const SizedBox(width: 10),
+                          Expanded(child: metricCards[2]),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: activeInvoices.isEmpty
-                          ? Center(child: Text('No active transactions to show.', style: TextStyle(color: colorScheme.onSurfaceVariant)))
-                          : ListView.separated(
-                              itemCount: activeInvoices.length,
-                              separatorBuilder: (_, __) => const Divider(height: 1),
-                              itemBuilder: (context, i) {
-                                final inv = activeInvoices[i];
-                                return ListTile(
-                                  dense: true,
-                                  leading: const Icon(Icons.receipt_long, size: 18),
-                                  title: Text('Invoice ${inv.invoiceNumber}'),
-                                  subtitle: Text(inv.issueDate),
-                                  trailing: Text(
-                                    formatInvMoney(
-                                      inv.totalCents,
-                                      inv.currencyCode,
-                                      inv.currencySymbol,
-                                      inv.currencyDecimals,
-                                    ),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
+                const SizedBox(height: 16),
 
-                // Client Notes
+                // Sub-tabs: Invoices & Billing, Statement of Account, Internal Notes
                 SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Client Account Terms & Internal Notes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Client ID: ${client.id}\nCreated: ${client.createdAt}\nAddress: ${client.address.isNotEmpty ? client.address : "Not provided"}\nTax ID: ${client.taxId.isNotEmpty ? client.taxId : "Not provided"}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          height: 1.6,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
+                  scrollDirection: Axis.horizontal,
+                  child: ToggleButtons(
+                    isSelected: [_activeSubTab == 0, _activeSubTab == 1, _activeSubTab == 2],
+                    onPressed: (idx) => setState(() => _activeSubTab = idx),
+                    borderRadius: BorderRadius.circular(12),
+                    constraints: const BoxConstraints(minHeight: 38, minWidth: 112),
+                    children: const [
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('Invoices & Billing', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('Statement of Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('Internal Notes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                       ),
                     ],
                   ),
@@ -886,8 +843,266 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
               ],
             ),
           ),
+        ),
+
+        if (_activeSubTab == 0) ...[
+          if (nonDraftInvoices.isEmpty)
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(pad, 12, pad, pad),
+              sliver: SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: Text(
+                      'No finalized invoices issued to this client yet.',
+                      style: TextStyle(color: secondaryTextColor),
+                    ),
+                  ),
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(pad, 0, pad, pad),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) {
+                    final inv = nonDraftInvoices[i];
+                    final isVoid = inv.isVoid;
+                    final isLast = i == nonDraftInvoices.length - 1;
+                    final badgeTone = isVoid
+                        ? neutralTone
+                        : (inv.isFullyPaid ? successTone : warningTone);
+                    final badge = Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: badgeTone.background,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: badgeTone.border),
+                      ),
+                      child: Text(
+                        isVoid ? 'VOID' : inv.invoiceNumber,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: badgeTone.text,
+                        ),
+                      ),
+                    );
+                    final titleInfo = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isVoid ? '${inv.invoiceNumber} (VOID)' : inv.issueDate,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            decoration: isVoid ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Terms: ${inv.paymentTerms} • Due: ${inv.dueDate}',
+                          style: TextStyle(fontSize: 11, color: secondaryTextColor),
+                        ),
+                      ],
+                    );
+
+                    return Column(
+                      children: [
+                        LayoutBuilder(
+                          builder: (context, rowConstraints) {
+                            final stackAmounts = rowConstraints.maxWidth < 420 || textScale > 1.3;
+                            final amountCol = Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: stackAmounts ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  formatInvMoney(
+                                    inv.totalCents,
+                                    inv.currencyCode,
+                                    inv.currencySymbol,
+                                    inv.currencyDecimals,
+                                  ),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, fontFeatures: [FontFeature.tabularFigures()]),
+                                ),
+                                Text(
+                                  isVoid
+                                      ? 'Voided'
+                                      : (inv.balanceDueCents > 0
+                                          ? 'Bal: ${formatInvMoney(inv.balanceDueCents, inv.currencyCode, inv.currencySymbol, inv.currencyDecimals)}'
+                                          : '✓ Paid'),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontFeatures: const [FontFeature.tabularFigures()],
+                                    color: isVoid
+                                        ? secondaryTextColor
+                                        : (inv.balanceDueCents > 0 ? dangerTone.text : successTone.text),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            );
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              child: stackAmounts
+                                  ? Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 6,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          children: [badge, titleInfo],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        amountCol,
+                                      ],
+                                    )
+                                  : Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        badge,
+                                        const SizedBox(width: 12),
+                                        Expanded(child: titleInfo),
+                                        const SizedBox(width: 12),
+                                        amountCol,
+                                      ],
+                                    ),
+                            );
+                          },
+                        ),
+                        if (!isLast) const Divider(height: 1),
+                      ],
+                    );
+                  },
+                  childCount: nonDraftInvoices.length,
+                ),
+              ),
+            ),
+        ] else if (_activeSubTab == 1) ...[
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(pad, 0, pad, 12),
+            sliver: SliverToBoxAdapter(
+              child: SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    const Text('Itemized Account Ledger', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    FilledButton.tonalIcon(
+                      icon: const Icon(Icons.picture_as_pdf, size: 15),
+                      label: const Text('Download Statement PDF', style: TextStyle(fontSize: 12)),
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => ClientStatementDialog(client: client),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (activeInvoices.isEmpty)
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(pad, 12, pad, pad),
+              sliver: SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: Text('No active transactions to show.', style: TextStyle(color: secondaryTextColor)),
+                  ),
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(pad, 0, pad, pad),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, i) {
+                    final inv = activeInvoices[i];
+                    final isLast = i == activeInvoices.length - 1;
+                    final formattedTotal = formatInvMoney(
+                      inv.totalCents,
+                      inv.currencyCode,
+                      inv.currencySymbol,
+                      inv.currencyDecimals,
+                    );
+                    return Column(
+                      children: [
+                        LayoutBuilder(
+                          builder: (context, rowConstraints) {
+                            final stackAmount = rowConstraints.maxWidth < 360 || textScale > 1.3;
+                            final totalWidget = Text(
+                              formattedTotal,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
+                            );
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              child: Row(
+                                crossAxisAlignment: stackAmount ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.receipt_long, size: 18),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Invoice ${inv.invoiceNumber}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                                        Text(inv.issueDate, style: TextStyle(fontSize: 12, color: secondaryTextColor)),
+                                        if (stackAmount) ...[
+                                          const SizedBox(height: 4),
+                                          totalWidget,
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  if (!stackAmount) ...[
+                                    const SizedBox(width: 12),
+                                    totalWidget,
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        if (!isLast) const Divider(height: 1),
+                      ],
+                    );
+                  },
+                  childCount: activeInvoices.length,
+                ),
+              ),
+            ),
+        ] else ...[
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(pad, 4, pad, pad),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Client Account Terms & Internal Notes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Client ID: ${client.id}\nCreated: ${client.createdAt}\nAddress: ${client.address.isNotEmpty ? client.address : "Not provided"}\nTax ID: ${client.taxId.isNotEmpty ? client.taxId : "Not provided"}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.6,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
-      ),
+      ],
     );
   }
 }

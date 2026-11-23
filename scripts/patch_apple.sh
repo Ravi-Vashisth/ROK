@@ -15,7 +15,7 @@ path = sys.argv[1]
 with open(path, 'rb') as f:
     data = plistlib.load(f)
 
-required_schemes = ['whatsapp', 'mailto', 'tel', 'sms', 'https']
+required_schemes = ['whatsapp', 'whatsapp-smb', 'mailto', 'tel', 'sms', 'https']
 existing = data.get('LSApplicationQueriesSchemes', [])
 if not isinstance(existing, list):
     existing = []
@@ -57,5 +57,32 @@ with open(path, 'wb') as f:
 PYEOF
   fi
 done
+
+# 3. Patch macOS MainFlutterWindow.swift idempotently to enforce minimum 420x560 window bounds
+MACOS_WINDOW="macos/Runner/MainFlutterWindow.swift"
+if [ -f "$MACOS_WINDOW" ]; then
+  echo "Patching $MACOS_WINDOW with minimum window bounds (420x560)..."
+  python3 - "$MACOS_WINDOW" << 'PYEOF'
+import re
+import sys
+
+path = sys.argv[1]
+with open(path, 'r', encoding='utf-8') as f:
+    src = f.read()
+
+if 'minSize = NSSize' not in src:
+    pattern = re.compile(r'([ \t]*override\s+func\s+awakeFromNib\s*\(\s*\)\s*\{\s*\n)([ \t]*)')
+    match = pattern.search(src)
+    if match:
+        header = match.group(1)
+        body_indent = match.group(2) or '    '
+        replacement = f'{header}{body_indent}self.minSize = NSSize(width: 420, height: 560)\n{body_indent}'
+        updated = src[:match.start()] + replacement + src[match.end():]
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(updated)
+    else:
+        print(f'Warning: awakeFromNib() not found in {path}; skipping minSize patch.', file=sys.stderr)
+PYEOF
+fi
 
 echo "Apple platform patches applied successfully."

@@ -1,9 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Printer, X } from 'lucide-react';
+import QRCode from 'qrcode';
 import {
   computeClientRollup,
   formatLocalCalendarDate,
   formatMoney,
+  generateDynamicQrPayload,
   getCurrencyDecimals,
   getRegionalTaxIdLabel,
   resolveEffectiveCurrency,
@@ -27,6 +29,7 @@ interface PrintPreviewModalProps {
 const toImageDataSrc = (raw?: string): string | null => {
   if (!raw || !raw.trim()) return null;
   const trimmed = raw.trim();
+  if (trimmed.startsWith('idb://')) return null;
   return trimmed.startsWith('data:') ? trimmed : `data:image/png;base64,${trimmed}`;
 };
 
@@ -52,12 +55,61 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [target, onClose]);
 
-  if (!target) return null;
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
   const defaultCode = (businessProfile.currency_code || 'USD').trim() || 'USD';
   const defaultSym = (businessProfile.currency_symbol || '$').trim() || '$';
   const defaultDec =
     businessProfile.currency_decimals ?? getCurrencyDecimals(defaultCode || defaultSym);
+
+  let dynamicQrPayload = '';
+  if (target && target.type === 'invoice') {
+    const doc = target.data;
+    const status = String(doc.computed_status || doc.status || 'PENDING').toUpperCase();
+    const isVoid = status === 'VOID';
+    const isPaid = !isVoid && status === 'PAID';
+    if (!isVoid && !isPaid) {
+      const docCur = resolveEffectiveCurrency({
+        recordCode: doc.currency_code,
+        recordSymbol: doc.currency_symbol,
+        recordDecimals: String(doc.currency_code || '').trim() ? doc.currency_decimals : undefined,
+        defaultCode,
+        defaultSymbol: defaultSym,
+        defaultDecimals: defaultDec,
+      });
+      const totalCents = Number(doc.total_cents) || 0;
+      const paidCents = Number(doc.paid_cents) || 0;
+      const balanceDueCents = Math.max(0, doc.balance_due_cents ?? totalCents - paidCents);
+      dynamicQrPayload = generateDynamicQrPayload(
+        businessProfile.payment_qr_payload || '',
+        businessProfile.business_name || '',
+        balanceDueCents,
+        docCur.decimals,
+        doc.invoice_number || '',
+        docCur.code
+      );
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!dynamicQrPayload) {
+      setQrDataUrl('');
+      return;
+    }
+    QRCode.toDataURL(dynamicQrPayload, { width: 140, margin: 1 })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setQrDataUrl('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dynamicQrPayload]);
+
+  if (!target) return null;
 
   const logoSrc = toImageDataSrc(businessProfile.logo_base64);
   const signatureSrc = toImageDataSrc(businessProfile.signature_base64);
@@ -246,13 +298,13 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
 
         {/* Regional Tax Notice Banner */}
         {breakdown.noticeText && (
-          <div className="p-2.5 rounded-lg border border-indigo-200 bg-indigo-50/70 text-center space-y-0.5">
+          <div className="p-2.5 rounded-lg border accent-badge text-center space-y-0.5">
             {breakdown.noticeTitle && (
-              <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-900">
+              <div className="text-[10px] font-bold uppercase tracking-wider accent-text">
                 {breakdown.noticeTitle}
               </div>
             )}
-            <div className="text-[11px] font-semibold text-indigo-950">{breakdown.noticeText}</div>
+            <div className="text-[11px] font-semibold text-slate-900">{breakdown.noticeText}</div>
           </div>
         )}
 
@@ -425,15 +477,29 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
                 PAID IN FULL — THANK YOU FOR YOUR BUSINESS!
               </div>
             ) : (
-              paymentDetails && (
-                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    Payment Instructions
+              (paymentDetails || qrDataUrl) && (
+                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-4">
+                  <div className="space-y-1 flex-1 min-w-0">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Payment Instructions
+                    </div>
+                    {paymentDetails && (
+                      <div className="text-[11px] text-slate-700 whitespace-pre-line">{paymentDetails}</div>
+                    )}
+                    <div className={`text-[11px] font-bold pt-1 ${isOverdue ? 'text-rose-700' : 'text-slate-600'}`}>
+                      Please remit payment within {doc.payment_terms || 'Due on Receipt'} (Due: {doc.due_date}).
+                    </div>
                   </div>
-                  <div className="text-[11px] text-slate-700 whitespace-pre-line">{paymentDetails}</div>
-                  <div className={`text-[11px] font-bold pt-1 ${isOverdue ? 'text-rose-700' : 'text-slate-600'}`}>
-                    Please remit payment within {doc.payment_terms || 'Due on Receipt'} (Due: {doc.due_date}).
-                  </div>
+                  {qrDataUrl && (
+                    <div className="flex flex-col items-center shrink-0">
+                      <img
+                        src={qrDataUrl}
+                        alt="Scan to Pay QR Code"
+                        className="w-[72px] h-[72px] rounded border border-slate-200 bg-white p-0.5"
+                      />
+                      <span className="text-[9px] font-bold text-slate-500 mt-1">Scan to Pay</span>
+                    </div>
+                  )}
                 </div>
               )
             )}

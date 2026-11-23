@@ -10,6 +10,8 @@ class ExpenseRecord {
   final String notes;
   final String receiptBase64;
   final String receiptName;
+  final String currencyCode;
+  final int currencyDecimals;
   final String createdAt;
 
   const ExpenseRecord({
@@ -22,10 +24,13 @@ class ExpenseRecord {
     this.notes = '',
     this.receiptBase64 = '',
     this.receiptName = '',
+    this.currencyCode = '',
+    this.currencyDecimals = 2,
     required this.createdAt,
   });
 
   factory ExpenseRecord.fromRow(sql.Row row) {
+    final code = (row['currency_code'] as String?) ?? '';
     return ExpenseRecord(
       id: row['id'] as String,
       category: (row['category'] as String?) ?? 'Other',
@@ -36,6 +41,8 @@ class ExpenseRecord {
       notes: (row['notes'] as String?) ?? '',
       receiptBase64: (row['receipt_base64'] as String?) ?? '',
       receiptName: (row['receipt_name'] as String?) ?? '',
+      currencyCode: code,
+      currencyDecimals: (row['currency_decimals'] as int?) ?? 2,
       createdAt: (row['created_at'] as String?) ?? '',
     );
   }

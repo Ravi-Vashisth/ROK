@@ -4,7 +4,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:billing_app/core/theme/app_theme.dart';
-import 'package:billing_app/core/utils/currency_formatter_provider.dart';
 import 'package:billing_app/core/utils/file_validation_utils.dart';
 import 'package:billing_app/core/utils/money_utils.dart';
 import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
@@ -86,10 +85,11 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
         allowPdf: true,
       );
       if (!validation.isValid || validation.mimeType == null) {
+        final dangerTone = AppSemanticColors.resolve(Theme.of(context).brightness, SemanticStatus.danger);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(validation.errorMessage ?? 'Invalid receipt file selected.'),
-            backgroundColor: Colors.red.shade700,
+            content: Text(validation.errorMessage ?? 'Invalid receipt file selected.', style: TextStyle(color: dangerTone.text)),
+            backgroundColor: dangerTone.background,
           ),
         );
         return;
@@ -130,7 +130,8 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
       return;
     }
 
-    final decimals = ref.read(businessProfileProvider).currencyDecimals;
+    final profile = ref.read(businessProfileProvider);
+    final decimals = profile.currencyDecimals;
     final amountCents = parsePriceToUnits(_amountController.text.trim(), decimals);
     if (amountCents <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -158,6 +159,8 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
           notes: _notesController.text.trim(),
           receiptBase64: _receiptBase64,
           receiptName: _receiptName,
+          currencyCode: profile.currencyCode,
+          currencyDecimals: profile.currencyDecimals,
         );
 
     _vendorController.clear();
@@ -187,7 +190,10 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogCtx).colorScheme.error,
+              foregroundColor: Theme.of(dialogCtx).colorScheme.onError,
+            ),
             onPressed: () {
               ref.read(expensesProvider.notifier).deleteExpense(item.id);
               Navigator.of(dialogCtx).pop();
@@ -300,7 +306,6 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
     final expenses = ref.watch(expensesProvider);
     final profile = ref.watch(businessProfileProvider);
     final decimals = profile.currencyDecimals;
-    final formatCurrency = ref.watch(currencyFormatterProvider);
     final query = _searchController.text.toLowerCase();
 
     final filtered = expenses.where((e) {
@@ -308,6 +313,39 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
           e.category.toLowerCase().contains(query) ||
           e.notes.toLowerCase().contains(query);
     }).toList();
+
+    final filteredSummary = computeDashboardCashFlow(
+      const [],
+      expenseEntries: filtered.map(
+        (exp) => CurrencyExpenseEntry(
+          currencyCode: exp.currencyCode,
+          currencyDecimals: exp.currencyDecimals,
+          totalUnits: exp.totalCents,
+          taxUnits: exp.taxCents,
+        ),
+      ),
+      defaultCode: profile.currencyCode,
+      defaultSymbol: profile.currencySymbol,
+      defaultDecimals: profile.currencyDecimals,
+    );
+    final filteredTotalsLabel = formatMultiCurrencyAmounts(
+      filteredSummary.byCurrency
+          .map(
+            (b) => CurrencyAmount(
+              code: b.code,
+              symbol: b.symbol,
+              decimals: b.decimals,
+              amountUnits: b.expenseGrossUnits,
+            ),
+          )
+          .toList(),
+      emptyFallback: formatMoney(
+        0,
+        symbol: profile.currencySymbol,
+        decimals: decimals,
+        currencyCode: profile.currencyCode,
+      ),
+    );
 
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -342,13 +380,23 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
     );
     final amountField = TextField(
       controller: _amountController,
-      keyboardType: TextInputType.numberWithOptions(decimal: decimals > 0),
-      decoration: InputDecoration(labelText: 'Amount (excl. tax)', hintText: zeroHint),
+      keyboardType: decimals == 0
+          ? TextInputType.number
+          : const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: 'Amount (excl. tax, ${profile.currencySymbol})',
+        hintText: zeroHint,
+      ),
     );
     final taxField = TextField(
       controller: _taxController,
-      keyboardType: TextInputType.numberWithOptions(decimal: decimals > 0),
-      decoration: InputDecoration(labelText: 'Tax Amount', hintText: zeroHint),
+      keyboardType: decimals == 0
+          ? TextInputType.number
+          : const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: 'Tax Amount (${profile.currencySymbol})',
+        hintText: zeroHint,
+      ),
     );
     final notesField = TextField(
       controller: _notesController,
@@ -444,7 +492,7 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                                     const SizedBox(width: 4),
                                     IconButton(
                                       tooltip: 'Remove Attachment',
-                                      icon: const Icon(Icons.close, color: Colors.red, size: 18),
+                                      icon: Icon(Icons.close, color: Theme.of(context).colorScheme.error, size: 18),
                                       onPressed: () => setState(() {
                                         _receiptBase64 = '';
                                         _receiptName = '';
@@ -474,9 +522,33 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                     spacing: 12,
                     runSpacing: 10,
                     children: [
-                      Text(
-                        'Expense Ledger (${filtered.length})',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            'Expense Ledger (${filtered.length})',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: warningTone.background,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: warningTone.border),
+                            ),
+                            child: Text(
+                              'Total: $filteredTotalsLabel',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: warningTone.text,
+                                fontFeatures: const [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       ConstrainedBox(
                         constraints: BoxConstraints(maxWidth: width < 600 ? double.infinity : 280),
@@ -524,6 +596,26 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                 (context, index) {
                   final item = filtered[index];
                   final isLast = index == filtered.length - 1;
+                  final resolved = resolveEffectiveCurrency(
+                    recordCode: item.currencyCode,
+                    recordDecimals: item.currencyCode.trim().isNotEmpty ? item.currencyDecimals : null,
+                    defaultCode: profile.currencyCode,
+                    defaultSymbol: profile.currencySymbol,
+                    defaultDecimals: profile.currencyDecimals,
+                  );
+                  final formattedTotal = formatMoney(
+                    item.totalCents,
+                    symbol: resolved.symbol,
+                    decimals: resolved.decimals,
+                    currencyCode: resolved.code,
+                  );
+                  final formattedTax = formatMoney(
+                    item.taxCents,
+                    symbol: resolved.symbol,
+                    decimals: resolved.decimals,
+                    currencyCode: resolved.code,
+                  );
+                  final isForeign = resolved.code != profile.currencyCode.trim().toUpperCase();
                   return Card(
                     elevation: 0,
                     margin: EdgeInsets.only(bottom: isLast ? 0 : 8),
@@ -542,6 +634,18 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text('${item.vendor} (${item.category})', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          if (isForeign)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                resolved.code,
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: colorScheme.onSurfaceVariant),
+                              ),
+                            ),
                           if (item.hasReceipt)
                             InkWell(
                               onTap: () => _showReceiptDialog(context, item),
@@ -576,14 +680,14 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 112),
+                            constraints: const BoxConstraints(maxWidth: 120),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  formatCurrency(item.totalCents),
+                                  formattedTotal,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
@@ -594,7 +698,7 @@ class _ExpensesTabState extends ConsumerState<ExpensesTab> {
                                 ),
                                 if (item.taxCents > 0)
                                   Text(
-                                    'Tax: ${formatCurrency(item.taxCents)}',
+                                    'Tax: $formattedTax',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -665,13 +769,22 @@ class _ExpenseEditDialogState extends ConsumerState<_ExpenseEditDialog> {
   @override
   void initState() {
     super.initState();
-    final decimals = ref.read(businessProfileProvider).currencyDecimals;
+    final profile = ref.read(businessProfileProvider);
+    final resolved = resolveEffectiveCurrency(
+      recordCode: widget.expense.currencyCode,
+      recordDecimals: widget.expense.currencyCode.trim().isNotEmpty
+          ? widget.expense.currencyDecimals
+          : null,
+      defaultCode: profile.currencyCode,
+      defaultSymbol: profile.currencySymbol,
+      defaultDecimals: profile.currencyDecimals,
+    );
     _vendorController = TextEditingController(text: widget.expense.vendor);
     _amountController = TextEditingController(
-      text: formatDecimalUnits(widget.expense.amountCents, decimals),
+      text: formatDecimalUnits(widget.expense.amountCents, resolved.decimals),
     );
     _taxController = TextEditingController(
-      text: formatDecimalUnits(widget.expense.taxCents, decimals),
+      text: formatDecimalUnits(widget.expense.taxCents, resolved.decimals),
     );
     _dateController = TextEditingController(text: widget.expense.expenseDate);
     _notesController = TextEditingController(text: widget.expense.notes);
@@ -716,10 +829,11 @@ class _ExpenseEditDialogState extends ConsumerState<_ExpenseEditDialog> {
         allowPdf: true,
       );
       if (!validation.isValid || validation.mimeType == null) {
+        final dangerTone = AppSemanticColors.resolve(Theme.of(context).brightness, SemanticStatus.danger);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(validation.errorMessage ?? 'Invalid receipt file selected.'),
-            backgroundColor: Colors.red.shade700,
+            content: Text(validation.errorMessage ?? 'Invalid receipt file selected.', style: TextStyle(color: dangerTone.text)),
+            backgroundColor: dangerTone.background,
           ),
         );
         return;
@@ -755,14 +869,24 @@ class _ExpenseEditDialogState extends ConsumerState<_ExpenseEditDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final decimals = ref.watch(businessProfileProvider).currencyDecimals;
+    final profile = ref.watch(businessProfileProvider);
+    final resolved = resolveEffectiveCurrency(
+      recordCode: widget.expense.currencyCode,
+      recordDecimals: widget.expense.currencyCode.trim().isNotEmpty
+          ? widget.expense.currencyDecimals
+          : null,
+      defaultCode: profile.currencyCode,
+      defaultSymbol: profile.currencySymbol,
+      defaultDecimals: profile.currencyDecimals,
+    );
+    final decimals = resolved.decimals;
     final categoryChoices = _baseCategories.contains(_category)
         ? _baseCategories
         : [..._baseCategories, _category];
 
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      title: const Text('Edit Expense Record'),
+      title: Text('Edit Expense Record (${resolved.code})'),
       content: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 460,
@@ -810,8 +934,10 @@ class _ExpenseEditDialogState extends ConsumerState<_ExpenseEditDialog> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _amountController,
-                  keyboardType: TextInputType.numberWithOptions(decimal: decimals > 0),
-                  decoration: const InputDecoration(labelText: 'Amount (excl. tax) *'),
+                  keyboardType: decimals == 0
+                      ? TextInputType.number
+                      : const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(labelText: 'Amount (excl. tax, ${resolved.symbol}) *'),
                   validator: (val) {
                     if (val == null || parsePriceToUnits(val.trim(), decimals) <= 0) {
                       return 'Enter a valid amount greater than zero';
@@ -822,8 +948,10 @@ class _ExpenseEditDialogState extends ConsumerState<_ExpenseEditDialog> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _taxController,
-                  keyboardType: TextInputType.numberWithOptions(decimal: decimals > 0),
-                  decoration: const InputDecoration(labelText: 'Tax Amount'),
+                  keyboardType: decimals == 0
+                      ? TextInputType.number
+                      : const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(labelText: 'Tax Amount (${resolved.symbol})'),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -858,8 +986,8 @@ class _ExpenseEditDialogState extends ConsumerState<_ExpenseEditDialog> {
                           _receiptBase64 = '';
                           _receiptName = '';
                         }),
-                        icon: const Icon(Icons.close, size: 16, color: Colors.red),
-                        label: const Text('Remove', style: TextStyle(color: Colors.red)),
+                        icon: Icon(Icons.close, size: 16, color: Theme.of(context).colorScheme.error),
+                        label: Text('Remove', style: TextStyle(color: Theme.of(context).colorScheme.error)),
                       ),
                   ],
                 ),
@@ -888,6 +1016,8 @@ class _ExpenseEditDialogState extends ConsumerState<_ExpenseEditDialog> {
                   notes: _notesController.text.trim(),
                   receiptBase64: _receiptBase64,
                   receiptName: _receiptName,
+                  currencyCode: resolved.code,
+                  currencyDecimals: resolved.decimals,
                 );
             Navigator.of(context).pop();
             ScaffoldMessenger.of(context).showSnackBar(

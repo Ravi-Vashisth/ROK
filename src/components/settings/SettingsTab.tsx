@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Settings,
   Building,
@@ -19,6 +19,7 @@ import {
   getCurrencyDecimals,
   getRegionalTaxIdLabel,
   normalizeTaxMode,
+  validateUploadedFileBytes,
 } from '../../billingRules';
 import { ItemsCatalogTab } from '../items/ItemsCatalogTab';
 
@@ -44,6 +45,7 @@ interface SettingsTabProps {
   isDarkMode: boolean;
   businessProfile: any;
   savedItems: any[];
+  currencyCode?: string;
   currencySymbol: string;
   formatMoney: (cents: number) => string;
   parsePriceToCents: (val: string) => number;
@@ -61,6 +63,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   isDarkMode,
   businessProfile,
   savedItems,
+  currencyCode: propCurrencyCode,
   currencySymbol,
   formatMoney,
   parsePriceToCents,
@@ -89,36 +92,114 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     String(businessProfile.default_pst_rate_percentage ?? 7)
   );
   const [paymentDetails, setPaymentDetails] = useState<string>(businessProfile.payment_details || '');
+  const [paymentQrPayload, setPaymentQrPayload] = useState<string>(businessProfile.payment_qr_payload || '');
+  const [invoicePrefix, setInvoicePrefix] = useState<string>(businessProfile.invoice_prefix || 'INV-');
+  const [estimatePrefix, setEstimatePrefix] = useState<string>(businessProfile.estimate_prefix || 'EST-');
+  const [nextInvoiceNumber, setNextInvoiceNumber] = useState<string>(
+    String(Math.max(1, Number(businessProfile.next_invoice_number) || 1))
+  );
   const [defaultTerms, setDefaultTerms] = useState<string>(businessProfile.default_terms || '');
   const [defaultNotes, setDefaultNotes] = useState<string>(businessProfile.default_notes || '');
   const [logoBase64, setLogoBase64] = useState<string>(businessProfile.logo_base64 || '');
   const [signatureBase64, setSignatureBase64] = useState<string>(businessProfile.signature_base64 || '');
 
+  const [uploadError, setUploadError] = useState<string>('');
+  const [profileError, setProfileError] = useState<string>('');
+
+  useEffect(() => {
+    setBusinessName(businessProfile.business_name || '');
+    setEmail(businessProfile.email || '');
+    setPhone(businessProfile.phone || '');
+    setAddress(businessProfile.address || '');
+    setTaxId(businessProfile.tax_id || '');
+    setCurrencyCode(businessProfile.currency_code || 'USD');
+    setDefaultTaxMode(normalizeTaxMode(businessProfile.default_tax_mode));
+    setDefaultPstRatePercentage(String(businessProfile.default_pst_rate_percentage ?? 7));
+    setPaymentDetails(businessProfile.payment_details || '');
+    setPaymentQrPayload(businessProfile.payment_qr_payload || '');
+    setInvoicePrefix(businessProfile.invoice_prefix || 'INV-');
+    setEstimatePrefix(businessProfile.estimate_prefix || 'EST-');
+    setNextInvoiceNumber(String(Math.max(1, Number(businessProfile.next_invoice_number) || 1)));
+    setDefaultTerms(businessProfile.default_terms || '');
+    setDefaultNotes(businessProfile.default_notes || '');
+    setLogoBase64(businessProfile.logo_base64 || '');
+    setSignatureBase64(businessProfile.signature_base64 || '');
+  }, [businessProfile]);
+
   const logoInputRef = useRef<HTMLInputElement>(null);
   const signatureInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'signature') => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'signature') => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      const base64 = uploadEvent.target?.result as string;
-      if (type === 'logo') setLogoBase64(base64);
-      else setSignatureBase64(base64);
-    };
-    reader.readAsDataURL(file);
     e.target.value = '';
+    if (!file) return;
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const validation = validateUploadedFileBytes({
+        bytes: new Uint8Array(buffer),
+        filename: file.name,
+        allowPdf: false,
+      });
+      if (!validation.isValid || !validation.mimeType) {
+        const msg = validation.errorMessage || 'Invalid image selected.';
+        setUploadError(msg);
+        onNotify?.(msg, true);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        const result = uploadEvent.target?.result;
+        if (typeof result === 'string') {
+          const commaIdx = result.indexOf(',');
+          const payload = commaIdx >= 0 ? result.slice(commaIdx + 1) : result;
+          const normalizedDataUri = `data:${validation.mimeType};base64,${payload}`;
+          if (type === 'logo') setLogoBase64(normalizedDataUri);
+          else setSignatureBase64(normalizedDataUri);
+          setUploadError('');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      const msg = 'Unable to read selected image file.';
+      setUploadError(msg);
+      onNotify?.(msg, true);
+    }
   };
 
   const handleSaveProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedInvPrefix = invoicePrefix.trim();
+    const trimmedEstPrefix = estimatePrefix.trim();
+    const nextNumRaw = nextInvoiceNumber.trim();
+    const parsedNextNum = /^\d+$/.test(nextNumRaw) ? Number.parseInt(nextNumRaw, 10) : NaN;
+
+    if (!businessName.trim()) {
+      setProfileError('Legal Business Name is required.');
+      return;
+    }
+    if (!trimmedInvPrefix) {
+      setProfileError('Invoice Prefix cannot be empty.');
+      return;
+    }
+    if (!trimmedEstPrefix) {
+      setProfileError('Estimate Prefix cannot be empty.');
+      return;
+    }
+    if (!Number.isInteger(parsedNextNum) || parsedNextNum < 1) {
+      setProfileError('Next Invoice Number must be a whole number >= 1.');
+      return;
+    }
+    setProfileError('');
+
     const sym = CURRENCY_SYMBOL_MAP[currencyCode] || '$';
     const parsedPst = Math.min(100, Math.max(0, Math.round(Number(defaultPstRatePercentage) || 0)));
 
     onSaveProfile({
       ...businessProfile,
-      business_name: businessName,
+      business_name: businessName.trim(),
       email,
       phone,
       address,
@@ -128,7 +209,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       currency_decimals: getCurrencyDecimals(currencyCode),
       default_tax_mode: defaultTaxMode,
       default_pst_rate_percentage: defaultTaxMode === 'ca_dual' ? parsedPst : 0,
+      invoice_prefix: trimmedInvPrefix,
+      estimate_prefix: trimmedEstPrefix,
+      next_invoice_number: parsedNextNum,
       payment_details: paymentDetails,
+      payment_qr_payload: paymentQrPayload.trim(),
       default_terms: defaultTerms,
       default_notes: defaultNotes,
       logo_base64: logoBase64,
@@ -315,6 +400,49 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             )}
           </div>
 
+          <div className="grid grid-cols-1 min-[900px]:grid-cols-3 gap-4 text-xs">
+            <div>
+              <label className="block font-bold text-slate-500 mb-1">Invoice Prefix *</label>
+              <input
+                type="text"
+                value={invoicePrefix}
+                onChange={(e) => setInvoicePrefix(e.target.value)}
+                placeholder="INV-"
+                className={`w-full p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                required
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-500 mb-1">Estimate Prefix *</label>
+              <input
+                type="text"
+                value={estimatePrefix}
+                onChange={(e) => setEstimatePrefix(e.target.value)}
+                placeholder="EST-"
+                className={`w-full p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                required
+              />
+            </div>
+            <div>
+              <label className="block font-bold text-slate-500 mb-1">Next Invoice # *</label>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={nextInvoiceNumber}
+                onChange={(e) => setNextInvoiceNumber(e.target.value)}
+                className={`w-full p-2.5 rounded-xl border font-mono tabular-nums ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                required
+              />
+            </div>
+          </div>
+
+          {(profileError || uploadError) && (
+            <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-500 font-medium">
+              {profileError || uploadError}
+            </div>
+          )}
+
           {/* Logo & Signature Branding Controls */}
           <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-4 text-xs pt-2">
             <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
@@ -322,16 +450,24 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 <Image className="w-3.5 h-3.5" />
                 <span>Company Logo</span>
               </label>
-              <input type="file" ref={logoInputRef} onChange={(e) => handleFileUpload(e, 'logo')} accept="image/*" className="hidden" />
+              <input
+                type="file"
+                ref={logoInputRef}
+                onChange={(e) => handleFileUpload(e, 'logo')}
+                accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                className="hidden"
+              />
               {logoBase64 ? (
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <img src={logoBase64} alt="Logo Preview" className="w-10 h-10 object-contain rounded-lg border border-slate-200 dark:border-slate-700 bg-white" />
+                    {!logoBase64.startsWith('idb://') && (
+                      <img src={logoBase64} alt="Logo Preview" className="w-10 h-10 object-contain rounded-lg border border-slate-200 dark:border-slate-700 bg-white" />
+                    )}
                     <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Logo Configured
                     </span>
                   </div>
-                  <button type="button" onClick={() => setLogoBase64('')} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer">
+                  <button type="button" onClick={() => { setLogoBase64(''); setUploadError(''); }} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -347,16 +483,24 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                 <PenTool className="w-3.5 h-3.5" />
                 <span>Digital Signature</span>
               </label>
-              <input type="file" ref={signatureInputRef} onChange={(e) => handleFileUpload(e, 'signature')} accept="image/*" className="hidden" />
+              <input
+                type="file"
+                ref={signatureInputRef}
+                onChange={(e) => handleFileUpload(e, 'signature')}
+                accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                className="hidden"
+              />
               {signatureBase64 ? (
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <img src={signatureBase64} alt="Signature Preview" className="w-10 h-10 object-contain rounded-lg border border-slate-200 dark:border-slate-700 bg-white" />
+                    {!signatureBase64.startsWith('idb://') && (
+                      <img src={signatureBase64} alt="Signature Preview" className="w-10 h-10 object-contain rounded-lg border border-slate-200 dark:border-slate-700 bg-white" />
+                    )}
                     <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5" /> ✔ Digital Signature Configured
                     </span>
                   </div>
-                  <button type="button" onClick={() => setSignatureBase64('')} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer">
+                  <button type="button" onClick={() => { setSignatureBase64(''); setUploadError(''); }} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -385,7 +529,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         <ItemsCatalogTab
           savedItems={savedItems}
           isDarkMode={isDarkMode}
+          currencyCode={propCurrencyCode || businessProfile.currency_code || 'USD'}
           currencySymbol={currencySymbol}
+          currencyDecimals={
+            businessProfile.currency_decimals ??
+            getCurrencyDecimals(propCurrencyCode || businessProfile.currency_code || currencySymbol)
+          }
           formatMoney={formatMoney}
           parsePriceToCents={parsePriceToCents}
           onBack={() => setActiveSubTab(0)}
@@ -414,6 +563,20 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             </div>
 
             <div>
+              <label className="block font-bold text-slate-500 mb-1">Scan-to-Pay QR Payload (UPI VPA or Payment URL)</label>
+              <input
+                type="text"
+                value={paymentQrPayload}
+                onChange={(e) => setPaymentQrPayload(e.target.value)}
+                placeholder="e.g. studio@upi or https://pay.example.com/studio (dynamic invoice QR)"
+                className={`w-full p-3 rounded-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Generates a dynamic Scan-to-Pay QR code with balance due &amp; invoice reference on unpaid invoice PDFs/print sheets.
+              </p>
+            </div>
+
+            <div>
               <label className="block font-bold text-slate-500 mb-1">Default Invoice Terms & Legal Notice</label>
               <textarea
                 value={defaultTerms}
@@ -439,6 +602,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                   onSaveProfile({
                     ...businessProfile,
                     payment_details: paymentDetails,
+                    payment_qr_payload: paymentQrPayload.trim(),
                     default_terms: defaultTerms,
                     default_notes: defaultNotes,
                   });

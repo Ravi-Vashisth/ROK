@@ -29,17 +29,16 @@ class CashFlowMetricsBar extends ConsumerWidget {
               isOverdue: !inv.isFullyPaid && inv.isOverdue,
             ));
 
-    int totalExpensesGrossCents = 0;
-    int totalExpenseTaxCents = 0;
-    for (final exp in expenses) {
-      totalExpensesGrossCents += exp.totalCents;
-      totalExpenseTaxCents += exp.taxCents;
-    }
-
     final summary = computeDashboardCashFlow(
       activeEntries,
-      expenseGrossUnits: totalExpensesGrossCents,
-      expenseTaxUnits: totalExpenseTaxCents,
+      expenseEntries: expenses.map(
+        (exp) => CurrencyExpenseEntry(
+          currencyCode: exp.currencyCode,
+          currencyDecimals: exp.currencyDecimals,
+          totalUnits: exp.totalCents,
+          taxUnits: exp.taxCents,
+        ),
+      ),
       defaultCode: profile.currencyCode,
       defaultSymbol: profile.currencySymbol,
       defaultDecimals: profile.currencyDecimals,

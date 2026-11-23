@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:billing_app/core/theme/app_theme.dart';
 import 'package:billing_app/core/utils/money_utils.dart';
 import 'package:billing_app/features/invoices/models/invoice_record.dart';
 import 'package:billing_app/features/invoices/providers/invoices_provider.dart';
@@ -111,14 +112,17 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
             notes: _notesController.text.trim(),
           );
 
+      final brightness = Theme.of(context).brightness;
+      final successTone = AppSemanticColors.resolve(brightness, SemanticStatus.success);
       Navigator.of(context).pop();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Recorded ${_fmt(amountReceivedCents)} received${tdsCents > 0 ? " (+${_fmt(tdsCents)} TDS)" : ""}. Total credit: ${_fmt(totalCreditCents)}.',
+            style: TextStyle(color: successTone.text, fontWeight: FontWeight.w600),
           ),
-          backgroundColor: Colors.green.shade800,
+          backgroundColor: successTone.background,
         ),
       );
     } catch (e) {
@@ -131,6 +135,7 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final successTone = AppSemanticColors.resolve(theme.brightness, SemanticStatus.success);
     final inv = widget.invoice;
     final dateDisplay =
         '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
@@ -259,12 +264,12 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
                     _SummaryColumn(
                       label: 'Credited to Date',
                       value: _fmt(inv.paidCents),
-                      color: Colors.green.shade700,
+                      color: successTone.text,
                     ),
                     _SummaryColumn(
                       label: 'Balance Due',
                       value: _fmt(inv.balanceDueCents),
-                      color: inv.balanceDueCents > 0 ? Colors.indigo.shade700 : Colors.green.shade700,
+                      color: inv.balanceDueCents > 0 ? theme.colorScheme.primary : successTone.text,
                       isBold: true,
                     ),
                   ],
@@ -326,7 +331,7 @@ class _RecordPaymentDialogState extends ConsumerState<RecordPaymentDialog> {
                 const SizedBox(height: 6),
                 Text(
                   _errorMessage!,
-                  style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500),
+                  style: TextStyle(color: theme.colorScheme.error, fontSize: 12, fontWeight: FontWeight.w500),
                 ),
               ],
               const SizedBox(height: 16),
@@ -434,7 +439,7 @@ class _SummaryColumn extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 11,
-            color: Colors.grey.shade600,
+            color: Theme.of(context).textTheme.bodySmall?.color ?? Theme.of(context).colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w500,
           ),
         ),

@@ -1,5 +1,9 @@
 import 'dart:convert';
+import 'dart:isolate';
+import 'dart:typed_data';
 import 'package:sqlite3/sqlite3.dart';
+import 'package:billing_app/core/utils/id_generator.dart';
+import 'package:billing_app/core/utils/money_utils.dart';
 
 class _TableValidationRule {
   final Set<String> requiredNonEmptyStrings;
@@ -147,6 +151,8 @@ class BackupService {
       'notes',
       'receipt_base64',
       'receipt_name',
+      'currency_code',
+      'currency_decimals',
       'created_at',
       'updated_at',
       'deleted_at',
@@ -157,6 +163,8 @@ class BackupService {
       'sac_hsn',
       'default_price_cents',
       'description',
+      'currency_code',
+      'currency_decimals',
       'created_at',
       'updated_at',
       'deleted_at',
@@ -302,11 +310,12 @@ class BackupService {
         'created_at',
       },
       requiredInts: {'amount_cents'},
-      optionalInts: {'tax_cents'},
+      optionalInts: {'tax_cents', 'currency_decimals'},
       optionalStrings: {
         'notes',
         'receipt_base64',
         'receipt_name',
+        'currency_code',
         'updated_at',
         'deleted_at',
       },
@@ -314,7 +323,14 @@ class BackupService {
     'saved_items': _TableValidationRule(
       requiredNonEmptyStrings: {'id', 'title', 'created_at'},
       requiredInts: {'default_price_cents'},
-      optionalStrings: {'sac_hsn', 'description', 'updated_at', 'deleted_at'},
+      optionalInts: {'currency_decimals'},
+      optionalStrings: {
+        'sac_hsn',
+        'description',
+        'currency_code',
+        'updated_at',
+        'deleted_at',
+      },
     ),
     'payments': _TableValidationRule(
       requiredNonEmptyStrings: {
@@ -426,17 +442,296 @@ class BackupService {
     return backup;
   }
 
+  static int? _asInt(dynamic v) => v is int ? v : null;
+
+  /// Normalizes React Web JSON backups (`businessProfile` object, nested `invoice.items` /
+  /// `estimate.items`, camelCase `savedItems`, and `paid_cents` without `payments` table)
+  /// into canonical Flutter SQLite snapshot structure before strict validation.
+  static Map<String, dynamic> normalizeBackupPayloadForFlutter(
+    Map<String, dynamic> raw,
+  ) {
+    final normalized = <String, dynamic>{};
+    for (final entry in raw.entries) {
+      normalized[entry.key] = entry.value;
+    }
+
+    final fallbackTs = (raw['exported_at'] is String &&
+            (raw['exported_at'] as String).trim().isNotEmpty)
+        ? (raw['exported_at'] as String).trim()
+        : DateTime.now().toUtc().toIso8601String();
+    final fallbackDate = fallbackTs.length >= 10
+        ? fallbackTs.substring(0, 10)
+        : '1970-01-01';
+
+    // Reject explicitly malformed React businessProfile early so validation catches it.
+    if (raw.containsKey('businessProfile') && raw['businessProfile'] is! Map) {
+      throw const FormatException(
+        'Invalid backup file: "businessProfile" must be a JSON object.',
+      );
+    }
+
+    // Normalize React camelCase `businessProfile` object -> Flutter `business_profile` list.
+    if (!normalized.containsKey('business_profile')) {
+      if (raw['businessProfile'] is Map) {
+        final prof = Map<String, dynamic>.from(raw['businessProfile'] as Map);
+        prof.putIfAbsent('id', () => 'default');
+        if (prof['business_name'] is! String ||
+            (prof['business_name'] as String).trim().isEmpty) {
+          prof['business_name'] = 'My Freelance Studio';
+        }
+        // React stores accent_color preset names as strings while SQLite expects int ARGB.
+        if (prof['accent_color'] is String) {
+          prof.remove('accent_color');
+        }
+        normalized['business_profile'] = [prof];
+      } else if (raw['clients'] is List && raw['invoices'] is List) {
+        // React snapshot without businessProfile key still represents a valid user backup.
+        normalized['business_profile'] = [
+          <String, dynamic>{
+            'id': 'default',
+            'business_name': 'My Freelance Studio',
+            'currency_code': 'USD',
+            'currency_symbol': '\$',
+            'currency_decimals': 2,
+          }
+        ];
+      }
+    }
+
+    // Normalize clients created_at fallback when exported from Web local state.
+    if (normalized['clients'] is List) {
+      final rawClients = normalized['clients'] as List;
+      normalized['clients'] = rawClients.map((c) {
+        if (c is! Map) return c;
+        final copy = Map<String, dynamic>.from(c);
+        if (copy['created_at'] == null) {
+          copy['created_at'] = fallbackTs;
+        }
+        return copy;
+      }).toList();
+    }
+
+    // Flatten nested React invoice.items -> `invoice_items` and synthesize `payments` if needed.
+    final bool hadExplicitInvoiceItems = normalized['invoice_items'] is List;
+    final bool hadExplicitPayments = normalized['payments'] is List;
+    final List<dynamic> flattenedInvItems = hadExplicitInvoiceItems
+        ? List<dynamic>.from(normalized['invoice_items'] as List)
+        : <dynamic>[];
+    final List<dynamic> synthesizedPayments = hadExplicitPayments
+        ? List<dynamic>.from(normalized['payments'] as List)
+        : <dynamic>[];
+
+    if (normalized['invoices'] is List) {
+      final rawInvoices = normalized['invoices'] as List;
+      normalized['invoices'] = rawInvoices.map((inv) {
+        if (inv is! Map) return inv;
+        final copy = Map<String, dynamic>.from(inv);
+        if (copy['created_at'] == null) {
+          copy['created_at'] = fallbackTs;
+        }
+        final invId = copy['id'];
+        final invCreated =
+            copy['created_at'] is String && (copy['created_at'] as String).trim().isNotEmpty
+                ? copy['created_at'] as String
+                : fallbackTs;
+
+        final nestedItems = copy.remove('items');
+        if (!hadExplicitInvoiceItems && nestedItems is List && invId is String && invId.trim().isNotEmpty) {
+          for (final rawItem in nestedItems) {
+            if (rawItem is! Map) {
+              flattenedInvItems.add(rawItem);
+              continue;
+            }
+            final qty = _asInt(rawItem['quantity']) ?? 1;
+            final unitPrice = rawItem['unit_price_cents'] ?? rawItem['unitPriceCents'];
+            final unitInt = _asInt(unitPrice);
+            final taxRate = _asInt(rawItem['tax_rate_percentage'] ?? rawItem['taxSlab']) ?? 0;
+            final explicitTotal = rawItem['total_cents'] ?? rawItem['totalCents'];
+            final totalVal = explicitTotal ?? (unitInt != null ? qty * unitInt : null);
+            final explicitTax = rawItem['tax_cents'] ?? rawItem['taxCents'];
+            final taxVal = explicitTax ??
+                (totalVal is int ? calculateTaxCents(totalVal, taxRate) : 0);
+
+            flattenedInvItems.add(<String, dynamic>{
+              'id': (rawItem['id'] is String && (rawItem['id'] as String).trim().isNotEmpty)
+                  ? rawItem['id']
+                  : generateUniqueId(),
+              'invoice_id': invId,
+              'description': rawItem['description'],
+              'sac_hsn': rawItem['sac_hsn'] ?? rawItem['sacHsn'] ?? '',
+              'quantity': rawItem['quantity'] ?? 1,
+              'unit_price_cents': unitPrice,
+              'tax_rate_percentage': taxRate,
+              'tax_cents': taxVal,
+              'total_cents': totalVal,
+              'created_at': rawItem['created_at'] ?? invCreated,
+            });
+          }
+        }
+
+        final paidCents = _asInt(copy['paid_cents']);
+        if (!hadExplicitPayments &&
+            paidCents != null &&
+            paidCents > 0 &&
+            invId is String &&
+            invId.trim().isNotEmpty) {
+          final payDate = (copy['issue_date'] is String &&
+                  (copy['issue_date'] as String).trim().isNotEmpty)
+              ? (copy['issue_date'] as String).trim()
+              : fallbackDate;
+          synthesizedPayments.add(<String, dynamic>{
+            'id': generateUniqueId(),
+            'invoice_id': invId,
+            'amount_cents': paidCents,
+            'amount_received_cents': paidCents,
+            'tds_cents': 0,
+            'reference_number': '',
+            'payment_method': 'Imported Balance',
+            'payment_date': payDate,
+            'notes': 'Migrated from Web backup',
+            'created_at': invCreated,
+          });
+        }
+        return copy;
+      }).toList();
+
+      if (flattenedInvItems.isNotEmpty || hadExplicitInvoiceItems) {
+        normalized['invoice_items'] = flattenedInvItems;
+      }
+      if (synthesizedPayments.isNotEmpty || hadExplicitPayments) {
+        normalized['payments'] = synthesizedPayments;
+      }
+    }
+
+    // Flatten nested React estimate.items -> `estimate_items`.
+    final bool hadExplicitEstimateItems = normalized['estimate_items'] is List;
+    final List<dynamic> flattenedEstItems = hadExplicitEstimateItems
+        ? List<dynamic>.from(normalized['estimate_items'] as List)
+        : <dynamic>[];
+
+    if (normalized['estimates'] is List) {
+      final rawEstimates = normalized['estimates'] as List;
+      normalized['estimates'] = rawEstimates.map((est) {
+        if (est is! Map) return est;
+        final copy = Map<String, dynamic>.from(est);
+        if (copy['created_at'] == null) {
+          copy['created_at'] = fallbackTs;
+        }
+        final estId = copy['id'];
+        final estCreated =
+            copy['created_at'] is String && (copy['created_at'] as String).trim().isNotEmpty
+                ? copy['created_at'] as String
+                : fallbackTs;
+        final nestedItems = copy.remove('items');
+        if (!hadExplicitEstimateItems && nestedItems is List && estId is String && estId.trim().isNotEmpty) {
+          for (final rawItem in nestedItems) {
+            if (rawItem is! Map) {
+              flattenedEstItems.add(rawItem);
+              continue;
+            }
+            final qty = _asInt(rawItem['quantity']) ?? 1;
+            final unitPrice = rawItem['unit_price_cents'] ?? rawItem['unitPriceCents'];
+            final unitInt = _asInt(unitPrice);
+            final taxRate = _asInt(rawItem['tax_rate_percentage'] ?? rawItem['taxSlab']) ?? 0;
+            final explicitTotal = rawItem['total_cents'] ?? rawItem['totalCents'];
+            final totalVal = explicitTotal ?? (unitInt != null ? qty * unitInt : null);
+            final explicitTax = rawItem['tax_cents'] ?? rawItem['taxCents'];
+            final taxVal = explicitTax ??
+                (totalVal is int ? calculateTaxCents(totalVal, taxRate) : 0);
+
+            flattenedEstItems.add(<String, dynamic>{
+              'id': (rawItem['id'] is String && (rawItem['id'] as String).trim().isNotEmpty)
+                  ? rawItem['id']
+                  : generateUniqueId(),
+              'estimate_id': estId,
+              'description': rawItem['description'],
+              'sac_hsn': rawItem['sac_hsn'] ?? rawItem['sacHsn'] ?? '',
+              'quantity': rawItem['quantity'] ?? 1,
+              'unit_price_cents': unitPrice,
+              'tax_rate_percentage': taxRate,
+              'tax_cents': taxVal,
+              'total_cents': totalVal,
+              'created_at': rawItem['created_at'] ?? estCreated,
+            });
+          }
+        }
+        return copy;
+      }).toList();
+
+      if (flattenedEstItems.isNotEmpty || hadExplicitEstimateItems) {
+        normalized['estimate_items'] = flattenedEstItems;
+      }
+    }
+
+    // Normalize React expenses (`total_cents` minus `tax_cents` when `amount_cents` omitted).
+    if (normalized['expenses'] is List) {
+      final rawExpenses = normalized['expenses'] as List;
+      normalized['expenses'] = rawExpenses.map((exp) {
+        if (exp is! Map) return exp;
+        final copy = Map<String, dynamic>.from(exp);
+        if (copy['created_at'] == null) {
+          copy['created_at'] = fallbackTs;
+        }
+        if (copy['amount_cents'] == null && copy['total_cents'] is int) {
+          final totalCents = copy['total_cents'] as int;
+          final taxCents = copy['tax_cents'] is int ? (copy['tax_cents'] as int) : 0;
+          copy['amount_cents'] = (totalCents - taxCents).clamp(0, totalCents);
+        }
+        if (copy['currency_code'] == null && copy.containsKey('currencyCode')) {
+          copy['currency_code'] = copy['currencyCode'];
+        }
+        if (copy['currency_decimals'] == null && copy.containsKey('currencyDecimals')) {
+          copy['currency_decimals'] = copy['currencyDecimals'];
+        }
+        return copy;
+      }).toList();
+    }
+
+    // Normalize React camelCase `savedItems` -> Flutter `saved_items`.
+    if (!normalized.containsKey('saved_items') && raw.containsKey('savedItems')) {
+      final rawSaved = raw['savedItems'];
+      if (rawSaved is! List) {
+        throw const FormatException(
+          'Invalid backup file: Table "saved_items" must be a JSON array.',
+        );
+      }
+      normalized['saved_items'] = rawSaved.map((it) {
+        if (it is! Map) return it;
+        final copy = Map<String, dynamic>.from(it);
+        if (copy['created_at'] == null) {
+          copy['created_at'] = fallbackTs;
+        }
+        if (copy['default_price_cents'] == null && copy.containsKey('defaultPriceCents')) {
+          copy['default_price_cents'] = copy['defaultPriceCents'];
+        }
+        if (copy['sac_hsn'] == null && copy.containsKey('sacHsn')) {
+          copy['sac_hsn'] = copy['sacHsn'];
+        }
+        if (copy['currency_code'] == null && copy.containsKey('currencyCode')) {
+          copy['currency_code'] = copy['currencyCode'];
+        }
+        if (copy['currency_decimals'] == null && copy.containsKey('currencyDecimals')) {
+          copy['currency_decimals'] = copy['currencyDecimals'];
+        }
+        return copy;
+      }).toList();
+    }
+
+    return normalized;
+  }
+
   static void validateBackupMap(Map<String, dynamic> backup) {
-    if (!backup.containsKey('business_profile') ||
-        !backup.containsKey('clients') ||
-        !backup.containsKey('invoices')) {
+    final normalized = normalizeBackupPayloadForFlutter(backup);
+    if (!normalized.containsKey('business_profile') ||
+        !normalized.containsKey('clients') ||
+        !normalized.containsKey('invoices')) {
       throw const FormatException(
           'Invalid backup file: The selected file is not a valid Freelance Ledger database snapshot.');
     }
 
     for (final table in allowedTableColumns.keys) {
-      if (!backup.containsKey(table)) continue;
-      final value = backup[table];
+      if (!normalized.containsKey(table)) continue;
+      final value = normalized[table];
       if (value is! List) {
         throw FormatException(
             'Invalid backup file: Table "$table" must be a JSON array.');
@@ -453,7 +748,8 @@ class BackupService {
   }
 
   static void importDatabaseFromJson(Database db, Map<String, dynamic> backup) {
-    validateBackupMap(backup);
+    final normalized = normalizeBackupPayloadForFlutter(backup);
+    validateBackupMap(normalized);
 
     db.execute('PRAGMA foreign_keys = ON;');
     db.execute('BEGIN TRANSACTION;');
@@ -491,7 +787,7 @@ class BackupService {
       final fallbackUpdatedAt = DateTime.now().toUtc().toIso8601String();
 
       for (final table in insertTables) {
-        final rows = backup[table] as List<dynamic>?;
+        final rows = normalized[table] as List<dynamic>?;
         if (rows == null || rows.isEmpty) continue;
 
         for (final row in rows) {
@@ -539,6 +835,40 @@ class BackupService {
   static String exportToJsonString(Database db) {
     final map = exportDatabaseToJson(db);
     return const JsonEncoder.withIndent('  ').convert(map);
+  }
+
+  static Uint8List _encodeSnapshotToUtf8Bytes(Map<String, dynamic> snapshot) {
+    final jsonStr = const JsonEncoder.withIndent('  ').convert(snapshot);
+    return Uint8List.fromList(utf8.encode(jsonStr));
+  }
+
+  static Map<String, dynamic> _decodeAndValidateBackupBytes(Uint8List bytes) {
+    final jsonStr = utf8.decode(bytes);
+    final decoded = jsonDecode(jsonStr);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException(
+        'Invalid backup file: Root payload must be a JSON object.',
+      );
+    }
+    final normalized = normalizeBackupPayloadForFlutter(decoded);
+    validateBackupMap(normalized);
+    return normalized;
+  }
+
+  /// Reads tables synchronously on the DB owner thread and offloads pretty JSON
+  /// formatting + UTF-8 encoding to a background isolate via [Isolate.run].
+  static Future<Uint8List> exportDatabaseToJsonBytesAsync(Database db) {
+    final snapshot = exportDatabaseToJson(db);
+    return Isolate.run(() => _encodeSnapshotToUtf8Bytes(snapshot));
+  }
+
+  /// Offloads UTF-8 decoding, JSON parsing, normalization, and strict schema validation
+  /// to a background isolate via [Isolate.run] before touching SQLite on the main thread.
+  static Future<Map<String, dynamic>> decodeAndValidateBackupBytesAsync(
+    List<int> rawBytes,
+  ) {
+    final payload = rawBytes is Uint8List ? rawBytes : Uint8List.fromList(rawBytes);
+    return Isolate.run(() => _decodeAndValidateBackupBytes(payload));
   }
 
   static void importFromJsonString(Database db, String jsonString) {

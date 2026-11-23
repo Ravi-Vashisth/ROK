@@ -113,20 +113,23 @@ Uri buildWhatsAppUri({
   return Uri.parse('https://wa.me/$path?text=${Uri.encodeComponent(message)}');
 }
 
-/// Builds a mailto: URI, pre-filling recipient email when present.
+/// Builds a mailto: URI, pre-filling recipient email when present and omitting empty query parameters.
 Uri buildMailtoUri({
   String email = '',
-  required String subject,
-  required String body,
+  String subject = '',
+  String body = '',
 }) {
   final cleanEmail = email.trim();
-  return Uri.parse(
-    'mailto:$cleanEmail?subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}',
-  );
+  final queryParts = <String>[
+    if (subject.trim().isNotEmpty) 'subject=${Uri.encodeComponent(subject)}',
+    if (body.trim().isNotEmpty) 'body=${Uri.encodeComponent(body)}',
+  ];
+  final query = queryParts.isNotEmpty ? '?${queryParts.join('&')}' : '';
+  return Uri.parse('mailto:$cleanEmail$query');
 }
 
 /// Builds an sms: URI for a normalized recipient phone, or null if no digits exist.
-/// Set [isIos] to true on iOS to apply Apple's '&body=' SMS delimiter quirk.
+/// Set [isIos] to true on Apple platforms (iOS and macOS) to apply Apple's '&body=' SMS delimiter quirk.
 Uri? buildSmsUri({
   String phone = '',
   String body = '',
@@ -139,6 +142,49 @@ Uri? buildSmsUri({
   }
   final delimiter = isIos ? '&' : '?';
   return Uri.parse('sms:$normalized${delimiter}body=${Uri.encodeComponent(body)}');
+}
+
+/// Builds an smsto: fallback URI for Android OEM ROMs (MIUI, ColorOS, OneUI) where primary sms: fails.
+Uri? buildSmsFallbackUri({
+  String phone = '',
+  String body = '',
+}) {
+  final normalized = normalizePhoneForUri(phone);
+  if (normalized.isEmpty) return null;
+  if (body.isEmpty) {
+    return Uri.parse('smsto:$normalized');
+  }
+  return Uri.parse('smsto:$normalized?body=${Uri.encodeComponent(body)}');
+}
+
+/// Builds a 1-tap clipboard bundle containing recipient contact, subject, and reminder body
+/// suitable for WeChat, Telegram, SMS, or manual email pasting.
+String buildCopyEverythingReminderText({
+  required String subject,
+  required String message,
+  String clientName = '',
+  String clientEmail = '',
+  String phone = '',
+}) {
+  final lines = <String>[];
+  final contactParts = <String>[
+    if (clientName.trim().isNotEmpty) clientName.trim(),
+    if (clientEmail.trim().isNotEmpty) clientEmail.trim(),
+    if (normalizePhoneForUri(phone).isNotEmpty) normalizePhoneForUri(phone),
+  ];
+  if (contactParts.isNotEmpty) {
+    lines.add('To: ${contactParts.join(' • ')}');
+  }
+  if (subject.trim().isNotEmpty) {
+    lines.add('Subject: ${subject.trim()}');
+  }
+  if (lines.isNotEmpty && message.trim().isNotEmpty) {
+    lines.add('');
+  }
+  if (message.trim().isNotEmpty) {
+    lines.add(message.trim());
+  }
+  return lines.join('\n');
 }
 
 /// Builds a tel: URI for a normalized phone number, or null if no digits exist.

@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:billing_app/core/theme/app_theme.dart';
 import 'package:billing_app/core/utils/file_validation_utils.dart';
 import 'package:billing_app/core/utils/tax_compliance_utils.dart';
 import 'package:billing_app/features/business_profile/providers/business_profile_provider.dart';
@@ -28,6 +29,10 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
   late final TextEditingController _defaultNotesController;
   late final TextEditingController _signatureLabelController;
   late final TextEditingController _defaultPstController;
+  late final TextEditingController _invoicePrefixController;
+  late final TextEditingController _estimatePrefixController;
+  late final TextEditingController _nextInvoiceNumberController;
+  late final TextEditingController _paymentQrPayloadController;
   late String _selectedCurrencySymbol;
   late String _selectedCurrencyCode;
   late int _selectedCurrencyDecimals;
@@ -75,6 +80,16 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     _defaultPstController = TextEditingController(
       text: profile.defaultPstRatePercentage.toString(),
     );
+    _invoicePrefixController = TextEditingController(
+      text: profile.invoicePrefix.trim().isNotEmpty ? profile.invoicePrefix : 'INV-',
+    );
+    _estimatePrefixController = TextEditingController(
+      text: profile.estimatePrefix.trim().isNotEmpty ? profile.estimatePrefix : 'EST-',
+    );
+    _nextInvoiceNumberController = TextEditingController(
+      text: (profile.nextInvoiceNumber < 1 ? 1 : profile.nextInvoiceNumber).toString(),
+    );
+    _paymentQrPayloadController = TextEditingController(text: profile.paymentQrPayload);
     _logoBase64 = profile.logoBase64;
     _signatureBase64 = profile.signatureBase64;
     _selectedCurrencySymbol = profile.currencySymbol;
@@ -95,6 +110,10 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     _defaultNotesController.dispose();
     _signatureLabelController.dispose();
     _defaultPstController.dispose();
+    _invoicePrefixController.dispose();
+    _estimatePrefixController.dispose();
+    _nextInvoiceNumberController.dispose();
+    _paymentQrPayloadController.dispose();
     super.dispose();
   }
 
@@ -102,13 +121,43 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
-      withData: true,
+      withData: false,
     );
     if (result == null || result.files.isEmpty) return null;
 
     final picked = result.files.single;
-    final bytes = picked.bytes ??
-        (picked.path != null ? await File(picked.path!).readAsBytes() : null);
+    const maxMb = maxAttachmentSizeBytes ~/ (1024 * 1024);
+    if (picked.size > maxAttachmentSizeBytes) {
+      if (!mounted) return null;
+      final dangerTone = AppSemanticColors.resolve(Theme.of(context).brightness, SemanticStatus.danger);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('File exceeds maximum allowed size of $maxMb MB.', style: TextStyle(color: dangerTone.text)),
+          backgroundColor: dangerTone.background,
+        ),
+      );
+      return null;
+    }
+
+    List<int>? bytes;
+    if (picked.path != null) {
+      final file = File(picked.path!);
+      final fileLength = await file.length();
+      if (fileLength > maxAttachmentSizeBytes) {
+        if (!mounted) return null;
+        final dangerTone = AppSemanticColors.resolve(Theme.of(context).brightness, SemanticStatus.danger);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('File exceeds maximum allowed size of $maxMb MB.', style: TextStyle(color: dangerTone.text)),
+            backgroundColor: dangerTone.background,
+          ),
+        );
+        return null;
+      }
+      bytes = await file.readAsBytes();
+    } else {
+      bytes = picked.bytes;
+    }
     if (!mounted) return null;
 
     if (bytes == null) {
@@ -124,10 +173,11 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
       allowPdf: false,
     );
     if (!validation.isValid || validation.mimeType == null) {
+      final dangerTone = AppSemanticColors.resolve(Theme.of(context).brightness, SemanticStatus.danger);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(validation.errorMessage ?? 'Invalid image file selected.'),
-          backgroundColor: Colors.red.shade700,
+          content: Text(validation.errorMessage ?? 'Invalid image file selected.', style: TextStyle(color: dangerTone.text)),
+          backgroundColor: dangerTone.background,
         ),
       );
       return null;
@@ -172,6 +222,7 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     final defaultPst = (int.tryParse(_defaultPstController.text.trim()) ?? 0).clamp(0, 100);
+    final nextInvNum = int.tryParse(_nextInvoiceNumberController.text.trim()) ?? 1;
     ref.read(businessProfileProvider.notifier).updateProfile(
           businessName: _businessNameController.text.trim(),
           email: _emailController.text.trim(),
@@ -189,6 +240,10 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
           signatureLabel: _signatureLabelController.text.trim(),
           defaultTaxMode: _selectedTaxMode,
           defaultPstRatePercentage: defaultPst,
+          invoicePrefix: _invoicePrefixController.text.trim(),
+          estimatePrefix: _estimatePrefixController.text.trim(),
+          nextInvoiceNumber: nextInvNum < 1 ? 1 : nextInvNum,
+          paymentQrPayload: _paymentQrPayloadController.text.trim(),
         );
 
     Navigator.of(context).pop();
@@ -201,16 +256,21 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
   }
 
   Widget _buildImagePreview(String base64Str, VoidCallback onRemove, String label) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final successTone = AppSemanticColors.resolve(theme.brightness, SemanticStatus.success);
+    final secondaryTextColor = theme.textTheme.bodySmall?.color ?? colorScheme.onSurfaceVariant;
+
     if (base64Str.isEmpty) {
       return Container(
         height: 60,
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Theme.of(context).dividerColor, style: BorderStyle.solid),
+          border: Border.all(color: theme.dividerColor, style: BorderStyle.solid),
         ),
         child: Center(
-          child: Text('No $label selected yet', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          child: Text('No $label selected yet', style: TextStyle(fontSize: 12, color: secondaryTextColor)),
         ),
       );
     }
@@ -221,24 +281,32 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
       return Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Theme.of(context).dividerColor),
+          border: Border.all(color: theme.dividerColor),
         ),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.memory(bytes, height: 48, fit: BoxFit.contain),
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Image.memory(bytes, height: 40, fit: BoxFit.contain),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text('$label uploaded', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.black87)),
+              child: Text(
+                '$label uploaded',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: colorScheme.onSurface),
+              ),
             ),
             TextButton.icon(
               onPressed: onRemove,
-              icon: const Icon(Icons.close, size: 16, color: Colors.red),
-              label: const Text('Remove', style: TextStyle(color: Colors.red, fontSize: 12)),
+              icon: Icon(Icons.close, size: 16, color: colorScheme.error),
+              label: Text('Remove', style: TextStyle(color: colorScheme.error, fontSize: 12)),
             ),
           ],
         ),
@@ -246,10 +314,10 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
     } catch (_) {
       return Row(
         children: [
-          const Icon(Icons.check_circle, color: Colors.green, size: 18),
+          Icon(Icons.check_circle, color: successTone.icon, size: 18),
           const SizedBox(width: 8),
           Expanded(child: Text('$label configured', style: const TextStyle(fontSize: 12))),
-          TextButton(onPressed: onRemove, child: const Text('Remove', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: onRemove, child: Text('Remove', style: TextStyle(color: colorScheme.error))),
         ],
       );
     }
@@ -373,9 +441,12 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'These branding settings appear on your printed A4 PDF invoices and proposals.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).textTheme.bodySmall?.color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     if (isCompact) ...[
@@ -457,6 +528,71 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
                     ],
                     const SizedBox(height: 18),
                     const Text(
+                      'Document Numbering & Prefixes',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    (() {
+                      final invPrefixField = TextFormField(
+                        controller: _invoicePrefixController,
+                        decoration: const InputDecoration(
+                          labelText: 'Invoice Prefix *',
+                          hintText: 'INV-',
+                          prefixIcon: Icon(Icons.tag, size: 18),
+                        ),
+                        validator: (val) =>
+                            val == null || val.trim().isEmpty ? 'Enter prefix' : null,
+                      );
+                      final estPrefixField = TextFormField(
+                        controller: _estimatePrefixController,
+                        decoration: const InputDecoration(
+                          labelText: 'Quote Prefix *',
+                          hintText: 'EST-',
+                          prefixIcon: Icon(Icons.tag, size: 18),
+                        ),
+                        validator: (val) =>
+                            val == null || val.trim().isEmpty ? 'Enter prefix' : null,
+                      );
+                      final nextNumField = TextFormField(
+                        controller: _nextInvoiceNumberController,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
+                        decoration: const InputDecoration(
+                          labelText: 'Next Invoice # *',
+                          hintText: '1',
+                          prefixIcon: Icon(Icons.pin_outlined, size: 18),
+                        ),
+                        validator: (val) {
+                          final parsed = int.tryParse(val?.trim() ?? '');
+                          if (parsed == null || parsed < 1) {
+                            return 'Min 1';
+                          }
+                          return null;
+                        },
+                      );
+                      if (isCompact) {
+                        return Column(
+                          children: [
+                            invPrefixField,
+                            const SizedBox(height: 10),
+                            estPrefixField,
+                            const SizedBox(height: 10),
+                            nextNumField,
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: invPrefixField),
+                          const SizedBox(width: 10),
+                          Expanded(child: estPrefixField),
+                          const SizedBox(width: 10),
+                          Expanded(child: nextNumField),
+                        ],
+                      );
+                    })(),
+                    const SizedBox(height: 18),
+                    const Text(
                       'Branding: Company Logo & Digital Signature',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                     ),
@@ -508,6 +644,16 @@ class _BusinessProfileDialogState extends ConsumerState<BusinessProfileDialog> {
                     hintText:
                         'Bank: ACME Bank\nAccount: 123456789\nRouting / IFSC / SWIFT: ACM00123\nPayPal / UPI: pay@studio.com',
                     alignLabelWithHint: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _paymentQrPayloadController,
+                  decoration: const InputDecoration(
+                    labelText: 'Payment QR Payload (UPI VPA or Payment URL)',
+                    hintText: 'e.g. billing@okaxis or https://pay.studio.com/checkout',
+                    helperText: 'Generates a dynamic Scan-to-Pay QR code with balance due on PDFs.',
+                    prefixIcon: Icon(Icons.qr_code_2, size: 20),
                   ),
                 ),
                 const SizedBox(height: 16),

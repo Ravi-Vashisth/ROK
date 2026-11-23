@@ -44,7 +44,12 @@ class DashboardTab extends ConsumerWidget {
         defaultSymbol: profile.currencySymbol,
         defaultDecimals: profile.currencyDecimals,
       );
-      return formatMoney(units, symbol: resolved.symbol, decimals: resolved.decimals);
+      return formatMoney(
+        units,
+        symbol: resolved.symbol,
+        decimals: resolved.decimals,
+        currencyCode: resolved.code,
+      );
     }
 
     // Triage items: Overdue active invoices and actionable (PENDING/ACCEPTED) quotes only

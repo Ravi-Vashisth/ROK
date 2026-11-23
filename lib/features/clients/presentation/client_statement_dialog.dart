@@ -193,39 +193,85 @@ class ClientStatementDialog extends ConsumerWidget {
                             separatorBuilder: (_, __) => const Divider(),
                             itemBuilder: (context, index) {
                               final inv = invoices[index];
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: inv.isFullyPaid ? successTone.background : infoTone.background,
-                                  child: Icon(
-                                    inv.isFullyPaid ? Icons.check : Icons.receipt,
-                                    color: inv.isFullyPaid ? successTone.icon : infoTone.icon,
-                                    size: 18,
-                                  ),
-                                ),
-                                title: Text('Invoice ${inv.invoiceNumber} • Issued: ${inv.issueDate}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                subtitle: Text('Terms: ${inv.paymentTerms} • Status: ${inv.computedStatus}', style: const TextStyle(fontSize: 12)),
-                                trailing: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      formatInvMoney(
-                                        inv.totalCents,
-                                        inv.currencyCode,
-                                        inv.currencySymbol,
-                                        inv.currencyDecimals,
-                                      ),
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
+                              final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+                              return LayoutBuilder(
+                                builder: (context, rowConstraints) {
+                                  final stackAmounts = rowConstraints.maxWidth < 420 || textScale > 1.3;
+                                  final badge = CircleAvatar(
+                                    backgroundColor: inv.isFullyPaid ? successTone.background : infoTone.background,
+                                    child: Icon(
+                                      inv.isFullyPaid ? Icons.check : Icons.receipt,
+                                      color: inv.isFullyPaid ? successTone.icon : infoTone.icon,
+                                      size: 18,
                                     ),
-                                    if (inv.balanceDueCents > 0)
+                                  );
+                                  final infoCol = Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
                                       Text(
-                                        'Due: ${formatInvMoney(inv.balanceDueCents, inv.currencyCode, inv.currencySymbol, inv.currencyDecimals)}',
-                                        style: TextStyle(fontSize: 11, color: dangerTone.icon, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()]),
-                                      )
-                                    else
-                                      Text('Paid in Full', style: TextStyle(fontSize: 11, color: successTone.icon)),
-                                  ],
-                                ),
+                                        'Invoice ${inv.invoiceNumber} • Issued: ${inv.issueDate}',
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Terms: ${inv.paymentTerms} • Status: ${inv.computedStatus}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: theme.textTheme.bodySmall?.color ?? colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                  final amountCol = Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: stackAmounts ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        formatInvMoney(
+                                          inv.totalCents,
+                                          inv.currencyCode,
+                                          inv.currencySymbol,
+                                          inv.currencyDecimals,
+                                        ),
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontFeatures: [FontFeature.tabularFigures()]),
+                                      ),
+                                      if (inv.balanceDueCents > 0)
+                                        Text(
+                                          'Due: ${formatInvMoney(inv.balanceDueCents, inv.currencyCode, inv.currencySymbol, inv.currencyDecimals)}',
+                                          style: TextStyle(fontSize: 11, color: dangerTone.text, fontWeight: FontWeight.bold, fontFeatures: const [FontFeature.tabularFigures()]),
+                                        )
+                                      else
+                                        Text('Paid in Full', style: TextStyle(fontSize: 11, color: successTone.text)),
+                                    ],
+                                  );
+
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                    child: Row(
+                                      crossAxisAlignment: stackAmounts ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+                                      children: [
+                                        badge,
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: stackAmounts
+                                              ? Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    infoCol,
+                                                    const SizedBox(height: 6),
+                                                    amountCol,
+                                                  ],
+                                                )
+                                              : infoCol,
+                                        ),
+                                        if (!stackAmounts) ...[
+                                          const SizedBox(width: 12),
+                                          amountCol,
+                                        ],
+                                      ],
+                                    ),
+                                  );
+                                },
                               );
                             },
                           ),

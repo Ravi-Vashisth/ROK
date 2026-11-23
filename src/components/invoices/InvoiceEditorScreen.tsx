@@ -33,7 +33,10 @@ import {
   isZeroRatedTaxMode,
   normalizeTaxMode,
   parsePriceToUnits,
+  removeLineItemById,
+  resolveEffectiveCurrency,
   resolveRegionalTaxBreakdown,
+  updateLineItemRecord,
 } from '../../billingRules';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -146,7 +149,7 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
   }, [initialData, overrideCurrencyCode, businessProfile.currency_symbol, currencySymbol]);
 
   const formatDocMoney = (units: number) =>
-    formatMoneyUnits(units, activeCurrencySymbol, activeCurrencyDecimals);
+    formatMoneyUnits(units, activeCurrencySymbol, activeCurrencyDecimals, overrideCurrencyCode);
 
   const [terms, setTerms] = useState<string>(
     initialData?.terms || businessProfile.default_terms || 'Payment due within agreed terms. Thank you for your business!'
@@ -209,9 +212,18 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
   const [newClientTaxId, setNewClientTaxId] = useState<string>('');
   const [newClientAddress, setNewClientAddress] = useState<string>('');
 
-  const [items, setItems] = useState<any[]>(
-    initialData?.items?.length ? initialData.items : []
-  );
+  const [items, setItems] = useState<any[]>(() => {
+    if (!initialData?.items?.length) return [];
+    return initialData.items.map((it: any) => ({
+      id: it.id || generateUniqueId(),
+      description: String(it.description ?? ''),
+      sacHsn: String(it.sacHsn ?? it.sac_hsn ?? ''),
+      quantity: Math.max(1, parseInt(String(it.quantity ?? 1), 10) || 1),
+      unitPriceCents: Number(it.unitPriceCents ?? it.unit_price_cents ?? 0) || 0,
+      taxSlab: Number(it.taxSlab ?? it.tax_rate_percentage ?? 10) || 0,
+    }));
+  });
+  const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
 
   const selectedClient = clients.find((c) => c.id === selectedClientId);
 
@@ -338,14 +350,22 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
     setItemQty('1');
   };
 
+  const handleUpdateItemField = (id: string, patch: Record<string, any>) => {
+    setItems((prev) => updateLineItemRecord(prev, id, patch));
+  };
+
   const handleUpdateItemTaxSlab = (id: string, slab: number) => {
-    setItems((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, taxSlab: slab } : it))
-    );
+    handleUpdateItemField(id, { taxSlab: slab });
   };
 
   const handleRemoveItem = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+    setPriceDrafts((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setItems((prev) => removeLineItemById(prev, id));
   };
 
   const handleSelectPresetItem = (itemId: string) => {
@@ -709,9 +729,9 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
 
             {/* Saved Service Library Quick Fill */}
             {savedItems.length > 0 && (
-              <div className={`p-3 rounded-xl border flex flex-col sm:flex-row items-stretch sm:items-center gap-2 ${isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-blue-50/50 border-blue-200'}`}>
+              <div className="p-3 rounded-xl border flex flex-col sm:flex-row items-stretch sm:items-center gap-2 accent-soft-card">
                 <div className="flex items-center gap-2 shrink-0">
-                  <Bookmark className="w-4 h-4 text-blue-600 shrink-0" />
+                  <Bookmark className="w-4 h-4 accent-text shrink-0" />
                   <span className="text-xs font-bold">Saved Service Library:</span>
                 </div>
                 <select
@@ -722,11 +742,28 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
                   className={`w-full p-1.5 rounded-lg text-xs border focus:outline-none ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}
                 >
                   <option value="">Select a preset service to 1-click auto-fill...</option>
-                  {savedItems.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.title} ({formatDocMoney(item.defaultPriceCents ?? item.default_price_cents ?? 0)})
-                    </option>
-                  ))}
+                  {savedItems.map((item) => {
+                    const recCode = item.currency_code ?? item.currencyCode ?? '';
+                    const recDec = item.currency_decimals ?? item.currencyDecimals;
+                    const itemCur = resolveEffectiveCurrency({
+                      recordCode: recCode,
+                      recordDecimals: String(recCode).trim() ? recDec : undefined,
+                      defaultCode: overrideCurrencyCode,
+                      defaultSymbol: activeCurrencySymbol,
+                      defaultDecimals: activeCurrencyDecimals,
+                    });
+                    const priceLabel = formatMoneyUnits(
+                      item.defaultPriceCents ?? item.default_price_cents ?? 0,
+                      itemCur.symbol,
+                      itemCur.decimals,
+                      itemCur.code
+                    );
+                    return (
+                      <option key={item.id} value={item.id}>
+                        {item.title} ({priceLabel})
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             )}
@@ -822,16 +859,79 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {items.map((it) => (
                         <tr key={it.id}>
-                          <td className="p-2.5 font-medium">{it.description || '—'}</td>
-                          <td className="p-2.5 text-slate-400 whitespace-nowrap">{it.sacHsn || '-'}</td>
-                          <td className="p-2.5 text-center tabular-nums">{it.quantity}</td>
-                          <td className="p-2.5 text-right font-mono tabular-nums whitespace-nowrap">{formatDocMoney(it.unitPriceCents)}</td>
-                          <td className="p-2.5 text-center">
+                          <td className="p-2 min-w-[160px]">
+                            <input
+                              type="text"
+                              aria-label="Line item description"
+                              value={it.description ?? ''}
+                              onChange={(e) => handleUpdateItemField(it.id, { description: e.target.value })}
+                              placeholder="Item description"
+                              className={`w-full p-1.5 rounded-lg text-xs border font-medium ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}
+                            />
+                          </td>
+                          <td className="p-2 min-w-[90px]">
+                            <input
+                              type="text"
+                              aria-label="SAC or HSN code"
+                              value={it.sacHsn ?? ''}
+                              onChange={(e) => handleUpdateItemField(it.id, { sacHsn: e.target.value })}
+                              placeholder="—"
+                              className={`w-full p-1.5 rounded-lg text-xs border ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}
+                            />
+                          </td>
+                          <td className="p-2 w-20">
+                            <input
+                              type="number"
+                              min={1}
+                              aria-label="Quantity"
+                              value={it.quantity}
+                              onChange={(e) =>
+                                handleUpdateItemField(it.id, {
+                                  quantity: Math.max(1, parseInt(e.target.value, 10) || 1),
+                                })
+                              }
+                              className={`w-full p-1.5 rounded-lg text-xs border text-center tabular-nums ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}
+                            />
+                          </td>
+                          <td className="p-2 min-w-[100px]">
+                            <input
+                              type="text"
+                              aria-label="Unit price"
+                              value={
+                                priceDrafts[it.id] !== undefined
+                                  ? priceDrafts[it.id]
+                                  : formatDecimalUnits(it.unitPriceCents, activeCurrencyDecimals)
+                              }
+                              onFocus={() =>
+                                setPriceDrafts((prev) => ({
+                                  ...prev,
+                                  [it.id]: formatDecimalUnits(it.unitPriceCents, activeCurrencyDecimals),
+                                }))
+                              }
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                setPriceDrafts((prev) => ({ ...prev, [it.id]: raw }));
+                                handleUpdateItemField(it.id, {
+                                  unitPriceCents: parsePriceToUnits(raw, activeCurrencyDecimals),
+                                });
+                              }}
+                              onBlur={() =>
+                                setPriceDrafts((prev) => {
+                                  const next = { ...prev };
+                                  delete next[it.id];
+                                  return next;
+                                })
+                              }
+                              className={`w-full p-1.5 rounded-lg text-xs border text-right font-mono tabular-nums ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}
+                            />
+                          </td>
+                          <td className="p-2 text-center">
                             <select
+                              aria-label="Tax slab percentage"
                               value={isZeroRated ? 0 : (it.taxSlab ?? 10)}
                               disabled={isZeroRated}
                               onChange={(e) => handleUpdateItemTaxSlab(it.id, Number(e.target.value))}
-                              className={`p-1 rounded-lg text-[11px] border ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} disabled:opacity-50`}
+                              className={`p-1.5 rounded-lg text-[11px] border ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'} disabled:opacity-50`}
                             >
                               {TAX_SLAB_OPTIONS.map((rate) => (
                                 <option key={rate} value={rate}>
@@ -842,7 +942,12 @@ export const InvoiceEditorScreen: React.FC<InvoiceEditorScreenProps> = ({
                           </td>
                           <td className="p-2.5 text-right font-mono tabular-nums font-bold whitespace-nowrap">{formatDocMoney(it.quantity * it.unitPriceCents)}</td>
                           <td className="p-2.5 text-center">
-                            <button onClick={() => handleRemoveItem(it.id)} className="text-rose-500 hover:text-rose-700 cursor-pointer">
+                            <button
+                              type="button"
+                              aria-label={`Remove ${it.description || 'line item'}`}
+                              onClick={() => handleRemoveItem(it.id)}
+                              className="text-rose-500 hover:text-rose-700 cursor-pointer"
+                            >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </td>

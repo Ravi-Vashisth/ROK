@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, MessageCircle, MessageSquare, Mail, Check, AlertTriangle } from 'lucide-react';
+import { X, Copy, MessageCircle, MessageSquare, Mail, Check, AlertTriangle, Share2, ClipboardList, Info } from 'lucide-react';
 import {
   buildPaymentReminderMessage,
   buildWhatsAppUrl,
   buildMailtoUrl,
   buildSmsUrl,
+  buildCopyEverythingReminderText,
   normalizePhoneForUri,
   validateWhatsAppPhone,
   getDesktopTelephonyFallbackNote,
-  isIosDevice,
+  isAppleDevice,
   getCurrencyDecimals,
 } from '../../billingRules';
 
@@ -55,10 +56,14 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
 
   const [message, setMessage] = useState<string>(defaultMessage);
   const [copiedJustNow, setCopiedJustNow] = useState<boolean>(false);
+  const [copiedEverythingJustNow, setCopiedEverythingJustNow] = useState<boolean>(false);
+  const [statusNotice, setStatusNotice] = useState<{ text: string; tone: 'info' | 'warning' } | null>(null);
 
   useEffect(() => {
     setMessage(defaultMessage);
     setCopiedJustNow(false);
+    setCopiedEverythingJustNow(false);
+    setStatusNotice(null);
   }, [defaultMessage]);
 
   useEffect(() => {
@@ -74,15 +79,28 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
 
   if (!invoice) return null;
 
-  const isIos = isIosDevice();
+  const isApple = isAppleDevice();
+  const canWebShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   const subject = `Invoice ${invoice.invoice_number} Payment Reminder`;
   const waUrl = buildWhatsAppUrl(clientPhone, message);
   const waValidation = validateWhatsAppPhone(clientPhone);
-  const smsUrl = buildSmsUrl(clientPhone, message, isIos);
+  const smsUrl = buildSmsUrl(clientPhone, message, isApple);
   const mailtoUrl = buildMailtoUrl(clientEmail, subject, message);
+  const copyEverythingText = buildCopyEverythingReminderText({
+    subject,
+    message,
+    clientName,
+    clientEmail,
+    phone: clientPhone,
+  });
   const fallbackNote = getDesktopTelephonyFallbackNote(!!normalizedPhone, !!clientEmail);
 
-  const copyBackupText = async (text: string, toastMessage: string) => {
+  const copyBackupText = async (
+    text: string,
+    toastMessage: string,
+    tone: 'info' | 'warning' = 'info'
+  ) => {
+    setStatusNotice({ text: toastMessage, tone });
     try {
       await navigator.clipboard.writeText(text);
       onCopied?.(toastMessage);
@@ -95,6 +113,33 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
     await copyBackupText(message, 'Payment reminder copied to clipboard.');
     setCopiedJustNow(true);
     setTimeout(() => setCopiedJustNow(false), 2000);
+  };
+
+  const handleCopyEverything = async () => {
+    await copyBackupText(
+      copyEverythingText,
+      'Recipient, subject & reminder copied for WeChat / Telegram / SMS / Email.'
+    );
+    setCopiedEverythingJustNow(true);
+    setTimeout(() => setCopiedEverythingJustNow(false), 2000);
+  };
+
+  const handleWebShare = async () => {
+    if (!canWebShare) return;
+    try {
+      await navigator.share({
+        title: subject,
+        text: message,
+      });
+      setStatusNotice({ text: 'Shared via system share sheet.', tone: 'info' });
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      await copyBackupText(
+        copyEverythingText,
+        'System share unavailable — full reminder copied to clipboard.',
+        'warning'
+      );
+    }
   };
 
   return (
@@ -152,6 +197,24 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
           />
         </div>
 
+        {statusNotice && (
+          <div
+            role="status"
+            className={`px-3 py-2 rounded-xl border text-[11px] flex items-start gap-2 ${
+              statusNotice.tone === 'warning'
+                ? isDarkMode
+                  ? 'bg-amber-950/30 border-amber-900/50 text-amber-300'
+                  : 'bg-amber-50 border-amber-200 text-amber-800'
+                : isDarkMode
+                  ? 'bg-sky-950/30 border-sky-900/50 text-sky-300'
+                  : 'bg-sky-50 border-sky-200 text-sky-800'
+            }`}
+          >
+            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span>{statusNotice.text}</span>
+          </div>
+        )}
+
         <div className="space-y-2">
           <button
             type="button"
@@ -172,12 +235,53 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
             </span>
           </button>
 
+          <button
+            type="button"
+            onClick={handleCopyEverything}
+            className={`w-full p-3 rounded-xl border text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+              isDarkMode
+                ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-200'
+                : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-800'
+            }`}
+          >
+            <span className="flex items-center gap-2.5 text-left">
+              {copiedEverythingJustNow ? (
+                <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+              ) : (
+                <ClipboardList className="w-4 h-4 accent-text shrink-0" />
+              )}
+              <span>
+                {copiedEverythingJustNow
+                  ? 'Copied All Details'
+                  : 'Copy Everything (WeChat / Telegram / SMS)'}
+              </span>
+            </span>
+          </button>
+
+          {canWebShare && (
+            <button
+              type="button"
+              onClick={handleWebShare}
+              className="w-full p-3 rounded-xl border accent-soft-btn text-xs font-bold flex items-center justify-between transition cursor-pointer"
+            >
+              <span className="flex items-center gap-2.5">
+                <Share2 className="w-4 h-4 accent-text" />
+                <span>Share via Device Sheet</span>
+              </span>
+              <span className="text-[11px] font-normal opacity-80">Instant Share</span>
+            </button>
+          )}
+
           <a
             href={waUrl}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() =>
-              copyBackupText(message, 'Opening WhatsApp — reminder copied to clipboard as backup.')
+              copyBackupText(
+                message,
+                'Opening WhatsApp — keep this window open to copy if your browser or Dual Apps intercepted the link.',
+                'warning'
+              )
             }
             className={`w-full p-3 rounded-xl border text-xs font-bold flex items-center justify-between transition ${
               isDarkMode
@@ -213,7 +317,7 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
               onClick={() =>
                 copyBackupText(
                   `${normalizedPhone}: ${message}`,
-                  'Opening SMS — message copied to clipboard as desktop backup.'
+                  'Opening SMS — message copied to clipboard as desktop/ROM backup.'
                 )
               }
               className="w-full p-3 rounded-xl border accent-soft-btn text-xs font-bold flex items-center justify-between transition"
@@ -242,24 +346,34 @@ export const PaymentReminderModal: React.FC<PaymentReminderModalProps> = ({
             href={mailtoUrl}
             onClick={() =>
               copyBackupText(
-                clientEmail ? `${clientEmail}\n\n${message}` : message,
-                'Opening email app — reminder details copied to clipboard as backup.'
+                clientEmail
+                  ? `${clientEmail}\n${subject}\n\n${message}`
+                  : `Subject: ${subject}\n\n${message}`,
+                clientEmail
+                  ? 'Opening email app — reminder details copied to clipboard as backup.'
+                  : 'No client email saved — opening generic compose or use Copy Email+Message.',
+                clientEmail ? 'info' : 'warning'
               )
             }
-            className={`w-full p-3 rounded-xl border text-xs font-bold flex items-center justify-between transition ${
+            className={`w-full p-3 rounded-xl border text-xs font-bold flex items-center justify-between transition gap-2 ${
               isDarkMode
                 ? 'bg-sky-950/30 border-sky-900/50 hover:bg-sky-950/50 text-sky-300'
                 : 'bg-sky-50 border-sky-200 hover:bg-sky-100 text-sky-800'
             }`}
           >
-            <span className="flex items-center gap-2.5">
+            <span className="flex items-center gap-2.5 shrink-0">
               <Mail className="w-4 h-4 text-sky-600" />
               <span>Send Email</span>
             </span>
-            <span className="text-[11px] font-normal opacity-80">
-              {clientEmail || 'Default mail app'}
+            <span className="text-[11px] font-normal opacity-80 text-right truncate">
+              {clientEmail || 'No client email saved — generic compose'}
             </span>
           </a>
+          {!clientEmail && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 px-1">
+              No client email saved — opening generic compose or use Copy Email+Message.
+            </p>
+          )}
         </div>
 
         <div
